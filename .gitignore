@@ -1,0 +1,21 @@
+# Bucky data dirs
+data/
+output/
+raw_output/
+
+# compiled python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Sphinx
+docs/build
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
