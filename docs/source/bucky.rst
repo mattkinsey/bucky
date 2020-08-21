@@ -7,6 +7,7 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
+   bucky.util
    bucky.viz
 
 Submodules
@@ -56,30 +57,6 @@ bucky.postprocess module
 ------------------------
 
 .. automodule:: bucky.postprocess
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-bucky.read\_config module
--------------------------
-
-.. automodule:: bucky.read_config
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-bucky.update\_data\_repos module
---------------------------------
-
-.. automodule:: bucky.update_data_repos
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-bucky.util module
------------------
-
-.. automodule:: bucky.util
    :members:
    :undoc-members:
    :show-inheritance:

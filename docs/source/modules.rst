@@ -1,5 +1,5 @@
-bucky_model
-===========
+bucky
+=====
 
 .. toctree::
    :maxdepth: 4

@@ -10,6 +10,7 @@ Welcome to Bucky's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   getting_started
    install
    usage
    compartment_model
