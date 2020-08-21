@@ -51,7 +51,7 @@ fi
 # US TL shapefiles
 if [ ! -f "shapefiles/tl_2019_us_county.shp" ]; then
 	mkdir -p shapefiles && pushd shapefiles > /dev/null
-        wget --no-check-certificate https://www2.census.gov/geo/tiger/TIGER2019/COUNTY/tl_2019_us_county.zip
+        curl -kL https://www2.census.gov/geo/tiger/TIGER2019/COUNTY/tl_2019_us_county.zip --output tl_2019_us_county.zip
 	unzip -o tl_2019_us_county.zip
 	#rm tl_2019_us_county.zip
 	popd > /dev/null
@@ -59,7 +59,7 @@ fi
 
 if [ ! -f "shapefiles/tl_2019_us_state.shp" ]; then
         mkdir -p shapefiles && pushd shapefiles > /dev/null
-        wget --no-check-certificate https://www2.census.gov/geo/tiger/TIGER2019/STATE/tl_2019_us_state.zip
+        curl -kL https://www2.census.gov/geo/tiger/TIGER2019/STATE/tl_2019_us_state.zip --output tl_2019_us_state.zip
         unzip -o tl_2019_us_state.zip
         #rm tl_2019_us_state.zip
         popd > /dev/null
@@ -69,7 +69,7 @@ fi
 #https://www.cdc.gov/nchs/nvss/bridged_race/Documentation-Bridged-PostcenV2018.pdf
 if [ ! -f "population/US_pop.csv" ]; then
         mkdir -p population && pushd population > /dev/null
-        [ ! -f "pcen_v2018_y1018.txt.zip" ] && wget --no-check-certificate https://www.cdc.gov/nchs/nvss/bridged_race/pcen_v2018_y1018.txt.zip
+        [ ! -f "pcen_v2018_y1018.txt.zip" ] && curl -kL https://www.cdc.gov/nchs/nvss/bridged_race/pcen_v2018_y1018.txt.zip --output pcen_v2018_y1018.txt.zip
         [ ! -f "pcen_v2018_y1018.csv" ] && unzip -p pcen_v2018_y1018.txt.zip pcen_v2018_y1018.txt/pcen_v2018_y1018.txt |
 		 cut -c 5-11,86-93 | sed "s/./&,/7;s/./&,/5" > pcen_v2018_y1018.csv
 	[ ! -f "US_pop.csv" ] && PYTHONPATH=../.. python -c "from bucky.util import bin_age_csv; bin_age_csv('pcen_v2018_y1018.csv','US_pop.csv')" 
@@ -89,7 +89,6 @@ fi
 
 # Contact matrices
 if [ ! -d "contact_matrices_152_countries" ]; then
-        wget --no-check-certificate https://doi.org/10.1371/journal.pcbi.1005697.s002
-        mv journal.pcbi.1005697.s002 journal.pcbi.1005697.s002.zip
+        curl -kL https://doi.org/10.1371/journal.pcbi.1005697.s002 --output journal.pcbi.1005697.s002.zip
         unzip journal.pcbi.1005697.s002.zip       
 fi
