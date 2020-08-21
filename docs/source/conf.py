@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath('../..'))
 import recommonmark
 from recommonmark.transform import AutoStructify
 
-repo_root_url = 'http://test.com/bucky/'
+repo_root_url = 'http://gitlab.com/kinsemc/bucky/'
 
 # -- Project information -----------------------------------------------------
 
