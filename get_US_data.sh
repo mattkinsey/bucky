@@ -17,6 +17,8 @@ function parse_yaml {
    }'
 }
 
+base_dir=$(pwd)
+
 eval $(parse_yaml config.yml)
 
 mkdir -p $data_dir
@@ -73,6 +75,9 @@ if [ ! -f "population/US_pop.csv" ]; then
 	[ ! -f "US_pop.csv" ] && PYTHONPATH=../.. python -c "from bucky.util import bin_age_csv; bin_age_csv('pcen_v2018_y1018.csv','US_pop.csv')" 
         popd > /dev/null
 fi
+
+# Copy included data to data_dir
+cp -nR $base_dir/included_data/* .
 
 # Atlantic COVID Tracking Data
 if [ ! -d "cases/covid-tracking-data" ]; then
