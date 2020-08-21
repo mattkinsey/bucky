@@ -29,6 +29,8 @@ author = 'Matt Kinsey, Kate Tallaksen, Freddy Obrecht'
 # The full version, including alpha/beta/rc tags
 release = '.1'
 
+# change the name of index for RTD
+master_doc = 'index'
 
 # -- General configuration ---------------------------------------------------
 
