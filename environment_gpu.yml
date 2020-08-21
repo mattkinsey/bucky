@@ -1,0 +1,13 @@
+name: bucky_gpu
+dependencies:
+  - cupy
+  - numpy
+  - pandas
+  - geopandas
+  - matplotlib
+  - pyyaml
+  - pyarrow
+  - tqdm
+  - scipy
+  - networkx
+  - xlrd

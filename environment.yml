@@ -1,0 +1,12 @@
+name: bucky
+dependencies:
+  - numpy
+  - pandas
+  - geopandas
+  - matplotlib
+  - pyyaml
+  - pyarrow
+  - tqdm
+  - scipy
+  - networkx
+  - xlrd
