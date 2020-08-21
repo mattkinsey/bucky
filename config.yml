@@ -1,0 +1,5 @@
+# Where to store bucky related things
+# If available, I recommend high speed scratch for raw_ouput_dir
+data_dir: ./data
+raw_output_dir: ./raw_output
+output_dir: ./output
