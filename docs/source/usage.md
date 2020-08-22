@@ -1,5 +1,6 @@
+# Usage
 
-# Creating Input Graphs
+## Creating Input Graphs
 `make_input_graph.py` creates input graphs used by the model and by certain postprocessing steps. This script has one required command line argument: `--date`. This field specifies the **last** date of historical data to use. This is also the **start** date of the simulation.
 
 Arguments and flags:
@@ -8,7 +9,7 @@ Arguments and flags:
 * `--hist_file` : Specify historical case file. *Default:* Uses CSSE data. **Note**: Must be county-level 
 * `--no_update` : Skips updating data repositories 
 
-# Model
+## Model
 `model.py` takes the following arguments (all are optional as they are either flags or have defined defaults):
 
 * `--graph`, `-g`: Graph file to use. *Default*: Most recently created graph.
@@ -26,10 +27,10 @@ Flags:
 
 Each Monte Carlo run produces its own `.feather` file. These files are placed in a subdirectory corresponding to the Monte Carlo ID (created by timestamp). 
 
-# Data Processing
+## Data Postprocessing
 *NOTE*: Currently, all postprocessing scripts use the graph file that was used during the simulation. This is used to create a lookup table to specify the relation between admin levels (e.g. admin 2 codes belonging to admin 1). 
 
-## Postprocessing
+### Monte Carlo Aggregation
 Before any visualization or analysis can be performed, the raw output needs to be postprocessed. This is done by `postprocess.py`. This script aggregates data at the requested levels (e.g. admin1-level) and produces two types of files: one containing quantiles and one containing mean and standard deviation.
 
 Aggregated files are placed in subfolder named using the Monte Carlo ID within the specified output directory. Filenames are constructed by appending the aggregation level with the aggregation type (quantiles vs mean). For example, the following file contains mean and standard deviation at the national level:
@@ -51,7 +52,7 @@ Arguments:
 By default, postprocessing uses geographic information on the graph to aggregate geographic areas. For special cases, a lookup table may be passed in via the `--lookup` command. This is intended to be used for splitting states into non-FIPS divisions. When a lookup table is passed in, the output directory will be prepended with a string to distinguish it from output created from the same simulation using the graph file.
 
 
-## Visualization
+### Visualization
 The Bucky model has the capability to create two types of visualization: plots and maps. Both are contained within the `viz/` directory. 
 
 All visualizations are placed in subfolders in the same directory as the aggregated directory. Plots are placed in `plots/` and maps are placed in `maps/`. These folders can be renamed with command-line arguments, but will still be placed within the aggregated data folder.
@@ -78,7 +79,7 @@ Example:
     └── US.png
 ```
 
-### Plots
+#### Plots
 
 Plots can be created at any of the three admin levels. Each plot contains two subplots. These plots can optionally include historical data. Example usage: 
 ```console
@@ -106,10 +107,10 @@ By default, confidence intervals are plotted using quantiles. Optionally, the st
 * `--n_mc`, `-n`: Number of Monte Carlo runs from simulation. *Default*: 1000
 * `--use_std`: Flag to indicate standard deviation should be used instead of quantiles.
 
-#### Historical Data
+##### Historical Data
 The plotting utility expects historical data to be at the adm2-level.
 
-### Maps
+#### Maps
 Maps are created at the adm0 or adm1 level. In order to create maps, shapefiles must be provided one level down from the requested map (e.g. adm2-level shapefile must be provided for adm1-level maps). Maps can be created for specific dates or distributed throughout the length of the simulation with a requested frequency.
 
 Example usage: 
