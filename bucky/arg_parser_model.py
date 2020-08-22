@@ -14,7 +14,9 @@ cupy_spec = importlib.util.find_spec("cupy")
 cupy_found = cupy_spec is not None
 
 most_recent_graph = max(
-    glob.glob(bucky_cfg["data_dir"] + "/input_graphs/*.p"), key=os.path.getctime, default='Most recently created graph in <data_dir>/input_graphs'
+    glob.glob(bucky_cfg["data_dir"] + "/input_graphs/*.p"),
+    key=os.path.getctime,
+    default="Most recently created graph in <data_dir>/input_graphs",
 )
 
 parser = argparse.ArgumentParser(description="Bucky Model")
@@ -66,7 +68,7 @@ parser.add_argument(
 parser.add_argument(
     "-o",
     "--output_dir",
-    default=bucky_cfg['raw_output_dir'],
+    default=bucky_cfg["raw_output_dir"],
     type=str,
     help="Dir to put the output files",
 )

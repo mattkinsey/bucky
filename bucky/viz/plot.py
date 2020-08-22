@@ -31,7 +31,9 @@ parser.add_argument(
     "-i",
     "--input_dir",
     default=max(
-        glob.glob(os.path.join(bucky_cfg["output_dir"], "*/")), key=os.path.getctime, default='Most recently created folder in output_dir'
+        glob.glob(os.path.join(bucky_cfg["output_dir"], "*/")),
+        key=os.path.getctime,
+        default="Most recently created folder in output_dir",
     ),
     type=str,
     help="Directory location of aggregated data",
@@ -94,10 +96,7 @@ parser.add_argument(
 
 # Can pass in a lookup table to use in place of graph
 parser.add_argument(
-    "--lookup",
-    default=None,
-    type=str,
-    help="Lookup table for geographic mapping info",
+    "--lookup", default=None, type=str, help="Lookup table for geographic mapping info",
 )
 
 # Pass in a specific historical start date and historical file
@@ -116,10 +115,7 @@ parser.add_argument(
 
 # Optional flags
 parser.add_argument(
-    "--adm1_name",
-    default=None,
-    type=str,
-    help="Admin1 to make admin2-level plots for",
+    "--adm1_name", default=None, type=str, help="Admin1 to make admin2-level plots for",
 )
 parser.add_argument(
     "--end_date",
@@ -328,7 +324,9 @@ def plot(
                 )
 
                 # Plot median and outer quantiles
-                median_data.plot(linewidth=2.75, label=readable_col_names[col], ax=axs[i])
+                median_data.plot(
+                    linewidth=2.75, label=readable_col_names[col], ax=axs[i]
+                )
                 axs[i].fill_between(
                     dates,
                     oq_lower,

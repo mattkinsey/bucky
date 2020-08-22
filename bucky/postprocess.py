@@ -40,6 +40,7 @@ def divide_by_pop(dataframe, cols):
 
     return dataframe
 
+
 # Initialize argument parser
 parser = argparse.ArgumentParser(description="Bucky Model postprocessing")
 
@@ -47,7 +48,9 @@ parser = argparse.ArgumentParser(description="Bucky Model postprocessing")
 parser.add_argument(
     "file",
     default=max(
-        glob.glob(bucky_cfg["raw_output_dir"] + "/*/"), key=os.path.getctime, default='Most recently created folder in raw_output_dir'
+        glob.glob(bucky_cfg["raw_output_dir"] + "/*/"),
+        key=os.path.getctime,
+        default="Most recently created folder in raw_output_dir",
     ),
     nargs="?",
     type=str,
@@ -56,11 +59,7 @@ parser.add_argument(
 
 # Graph file used for this run. Defaults to most recently created
 parser.add_argument(
-    "-g",
-    "--graph_file",
-    default=None,
-    type=str,
-    help="Graph file used for simulation",
+    "-g", "--graph_file", default=None, type=str, help="Graph file used for simulation",
 )
 
 # Aggregation levels, e.g. state, county, etc.

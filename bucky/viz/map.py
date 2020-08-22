@@ -22,7 +22,9 @@ parser.add_argument(
     "-i",
     "--input_dir",
     default=max(
-        glob.glob(os.path.join(bucky_cfg["output_dir"], "*/")), key=os.path.getctime, default='Most recently created folder in output_dir'
+        glob.glob(os.path.join(bucky_cfg["output_dir"], "*/")),
+        key=os.path.getctime,
+        default="Most recently created folder in output_dir",
     ),
     type=str,
     help="Directory location of processed simulation data",
@@ -39,11 +41,7 @@ parser.add_argument(
 
 # Graph file used for this run. Defaults to most recently created
 parser.add_argument(
-    "-g",
-    "--graph_file",
-    default=None,
-    type=str,
-    help="Graph file used during model",
+    "-g", "--graph_file", default=None, type=str, help="Graph file used during model",
 )
 
 # Data columns
@@ -119,10 +117,7 @@ parser.add_argument(
 
 # Can pass in a lookup table to use in place of graph
 parser.add_argument(
-    "--lookup",
-    default=None,
-    type=str,
-    help="Lookup table for geographic mapping info",
+    "--lookup", default=None, type=str, help="Lookup table for geographic mapping info",
 )
 
 # Colormap
@@ -384,7 +379,7 @@ def get_state_outline(adm2_data, adm1_data):
 
     outline_df_full = adm1_data.loc[adm1_data["adm1"].isin(adm1_vals)]
 
-    outline_df = gpd.overlay(adm2_data, outline_df_full, how='intersection')
+    outline_df = gpd.overlay(adm2_data, outline_df_full, how="intersection")
 
     return outline_df
 
@@ -584,7 +579,9 @@ if __name__ == "__main__":
 
         # Cast to int
         adm2_shape_data["adm1"] = adm2_shape_data["adm1"].astype(int)
-        adm2_shape_data = adm2_shape_data.assign(adm2=adm2_shape_data["GEOID"].astype(int))
+        adm2_shape_data = adm2_shape_data.assign(
+            adm2=adm2_shape_data["GEOID"].astype(int)
+        )
 
         # use adm1 shape data as well
         adm1_shape_data = gpd.read_file(args.adm1_shape)

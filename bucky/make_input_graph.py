@@ -49,6 +49,7 @@ parser.add_argument(
 
 parser.add_argument("--no_update", action="store_false", help="Skip updating data")
 
+
 def get_case_history(historical_data, end_date, num_days=DAYS_OF_HIST):
     """Gets case and death history for the requested number of days for 
     each FIPS.

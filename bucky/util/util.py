@@ -32,8 +32,12 @@ def map_np_array(a, d):
 
 def bin_age_csv(filename, out_filename):
     df = pd.read_csv(filename, header=None, names=["fips", "age", "N"])
-    df["age_group"] = pd.cut(df["age"], np.append(np.arange(0, 76, 5), 120), right=False)
-    df.groupby(["fips", "age_group"]).sum()["N"].unstack("age_group").to_csv(out_filename)
+    df["age_group"] = pd.cut(
+        df["age"], np.append(np.arange(0, 76, 5), 120), right=False
+    )
+    df.groupby(["fips", "age_group"]).sum()["N"].unstack("age_group").to_csv(
+        out_filename
+    )
 
 
 def _cache_files(fname_list, cache_name):
