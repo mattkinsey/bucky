@@ -9,6 +9,7 @@ sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.4
 sphinxcontrib-tikz==0.4.9
 sphinx-copybutton==0.3.0
+recommonmark==0.6.0
 numpy==1.18.1
 pandas==1.0.3
 geopandas==0.6.1
