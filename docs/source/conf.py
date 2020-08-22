@@ -46,6 +46,7 @@ extensions = ['sphinx.ext.autodoc',
         'sphinxcontrib.tikz',
         'sphinxarg.ext',
         'sphinxcontrib.bibtex',
+        'sphinx_copybutton',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
