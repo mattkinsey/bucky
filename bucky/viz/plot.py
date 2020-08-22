@@ -31,7 +31,7 @@ parser.add_argument(
     "-i",
     "--input_dir",
     default=max(
-        glob.glob(os.path.join(bucky_cfg["output_dir"], "*/")), key=os.path.getctime
+        glob.glob(os.path.join(bucky_cfg["output_dir"], "*/")), key=os.path.getctime, default='Most recently created folder in output_dir'
     ),
     type=str,
     help="Directory location of aggregated data",

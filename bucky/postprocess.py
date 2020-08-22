@@ -47,7 +47,7 @@ parser = argparse.ArgumentParser(description="Bucky Model postprocessing")
 parser.add_argument(
     "file",
     default=max(
-        glob.glob(bucky_cfg["raw_output_dir"] + "/*/"), key=os.path.getctime
+        glob.glob(bucky_cfg["raw_output_dir"] + "/*/"), key=os.path.getctime, default='Most recently created folder in raw_output_dir'
     ),
     nargs="?",
     type=str,
