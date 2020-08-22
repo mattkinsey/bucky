@@ -1,4 +1,5 @@
 import pathlib
+import sys
 
 import yaml
 
@@ -15,3 +16,8 @@ for k in ("data_dir", "raw_output_dir", "output_dir"):
         print("Path " + str(path) + " does not exist. Creating...")
         path.mkdir(parents=True)
     bucky_cfg[k] = str(path.resolve())
+
+# Replace bucky_cfg with human readable descriptions if generating docs
+if 'sphinx' in sys.modules:
+    for k in bucky_cfg:
+        bucky_cfg[k] = 'config.yml: <' + k + '>'
