@@ -57,7 +57,7 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
 
-mathjax_path = 'http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML'
+mathjax_path = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-AMS-MML_HTMLorMML'
 tikz_proc_suite = 'GhostScript'
 tikz_latex_preamble = "\\newcommand{\\asym}{\\alpha_i}\n \
         \\newcommand{\chr}{\\eta_i}\n \
