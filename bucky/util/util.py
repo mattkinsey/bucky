@@ -113,12 +113,16 @@ def import_numerical_libs(gpu=False):
                 lambda src: src.replace("import numpy", "import cupy"),
             )
 
+        import cupyx
+        cp.scatter_add = cupyx.scatter_add
+
         xp = cp
         import cupyx.scipy.sparse as sparse
     else:
         import scipy.integrate._ivp.ivp as ivp
         import numpy as xp
         import scipy.sparse as sparse
+        xp.scatter_add = xp.add.at
 
 
 # TODO we should monkeypatch this
