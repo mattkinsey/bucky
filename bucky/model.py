@@ -24,8 +24,10 @@ from .util import (
     import_numerical_libs,
     map_np_array,
     truncnorm,
+    date_to_t_int,
     force_cpu,
 )
+from .npi import read_npi_file
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -151,40 +153,53 @@ class SEIR_covid(object):
                 nx.get_node_attributes(G, G.graph["adm2_key"]).values(), dtype=int
             )
 
-            # dict keyed by ADM1 that has a list of indices in that ADM1
-            self.state_map = defaultdict(partial(np.empty, (0,), int))
-            for k, v in nx.get_node_attributes(G, G.graph["adm1_key"]).items():
-                self.state_map[v] = np.append(self.state_map[v], k)
+            # Mapping from index to adm1 
             self.adm1_id = np.fromiter(
                 nx.get_node_attributes(G, G.graph["adm1_key"]).values(), dtype=int
             )
+            self.adm1_id = xp.asarray(self.adm1_id, dtype=np.int32)
+            self.adm1_max = force_cpu(self.adm1_id.max())
 
             # Make contact mats sym and normalized
             self.contact_mats = G.graph["contact_mats"]
             logging.debug(f"graph contact mats: {G.graph['contact_mats']}")
-            self.contact_mats["NPI"] = (
-                self.contact_mats["home"]
-                + self.contact_mats["other_locations"]
-                + 0.5 * self.contact_mats["work"]
-            )
             for mat in self.contact_mats:
-                c_mat = self.contact_mats[mat]
+                c_mat = xp.array(self.contact_mats[mat])
                 c_mat = (c_mat + c_mat.T) / 2.0
-                c_mat /= np.sum(c_mat, axis=0)[None, :]
                 self.contact_mats[mat] = c_mat
+            # remove all_locations so we can sum over the them ourselves
+            if 'all_locations' in self.contact_mats: del self.contact_mats['all_locations']
 
-            self.contact_mat = xp.array(self.contact_mats["NPI"])  # ["all_locations"]
+            self.Cij = xp.vstack([self.contact_mats[k][None, ...] for k in sorted(self.contact_mats)])
+
             # Get stratified population (and total)
-            self.n_age_grps = self.contact_mat.shape[0]  # s["all_locations"].shape[0]
             N_age_init = nx.get_node_attributes(G, "N_age_init")
             self.Nij = xp.asarray((np.vstack(list(N_age_init.values())) + 0.0001).T)
             self.Nj = xp.asarray(np.sum(self.Nij, axis=0))
-
-            logging.info("done")
+            self.n_age_grps = self.Nij.shape[0]
 
             self.G = G
+            n_nodes = len(self.G.nodes())
 
             self.first_date = datetime.date.fromisoformat(G.graph["start_date"])
+
+            if args.npi_file is not None :
+                logging.info(f"Using NPI from: {args.npi_file}")
+                self.npi_params = read_npi_file(args.npi_file, self.first_date, self.t_max, self.adm2_id, args.disable_npi)
+                for k in self.npi_params:
+                    self.npi_params[k] = xp.array(self.npi_params[k])
+                    if k == 'contact_weights':
+                        self.npi_params[k] = xp.broadcast_to(self.npi_params[k], (self.t_max+1, n_nodes, 4))
+                    else:
+                        self.npi_params[k] = xp.broadcast_to(self.npi_params[k], (self.t_max+1, n_nodes))
+            else:
+                self.npi_params = {'r0_reduct': xp.broadcast_to(xp.ones(1), (self.t_max+1, n_nodes)),
+                                   'contact_weights': xp.broadcast_to(xp.ones(1), (self.t_max+1, n_nodes, 4)),
+                                   'mobility_reduct': xp.broadcast_to(xp.ones(1), (self.t_max+1, n_nodes))}
+
+            self.Cij = xp.broadcast_to(self.Cij, (n_nodes,)+self.Cij.shape)
+            self.npi_params['contact_weights'] = self.npi_params['contact_weights'][..., None, None]
+
             # Build adj mat for the RHS
             G = nx.convert_node_labels_to_integers(G)
 
@@ -196,6 +211,10 @@ class SEIR_covid(object):
             A = A.toarray()
 
             self.baseline_A = A / xp.sum(A, axis=0)
+
+            self.adm0_cfr_reported = None
+            self.adm1_cfr_reported = None
+            self.adm2_cfr_reported = None
 
         # make sure we always reset to baseline
         self.A = self.baseline_A
@@ -216,6 +235,9 @@ class SEIR_covid(object):
         for k in self.params:
             if type(self.params[k]).__module__ == np.__name__:
                 self.params[k] = xp.asarray(self.params[k])
+
+        self.params.H = xp.broadcast_to(self.params.H[:, None], self.Nij.shape)
+        self.params.F = xp.broadcast_to(self.params.F[:, None], self.Nij.shape)
 
         self.case_reporting = self.estimate_reporting(days_back=22)
 
@@ -243,14 +265,14 @@ class SEIR_covid(object):
         hist_case_reporting = xp.mean(self.case_reporting[:-4], axis=0)
 
         self.params["CASE_REPORT"] = hist_case_reporting
-        self.params["F"] = xp.tile(self.params.F[:, None], n_nodes)
-        self.params["H"] = (
-            xp.tile(self.params.H[:, None], n_nodes)
-            * 8398.0
-            / 11469.0
-            * 8353.0
-            / 17530.0
-        )
+        #self.params["F"] = xp.tile(self.params.F[:, None], n_nodes)
+        #self.params["H"] = (
+        #    xp.tile(self.params.H[:, None], n_nodes)
+        #    * 8398.0
+        #    / 11469.0
+        #    * 8353.0
+        #    / 17530.0
+        #)
         self.params["THETA"] = xp.broadcast_to(
             self.params["THETA"][:, None], (self.n_age_grps, n_nodes)
         )
@@ -359,24 +381,18 @@ class SEIR_covid(object):
         doubling_t = xp.repeat(adm0_doubling_t[:, None], cases.shape[-1], axis=1)
 
         # adm1
-        for state_ids in self.state_map.values():
-            adm1_doubling_t = (
-                time_window
-                * xp.log(2.0)
-                / xp.log(
-                    xp.sum(cases[:, state_ids], axis=1)
-                    / xp.sum(cases_old[:, state_ids], axis=1)
-                )
-            )
+        cases_adm1 = xp.zeros((self.adm1_max+1,days_back), dtype=float)
+        cases_old_adm1 = xp.zeros((self.adm1_max+1,days_back), dtype=float)
 
-            valid_values = xp.isfinite(adm1_doubling_t) & (
-                adm1_doubling_t > min_doubling_t
-            )
-            # ValueError: currently, CuPy only supports slices that consist of one boolean array.
-            # case_report[valid_values,state_ids] = adm1_case_report[valid_values]
-            for i, valid in enumerate(valid_values):
-                if valid:
-                    doubling_t[i, state_ids] = adm1_doubling_t[i]
+        xp.scatter_add(cases_adm1, self.adm1_id, cases.T)
+        xp.scatter_add(cases_old_adm1, self.adm1_id, cases_old.T)
+
+        adm1_doubling_t = time_window*xp.log(2.0)/xp.log(cases_adm1/cases_old_adm1)
+
+        tmp_doubling_t = adm1_doubling_t[self.adm1_id].T
+        valid_mask = xp.isfinite(tmp_doubling_t) & (tmp_doubling_t > min_doubling_t)
+
+        doubling_t[valid_mask] = tmp_doubling_t[valid_mask]
 
         # adm2
         adm2_doubling_t = time_window * xp.log(2.0) / xp.log(cases / cases_old)
@@ -394,15 +410,14 @@ class SEIR_covid(object):
 
         return hist_doubling_t
 
-    # Todo this should get case_lag from params['D_REPORT_TIME']
     def estimate_reporting(self, days_back=14, case_lag=None, min_deaths=100.0):
 
         if case_lag is None:
             adm0_cfr_by_age = (
-                self.params.F * xp.sum(self.Nij, axis=1) / xp.sum(self.Nj, axis=0)
+                xp.sum(self.params.F * self.Nij, axis=1) / xp.sum(self.Nj, axis=0)
             )
             adm0_cfr_total = xp.sum(
-                self.params.F * xp.sum(self.Nij, axis=1) / xp.sum(self.Nj, axis=0),
+                xp.sum(self.params.F * self.Nij, axis=1) / xp.sum(self.Nj, axis=0),
                 axis=0,
             )
             case_lag = xp.sum(
@@ -419,44 +434,49 @@ class SEIR_covid(object):
 
         # adm0
         adm0_cfr_param = xp.sum(
-            self.params.F * xp.sum(self.Nij, axis=1) / xp.sum(self.Nj, axis=0), axis=0
+            xp.sum(self.params.F * self.Nij, axis=1) / xp.sum(self.Nj, axis=0), axis=0
         )
-        adm0_cfr_reported = xp.sum(self.death_hist_cum[-days_back:], axis=1) / xp.sum(
-            cases_lagged, axis=1
-        )
-        adm0_case_report = adm0_cfr_param / adm0_cfr_reported
+        if self.adm0_cfr_reported is None:
+            self.adm0_cfr_reported = xp.sum(self.death_hist_cum[-days_back:], axis=1) / xp.sum(
+                cases_lagged, axis=1
+            )
+        adm0_case_report = adm0_cfr_param / self.adm0_cfr_reported
 
         case_report = xp.repeat(
             adm0_case_report[:, None], cases_lagged.shape[-1], axis=1
         )
 
         # adm1
-        for state_ids in self.state_map.values():
-            state_deaths = xp.sum(self.death_hist_cum[-days_back:, state_ids], axis=1)
-            adm1_cfr_param = xp.sum(
-                self.params.F
-                * xp.sum(self.Nij[:, state_ids], axis=1)
-                / xp.sum(self.Nj[state_ids], axis=0),
-                axis=0,
-            )
-            adm1_cfr_reported = xp.sum(
-                self.death_hist_cum[-days_back:, state_ids], axis=1
-            ) / xp.sum(cases_lagged[:, state_ids], axis=1)
-            adm1_case_report = adm1_cfr_param / adm1_cfr_reported
+        adm1_cfr_param = xp.zeros((self.adm1_max+1,), dtype=float)
+        adm1_totpop = xp.zeros((self.adm1_max+1,), dtype=float)
 
-            valid_values = (state_deaths > min_deaths) & xp.isfinite(adm1_case_report)
+        tmp_adm1_cfr = xp.sum(self.params.F * self.Nij, axis=0)
 
-            # ValueError: currently, CuPy only supports slices that consist of one boolean array.
-            # case_report[valid_values,state_ids] = adm1_case_report[valid_values]
-            for i, valid in enumerate(valid_values):
-                if valid:
-                    case_report[i, state_ids] = adm1_case_report[i]
+        xp.scatter_add(adm1_cfr_param, self.adm1_id, tmp_adm1_cfr)
+        xp.scatter_add(adm1_totpop, self.adm1_id, self.Nj)
+        adm1_cfr_param /= adm1_totpop
+
+        # adm1_cfr_reported is const, only calc it once and cache it
+        if self.adm1_cfr_reported is None:
+            self.adm1_deaths_reported = xp.zeros((self.adm1_max+1, days_back), dtype=float)
+            adm1_lagged_cases = xp.zeros((self.adm1_max+1, days_back), dtype=float)
+
+            xp.scatter_add(self.adm1_deaths_reported, self.adm1_id, self.death_hist_cum[-days_back:].T)
+            xp.scatter_add(adm1_lagged_cases, self.adm1_id, cases_lagged.T)
+
+            self.adm1_cfr_reported = (self.adm1_deaths_reported/adm1_lagged_cases)
+
+        adm1_case_report = (adm1_cfr_param[:,None]/self.adm1_cfr_reported)[self.adm1_id].T
+
+        valid_mask = xp.isfinite(self.adm1_deaths_reported > min_deaths)[self.adm1_id].T & xp.isfinite(adm1_case_report)
+        case_report[valid_mask] = adm1_case_report[valid_mask]
 
         # adm2
-        adm2_cfr_param = xp.sum(self.params.F[:, None] * (self.Nij / self.Nj), axis=0)
+        adm2_cfr_param = xp.sum(self.params.F * (self.Nij / self.Nj), axis=0)
 
-        adm2_cfr_reported = self.death_hist_cum[-days_back:] / cases_lagged
-        adm2_case_report = adm2_cfr_param / adm2_cfr_reported
+        if self.adm2_cfr_reported is None:
+            self.adm2_cfr_reported = self.death_hist_cum[-days_back:] / cases_lagged
+        adm2_case_report = adm2_cfr_param / self.adm2_cfr_reported
 
         valid_adm2_cr = xp.isfinite(adm2_case_report) & (
             self.death_hist_cum[-days_back:] > min_deaths
@@ -471,7 +491,7 @@ class SEIR_covid(object):
     #
 
     @staticmethod
-    def _dGdt_vec(t, y, Nij, Cij, Aij, par):
+    def _dGdt_vec(t, y, Nij, contact_mats, Aij, par, npi):
         # constraint on values
         lower, upper = (0.0, 1.0)  # bounds for state vars
 
@@ -491,7 +511,7 @@ class SEIR_covid(object):
         dG = xp.zeros(s.shape)
 
         # effective params after damping w/ allocated stuff
-        BETA_eff = par["BETA"]
+        BETA_eff = npi['r0_reduct'][int(t)] * par["BETA"]
         F_eff = par["F_eff"]
         H = par["H"]
         THETA = par["THETA"]
@@ -499,12 +519,17 @@ class SEIR_covid(object):
         GAMMA_H = par["GAMMA_H"]
         SIGMA = par["SIGMA"]
 
+        Cij = npi['contact_weights'][int(t)] * contact_mats
+        Cij = xp.sum(Cij, axis=1)
+        Cij /= xp.sum(Cij, axis=2)[..., None]
+
+        Aij_eff = npi['mobility_reduct'][int(t)][...,None] * Aij
+
         # perturb Aij
         # new_R0_fracij = truncnorm(xp, 1.0, .1, size=Aij.shape, a_min=1e-6)
         # new_R0_fracij = xp.clip(new_R0_fracij, 1e-6, None)
         # A = Aij * new_R0_fracij
         # Aij_eff = A / xp.sum(A, axis=0)
-        Aij_eff = Aij
 
         # Infectivity matrix (I made this name up, idk what its really called)
         I_tot = xp.sum(Nij * s[Iai], axis=0)
@@ -512,7 +537,7 @@ class SEIR_covid(object):
         # I_tmp = (Aij.T @ I_tot.T).T
         I_tmp = I_tot @ Aij_eff  # using identity (A@B).T = B.T @ A.T
 
-        beta_mat = s[Si] * (Cij @ I_tmp)
+        beta_mat = s[Si] * xp.squeeze((Cij @ I_tmp.T[...,None]), axis=-1).T
         beta_mat /= Nij
 
         # dS/dt
@@ -585,12 +610,12 @@ class SEIR_covid(object):
         # do integration
         t_eval = np.arange(0, self.t_max + self.dt, self.dt)
         sol = ivp.solve_ivp(
-            self.dGdt_vec,
+            self._dGdt_vec,
             method="RK23",
             t_span=(0.0, self.t_max),
             y0=self.y.reshape(-1),
             t_eval=t_eval,
-            args=(self.Nij, self.contact_mat, self.A, self.params),
+            args=(self.Nij, self.Cij, self.A, self.params, self.npi_params),
         )
 
         y = sol.y.reshape(N_compartments, self.n_age_grps, -1, len(t_eval))
@@ -674,9 +699,9 @@ class SEIR_covid(object):
             "CASE_REPORT": np.broadcast_to(
                 self.params.CASE_REPORT[:, None], adm2_ids.shape
             ).reshape(-1),
-            "Reff": np.broadcast_to(
+            "Reff": (self.npi_params['r0_reduct'].T*np.broadcast_to(
                 (self.params.R0 * (np.diag(self.A)))[:, None], adm2_ids.shape
-            ).reshape(-1),
+            )).reshape(-1),
             "doubling_t": np.broadcast_to(
                 self.doubling_t[:, None], adm2_ids.shape
             ).reshape(-1),
@@ -748,6 +773,7 @@ if __name__ == "__main__":
     success = 0
     times = []
     pbar = tqdm(total=n_mc)
+
     while success < n_mc:
         start = datetime.datetime.now()
         try:

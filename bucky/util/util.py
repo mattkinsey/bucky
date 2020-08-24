@@ -39,6 +39,8 @@ def bin_age_csv(filename, out_filename):
         out_filename
     )
 
+def date_to_t_int(dates, start_date):
+        return np.array([(date - start_date).days for date in dates], dtype=int)
 
 def _cache_files(fname_list, cache_name):
     tmp = {f: open(f, "rb").read() for f in fname_list}

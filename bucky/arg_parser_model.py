@@ -72,3 +72,6 @@ parser.add_argument(
     type=str,
     help="Dir to put the output files",
 )
+
+parser.add_argument('--npi_file', default=None, nargs='?', type=str, help='File containing NPIs')
+parser.add_argument('--disable-npi', action='store_true', help='Disable all active NPI from the npi_file at the start of the run')
