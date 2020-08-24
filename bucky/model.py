@@ -104,6 +104,7 @@ class SEIR_covid(object):
         if seed is not None:
             random.seed(seed)
             np.random.seed(seed)
+            xp.random.seed(seed)
             self.rseed = seed
 
         #
