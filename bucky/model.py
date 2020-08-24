@@ -24,6 +24,7 @@ from .util import (
     import_numerical_libs,
     map_np_array,
     truncnorm,
+    force_cpu,
 )
 
 if __name__ == "__main__":
@@ -94,6 +95,7 @@ class SEIR_covid(object):
         Hi = xp.hstack([Rhi, Ici])  # all compartments in hospitalization
         Ci = xp.hstack([Ii, Ici, Rhi])
 
+        N_compartments = force_cpu(Di + 1)
         N_compartments = Di.get() + 1 if "cupy" in type(Di).__module__ else Di + 1
 
     def reset(self, seed=None, params=None):
@@ -609,7 +611,7 @@ class SEIR_covid(object):
 
         n_time_steps = out.shape[-1]
 
-        t_output = sol.t.get() if "cupy" in type(sol.t).__module__ else sol.t
+        t_output = force_cpu(sol.t)
         dates = [
             pd.Timestamp(self.first_date + datetime.timedelta(days=np.round(t)))
             for t in t_output
@@ -680,12 +682,12 @@ class SEIR_covid(object):
             ).reshape(-1),
         }
 
-        # Collapse the gamma-distributed compartments
+        # Collapse the gamma-distributed compartments and move everything to cpu
         for k in df_data:
             if df_data[k].ndim == 2:
                 df_data[k] = xp.sum(df_data[k], axis=0)
-            if "cupy" in type(df_data[k]).__module__:
-                df_data[k] = df_data[k].get()
+
+            df_data[k] = force_cpu(df_data[k])
 
         # Append data to the hdf5 file
         output_folder = os.path.join(outdir, self.mc_id)

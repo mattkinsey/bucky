@@ -137,6 +137,8 @@ def truncnorm(xp, loc=0.0, scale=1.0, size=1, a_min=None, a_max=None):
             return ret
         ret[~valid] = xp.random.normal(loc, scale, ret[~valid].shape)
 
+def force_cpu(var):
+    return var.get() if "cupy" in type(var).__module__ else var
 
 def _banner():
     print(r" ____             _          ")
