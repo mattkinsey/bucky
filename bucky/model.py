@@ -96,7 +96,6 @@ class SEIR_covid(object):
         Ci = xp.hstack([Ii, Ici, Rhi])
 
         N_compartments = force_cpu(Di + 1)
-        N_compartments = Di.get() + 1 if "cupy" in type(Di).__module__ else Di + 1
 
     def reset(self, seed=None, params=None):
 
@@ -656,7 +655,7 @@ class SEIR_covid(object):
         df_data = {
             "ADM2_ID": adm2_ids.reshape(-1),
             "date": dates.reshape(-1),
-            "rid": np.full(out.shape[-1], seed).reshape(-1),  # TODO broadcast_to
+            "rid": np.broadcast_to(seed, out.shape[-1]).reshape(-1),
             "S": out[Si],
             "E": out[Ei],
             "I": out[Ii],
