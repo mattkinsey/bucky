@@ -82,19 +82,19 @@ class SEIR_covid(object):
         Im = self.model_struct["Im"]
         Rhn = self.model_struct["Rhn"]
         Si = 0
-        Ei = np.array(Si + 1 + np.arange(En), dtype=int)
-        Ii = np.array(Ei[-1] + 1 + np.arange(Im), dtype=int)
-        Ici = np.array(Ii[-1] + 1 + np.arange(Im), dtype=int)
-        Iasi = np.array(Ici[-1] + 1 + np.arange(Im), dtype=int)
+        Ei = xp.array(Si + 1 + xp.arange(En), dtype=int)
+        Ii = xp.array(Ei[-1] + 1 + xp.arange(Im), dtype=int)
+        Ici = xp.array(Ii[-1] + 1 + xp.arange(Im), dtype=int)
+        Iasi = xp.array(Ici[-1] + 1 + xp.arange(Im), dtype=int)
         Ri = Iasi[-1] + 1
-        Rhi = np.array(Ri + 1 + np.arange(Rhn), dtype=int)
+        Rhi = xp.array(Ri + 1 + xp.arange(Rhn), dtype=int)
         Di = Rhi[-1] + 1
 
-        Iai = np.hstack([Ii, Iasi, Ici])  # all I compartmetns
-        Hi = np.hstack([Rhi, Ici])  # all compartments in hospitalization
-        Ci = np.hstack([Ii, Ici, Rhi])
+        Iai = xp.hstack([Ii, Iasi, Ici])  # all I compartmetns
+        Hi = xp.hstack([Rhi, Ici])  # all compartments in hospitalization
+        Ci = xp.hstack([Ii, Ici, Rhi])
 
-        N_compartments = Di + 1
+        N_compartments = Di.get() + 1 if "cupy" in type(Di).__module__ else Di + 1
 
     def reset(self, seed=None, params=None):
 
