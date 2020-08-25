@@ -11,7 +11,7 @@ Create Anaconda env (use GPU is you have an nvidia gpu that you want to use)
 
 .. code-block:: bash
 
-  conda env create --file enviroment[_gpu].yml
+  conda env create --file environment[_gpu].yml
   conda activate bucky[_gpu]
 
 (Optional) Edit config.yml to change the location of data and output directories
