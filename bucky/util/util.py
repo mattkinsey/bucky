@@ -95,18 +95,20 @@ def import_numerical_libs(gpu=False):
 
         import cupy as cp
 
-        # NB: this isn't correct in general but it works for what scipy solve_ivp needs...
-        def cp_searchsorted(a, v, side="right", sorter=None):
-            if side != "right":
-                raise NotImplementedError
-            if sorter is not None:
-                raise NotImplementedError  # sorter = list(range(len(a)))
-            tmp = v >= a
-            if cp.all(tmp):
-                return len(a)
-            return cp.argmax(~tmp)
+        # add cupy search sorted for scipy.ivp (this was only added to cupy sometime between v6.0.0 and v7.0.0)
+        if ~hasattr(cp, 'searchsorted'):
+            # NB: this isn't correct in general but it works for what scipy solve_ivp needs...
+            def cp_searchsorted(a, v, side="right", sorter=None):
+                if side != "right":
+                    raise NotImplementedError
+                if sorter is not None:
+                    raise NotImplementedError  # sorter = list(range(len(a)))
+                tmp = v >= a
+                if cp.all(tmp):
+                    return len(a)
+                return cp.argmax(~tmp)
 
-        cp.searchsorted = cp_searchsorted
+            cp.searchsorted = cp_searchsorted
 
         for name in ("common", "base", "rk", "ivp"):
             ivp = modify_and_import(
