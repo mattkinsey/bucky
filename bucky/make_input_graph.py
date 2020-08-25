@@ -465,6 +465,11 @@ if __name__ == "__main__":
     # Get historical data for start date of the simulation
     date_data = hist_data.set_index(["FIPS", "date"]).xs(last_date, level=1)
 
+    # grab from covid tracking project, (only defined at state level)
+    ct_data = pd.read_csv(bucky_cfg['data_dir'] + '/cases/covid_tracking.csv')
+    ct_data = ct_data.loc[ct_data.date >= last_date]
+    ct_data.set_index(['adm1', 'date'], inplace=True)
+
     # Remove duplicates
     # TODO: Find cause of duplicates
     date_data = date_data.loc[~date_data.index.duplicated(keep="first")]
@@ -604,6 +609,7 @@ if __name__ == "__main__":
         adm1_to_str=statefp_to_name,
         adm0_name="US",
         start_date=last_date,
+        covid_tracking_data = ct_data,
     )
     G2.add_edges_from(G.edges(), weight=0.0, R0_frac=1.0)
     G2.update(nodes=G.nodes(data=True))
