@@ -1,4 +1,7 @@
 name: bucky_gpu
+channels:
+  - conda-forge   #for up to date cupy
+  - defaults
 dependencies:
   - cupy
   - numpy
