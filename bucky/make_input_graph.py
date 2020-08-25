@@ -417,7 +417,7 @@ if __name__ == "__main__":
     age_data.index = age_data.index.astype(int)
 
     # Add age-stratified data for territories
-    territory_df = pd.read_csv("data/population/territory_pop.csv", index_col="fips")
+    territory_df = pd.read_csv(bucky_cfg['data_dir'] + "/population/territory_pop.csv", index_col="fips")
     territory_df.index = territory_df.index.astype(int)
 
     age_data = age_data.append(territory_df)

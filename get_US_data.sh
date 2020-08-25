@@ -72,7 +72,7 @@ if [ ! -f "population/US_pop.csv" ]; then
         [ ! -f "pcen_v2018_y1018.txt.zip" ] && curl -kL https://www.cdc.gov/nchs/nvss/bridged_race/pcen_v2018_y1018.txt.zip --output pcen_v2018_y1018.txt.zip
         [ ! -f "pcen_v2018_y1018.csv" ] && unzip -p pcen_v2018_y1018.txt.zip pcen_v2018_y1018.txt/pcen_v2018_y1018.txt |
 		 cut -c 5-11,86-93 | sed "s/./&,/7;s/./&,/5" > pcen_v2018_y1018.csv
-	[ ! -f "US_pop.csv" ] && PYTHONPATH=../.. python -c "from bucky.util import bin_age_csv; bin_age_csv('pcen_v2018_y1018.csv','US_pop.csv')" 
+	[ ! -f "US_pop.csv" ] && PYTHONPATH=$base_dir python -c "from bucky.util import bin_age_csv; bin_age_csv('pcen_v2018_y1018.csv','US_pop.csv')" 
         popd > /dev/null
 fi
 

@@ -9,9 +9,10 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from .read_config import bucky_cfg
 
 # Options for correcting territory data
-TERRITORY_DATA = "data/population/territory_pop.csv"
+TERRITORY_DATA = bucky_cfg['data_dir'] + "/population/territory_pop.csv"
 ADD_AMERICAN_SAMOA = False
 
 # CSSE UIDs for Michigan prison information
@@ -444,7 +445,7 @@ def process_csse_data():
     is written to a CSV.
 
     """
-    data_dir = "data/cases/COVID-19/csse_covid_19_data/csse_covid_19_time_series/"
+    data_dir = bucky_cfg['data_dir'] + "/cases/COVID-19/csse_covid_19_data/csse_covid_19_time_series/"
 
     # Get confirmed and deaths files
     confirmed_file = os.path.join(data_dir, "time_series_covid19_confirmed_US.csv")
@@ -472,7 +473,7 @@ def process_csse_data():
     data = distribute_unallocated_csse(confirmed_file, deaths_file, data)
 
     # Write to files
-    hist_file = "data/cases/csse_hist_timeseries.csv"
+    hist_file = bucky_cfg['data_dir'] + "/cases/csse_hist_timeseries.csv"
 
     logging.info("Saving CSSE historical data as %s" % hist_file)
     data.to_csv(hist_file)
@@ -515,7 +516,7 @@ def process_covid_tracking_data():
     df = df.merge(sampled_fips, on="adm1")
 
     # Save
-    covid_tracking_name = "data/cases/covid_tracking.csv"
+    covid_tracking_name = bucky_cfg['data_dir'] + "/cases/covid_tracking.csv"
     logging.info("Saving COVID Tracking Data as %s" % covid_tracking_name)
     df.to_csv(covid_tracking_name, index=False)
 
@@ -615,8 +616,8 @@ def update_usafacts_data():
     urls = [case_url, deaths_url]
 
     filenames = [
-        "data/cases/covid_confirmed_usafacts.csv",
-        "data/cases/covid_deaths_usafacts.csv",
+        bucky_cfg['data_dir'] + "/cases/covid_confirmed_usafacts.csv",
+        bucky_cfg['data_dir'] + "/cases/covid_deaths_usafacts.csv",
     ]
 
     # Download case and death data
@@ -636,7 +637,7 @@ def update_usafacts_data():
     # Sort by date
     data["date"] = pd.to_datetime(data["date"])
     data = data.sort_values(by="date")
-    data.to_csv("data/cases/usafacts_hist.csv")
+    data.to_csv(bucky_cfg['data_dir'] + "/cases/usafacts_hist.csv")
 
 
 def update_repos():
@@ -644,10 +645,10 @@ def update_repos():
     """
     # Repos to update
     repos = [
-        "data/cases/COVID-19/",
-        "data/mobility/DL-COVID-19/",
-        "data/mobility/COVIDExposureIndices/",
-        "data/cases/covid-tracking-data",
+        bucky_cfg['data_dir'] + "/cases/COVID-19/",
+        bucky_cfg['data_dir'] + "/mobility/DL-COVID-19/",
+        bucky_cfg['data_dir'] + "/mobility/COVIDExposureIndices/",
+        bucky_cfg['data_dir'] + "/cases/covid-tracking-data",
     ]
 
     for repo in repos:
@@ -663,26 +664,19 @@ def update_repos():
     update_usafacts_data()
 
 
-def git_pull(rel_path):
+def git_pull(abs_path):
     """Updates a git repository given its path.
     
     Parameters
     ----------
     rel_path : string
-        Relative location of repository to update
+        Abs path location of repository to update
     """
 
-    # Save current working directory
-    curr_dir = os.getcwd()
-    repo = curr_dir + "/" + rel_path
-
-    git_command = "git pull origin master"
-
-    # CD into directory
-    os.chdir(repo)
+    git_command = "git pull --rebase origin master"
 
     # pull
-    process = subprocess.Popen(git_command.split(), stdout=subprocess.PIPE)
+    process = subprocess.Popen(git_command.split(), stdout=subprocess.PIPE, cwd=abs_path)
     output, error = process.communicate()
 
     if error:
@@ -691,9 +685,6 @@ def git_pull(rel_path):
         git_name = "git remote -v"
         process = subprocess.Popen(git_name.split(), stdout=subprocess.PIPE)
         logging.error("Error pulling from repo: " + output)
-
-    # Return to original working directory
-    os.chdir(curr_dir)
 
 
 if __name__ == "__main__":
