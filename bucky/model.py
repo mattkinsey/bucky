@@ -279,7 +279,7 @@ class SEIR_covid(object):
         self.params["GAMMA_H"] = xp.broadcast_to(
             self.params["GAMMA_H"][:, None], (self.n_age_grps, n_nodes)
         )
-        self.params["F_eff"] = self.params["F"] / self.params["H"]
+        self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0., 1.)
 
         # init state vector (self.y)
         y = xp.zeros((N_compartments, self.n_age_grps, n_nodes))
