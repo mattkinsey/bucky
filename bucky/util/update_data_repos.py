@@ -479,9 +479,9 @@ def process_csse_data():
     data.to_csv(hist_file)
 
 
-def process_covid_tracking_data():
-    """Processes data from the Atlantic's COVID Tracking project to match
-    the format of other preprocessed data sources.
+def update_covid_tracking_data():
+    """Downloads and processes data from the Atlantic's COVID Tracking project
+    to match the format of other preprocessed data sources.
 
     The COVID Tracking project contains data at a state-level. Each state
     is given a random FIPS selected from all FIPS in that state. This is
@@ -489,8 +489,19 @@ def process_covid_tracking_data():
     written to a CSV.
 
     """
+    url = 'https://api.covidtracking.com/v1/states/daily.csv'
+    filename = bucky_cfg['data_dir'] + "/cases/covid_tracking_raw.csv"
+    # Download data
+    context = ssl._create_unverified_context()
+    # Create filename
+    with urllib.request.urlopen(url, context=context) as testfile, open(
+        filename, "w"
+    ) as f:
+        f.write(testfile.read().decode())
+
+
     # Read file
-    data_file = "data/cases/covid-tracking-data/data/states_daily_4pm_et.csv"
+    data_file = bucky_cfg['data_dir'] + "/cases/covid_tracking_raw.csv"
     df = pd.read_csv(data_file)
 
     # Fix date
@@ -648,7 +659,6 @@ def update_repos():
         bucky_cfg['data_dir'] + "/cases/COVID-19/",
         bucky_cfg['data_dir'] + "/mobility/DL-COVID-19/",
         bucky_cfg['data_dir'] + "/mobility/COVIDExposureIndices/",
-        bucky_cfg['data_dir'] + "/cases/covid-tracking-data",
     ]
 
     for repo in repos:
@@ -658,7 +668,7 @@ def update_repos():
     process_csse_data()
 
     # Process COVID Tracking Data
-    # process_covid_tracking_data()
+    update_covid_tracking_data()
 
     # Process USA Facts
     update_usafacts_data()

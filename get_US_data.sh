@@ -79,14 +79,6 @@ fi
 # Copy included data to data_dir
 cp -nR $base_dir/included_data/* .
 
-# Atlantic COVID Tracking Data
-if [ ! -d "cases/covid-tracking-data" ]; then
-        mkdir -p cases && pushd cases > /dev/null
-        echo Cloning Atlantic COVID Tracking Data repo
-        git -c http.sslVerify=false clone https://github.com/COVID19Tracking/covid-tracking-data.git
-        popd > /dev/null
-fi
-
 # Contact matrices
 if [ ! -d "contact_matrices_152_countries" ]; then
         curl -kL https://doi.org/10.1371/journal.pcbi.1005697.s002 --output journal.pcbi.1005697.s002.zip
