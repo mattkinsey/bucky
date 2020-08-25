@@ -216,6 +216,19 @@ class SEIR_covid(object):
             self.adm1_cfr_reported = None
             self.adm2_cfr_reported = None
 
+            if 'covid_tracking_data' in G.graph:
+                self.rescale_chr = True
+                ct_data = G.graph['covid_tracking_data']
+                ct_data.reset_index(inplace=True)
+                hosp_data = ct_data.loc[ct_data.date == str(self.first_date)][['adm1','hospitalizedCurrently']]
+                hosp_data_adm1 = hosp_data['adm1'].to_numpy()
+                hosp_data_count = hosp_data['hospitalizedCurrently'].to_numpy()
+                self.adm1_current_hosp = xp.zeros((self.adm1_max+1,), dtype=float)
+                self.adm1_current_hosp[hosp_data_adm1] = hosp_data_count
+            else:
+                self.rescale_chr = False
+                           
+
         # make sure we always reset to baseline
         self.A = self.baseline_A
 
@@ -323,10 +336,25 @@ class SEIR_covid(object):
         )
 
         y[Si] -= I_init
-        y[Ii] = (1.0 - self.params.H) * I_init / len(Ii)
 
+        y[Ii] = (1.0 - self.params.H) * I_init / len(Ii)
         y[Ici] = ic_frac * self.params.H * I_init / (len(Ici))
         y[Rhi] = hosp_frac * self.params.H * I_init / (Rhn)
+
+        if self.rescale_chr:
+            adm1_hosp = xp.zeros((self.adm1_max+1, ), dtype=float)
+            xp.scatter_add(adm1_hosp, self.adm1_id, xp.sum(y[Hi]*self.Nij, axis=(0,1)))
+            adm2_hosp_frac = (self.adm1_current_hosp/adm1_hosp)[self.adm1_id]
+            adm0_hosp_frac = xp.nansum(self.adm1_current_hosp)/xp.nansum(adm1_hosp)
+            #print(adm0_hosp_frac)
+            adm2_hosp_frac[xp.isnan(adm2_hosp_frac)] = adm0_hosp_frac
+            self.params.H = xp.clip(self.params.H * adm2_hosp_frac[None,:], 0.,1.)
+            self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0.,1.)
+    
+            y[Ii] = (1.0 - self.params.H) * I_init / len(Ii)
+            y[Ici] = ic_frac * self.params.H * I_init / (len(Ici))
+            y[Rhi] = hosp_frac * self.params.H * I_init / (Rhn)
+
         # y[Ici] = self.params.H * I_init / (len(Ici)+Rhn)
         # y[Rhi] = (
         #    # (self.params.THETA / self.params.GAMMA_H) *
