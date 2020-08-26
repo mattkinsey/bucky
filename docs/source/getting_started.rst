@@ -1,6 +1,8 @@
 Getting Started
 +++++++++++++++
 
+This should work on Linux or OSX.
+
 Clone repo
 
 .. code-block:: bash
