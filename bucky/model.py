@@ -628,7 +628,7 @@ class SEIR_covid(object):
     def dGdt_vec(self, t, y, Nij, Cij, Aij, par):
         return self._dGdt_vec(t, y, Nij, Cij, Aij, par)
 
-    def run_once(self, seed=None, outdir="raw_output/", output=True):
+    def run_once(self, seed=None, outdir="raw_output/", output=True, output_queue=None):
 
         # reset everything
         self.reset(seed=seed)
@@ -753,7 +753,12 @@ class SEIR_covid(object):
         out_df.reset_index(inplace=True)
 
         if output:
-            out_df.to_feather(os.path.join(output_folder, str(seed) + ".feather"))
+            #out_df.to_feather(os.path.join(output_folder, str(seed) + ".feather"))
+            for date, date_df in out_df.groupby('date'):
+                if output_queue is None:
+                    date_df.reset_index().to_feather(os.path.join(output_folder, str(seed) + '_' + str(date.date()) + ".feather"))
+                else:
+                    output_queue.put((os.path.join(output_folder, str(seed) + '_' + str(date.date()) + ".feather"), date_df))
 
         # TODO we should output the per monte carlo param rolls, this got lost when we switched from hdf5
 
@@ -796,6 +801,16 @@ if __name__ == "__main__":
         env = SEIR_covid(randomize_params_on_reset=True)
         n_mc = args.n_mc
 
+    import threading, queue
+
+    to_write = queue.Queue()
+
+    def writer():
+        # Call to_write.get() until it returns None
+        for fname, df in iter(to_write.get, None):
+            df.reset_index().to_feather(fname)
+    threading.Thread(target=writer).start()
+
     total_start = datetime.datetime.now()
     seed = 0
     success = 0
@@ -805,7 +820,7 @@ if __name__ == "__main__":
     while success < n_mc:
         start = datetime.datetime.now()
         try:
-            env.run_once(seed=seed, outdir=args.output_dir)
+            env.run_once(seed=seed, outdir=args.output_dir, output_queue=to_write)
             success += 1
         except SimulationException:
             pass
@@ -815,4 +830,5 @@ if __name__ == "__main__":
         pbar.update(1)
 
         logging.info(f"{seed}: {datetime.datetime.now() - start}")
+    to_write.put(None)
     logging.info(f"Total runtime: {datetime.datetime.now() - total_start}")
