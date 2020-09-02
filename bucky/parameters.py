@@ -2,8 +2,19 @@ import copy
 
 import numpy as np
 import yaml
+import scipy.special as sc
 
 from .util import dotdict, truncnorm
+
+
+def mPERT_sample(mu, a=0.0, b=1.0, gamma=4.0, var=None):
+    if var is not None:
+        gamma = (mu - a) * (b - mu) / var - 3.0
+    alp1 = 1.0 + gamma * ((mu - a) / (b - a))
+    alp2 = 1.0 + gamma * ((b - mu) / (b - a))
+    u = np.random.random_sample(mu.shape)
+    alp3 = sc.betaincinv(alp1, alp2, u)
+    return (b - a) * alp3 + a
 
 
 def calc_Te(Tg, Ts, n, f):
@@ -65,7 +76,11 @@ class seir_params(object):
         params = dotdict({})
         for p in base_params:
             # Scalars
-            if "mean" in base_params[p]:
+            if "gamma" in base_params[p]:
+                mu = copy.deepcopy(base_params[p]["mean"])
+                params[p] = mPERT_sample(np.array([mu]), gamma=base_params[p]["gamma"])
+
+            elif "mean" in base_params[p]:
                 if "CI" in base_params[p]:
                     if var:
                         params[p] = truncnorm(
