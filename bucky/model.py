@@ -80,7 +80,7 @@ class SEIR_covid(object):
         self.s_par = seir_params(args.par_file, args.gpu)
         self.model_struct = self.s_par.generate_params(None)["model_struct"]
 
-        global Si, Ei, Ii, Ici, Iasi, Ri, Rhi, Di, Iai, Hi, Ci, N_compartments, En, Im, Rhn
+        global Si, Ei, Ii, Ici, Iasi, Ri, Rhi, Di, Iai, Hi, Ci, N_compartments, En, Im, Rhn, incH, incC
         En = self.model_struct["En"]
         Im = self.model_struct["Im"]
         Rhn = self.model_struct["Rhn"]
@@ -97,7 +97,10 @@ class SEIR_covid(object):
         Hi = xp.hstack([Rhi, Ici])  # all compartments in hospitalization
         Ci = xp.hstack([Ii, Ici, Rhi])
 
-        N_compartments = force_cpu(Di + 1)
+        incH = Di + 1
+        incC = incH + 1
+
+        N_compartments = force_cpu(incC + 1)
 
     def reset(self, seed=None, params=None):
 
@@ -609,6 +612,9 @@ class SEIR_covid(object):
         dG[Rhi] -= F_eff * (THETA) * s[Rhi]
         dG[Di] = xp.sum(F_eff * (THETA) * s[Rhi], axis=0)
 
+        dG[incH] = par["SYM_FRAC"] * H * En * SIGMA * s[Ei[-1]]
+        dG[incC] = par["SYM_FRAC"] * par["CASE_REPORT"] * En * SIGMA * s[Ei[-1]]
+
         # bring back to 1d for the ODE api
         dG = dG.reshape(-1)
 
@@ -654,7 +660,7 @@ class SEIR_covid(object):
         out = xp.sum(out, axis=1)
 
         population_conserved = (
-            xp.diff(xp.around(xp.sum(out, axis=(0, 1)), 1)) == 0.0
+                xp.diff(xp.around(xp.sum(out[:incH], axis=(0, 1)), 1)) == 0.0
         ).all()
         if not population_conserved:
             logging.error("Population not conserved!")
@@ -689,9 +695,12 @@ class SEIR_covid(object):
         )
         daily_cases = xp.diff(
             cum_cases,
-            prepend=self.case_hist_cum[-1][:, None] / self.params.CASE_REPORT[:, None],
+            prepend=0, #self.case_hist_cum[-1][:, None] / self.params.CASE_REPORT[:, None],
             axis=-1,
         )
+        n_daily_cases = xp.diff(out[incC], axis=-1, prepend=self.case_hist_cum[-1][:, None])
+        n_cum_cases = self.case_hist_cum[-1][:, None] + out[incC]
+
         # cum_cases_reported = cum_cases * self.params["SYM_FRAC"] * self.params.CASE_REPORT[:,None]
         daily_cases_reported = (
             daily_cases * self.params.CASE_REPORT[:, None]  # /self.params.SYM_FRAC
@@ -717,6 +726,8 @@ class SEIR_covid(object):
             "R": out[Ri],
             "Rh": out[Rhi],
             "D": out[Di],
+            "CiH": out[incH],
+            "CiI": out[incC],
             "NC": daily_cases.reshape(-1),
             "NCR": daily_cases_reported.reshape(-1),
             "ND": daily_deaths.reshape(-1),
@@ -724,6 +735,8 @@ class SEIR_covid(object):
             "CCR": cum_cases_reported.reshape(-1),
             "ICU": xp.sum(icu, axis=0).reshape(-1),
             "VENT": xp.sum(vent, axis=0).reshape(-1),
+            "nNCR": n_daily_cases.reshape(-1),
+            "nCCR": n_cum_cases.reshape(-1),
             "CASE_REPORT": np.broadcast_to(
                 self.params.CASE_REPORT[:, None], adm2_ids.shape
             ).reshape(-1),
