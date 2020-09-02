@@ -138,6 +138,12 @@ parser.add_argument(
     help="Plot historical data in addition to simulation data",
 )
 
+parser.add_argument(
+    "-q",
+    "--extra_quantiles",
+    action="store_true",
+    help="Indicate that more than 5 quantiles should be plotted")
+
 # Size of window in days
 parser.add_argument(
     "-w",
@@ -212,6 +218,7 @@ def plot(
     hist_columns,
     use_std=False,
     n_mc=None,
+    extra_quantiles=False
 ):
     """Given a dataframe and a key, creates plots with requested columns.
 
@@ -245,6 +252,8 @@ def plot(
     n_mc : int
         Number of Monte Carlos performed for this simulation. Required if
         using standard deviation instead of confidence intervals.
+    extra_quantiles : bool
+        If true, more than 5 quantiles will be plotted
     """
 
     # Need N to plot standard dev
@@ -312,54 +321,86 @@ def plot(
                 ]
                 dates = median_data.index.values
 
-                # Grab other quantiles in pairs
-                outer_quantiles = [quantiles[0], quantiles[-1]]
-                oq_lower = area_data.xs(outer_quantiles[0], level=1)[col]
-                oq_upper = area_data.xs(outer_quantiles[1], level=1)[col]
-                outer_label = (
-                    str(outer_quantiles[0] * 100)
-                    + "% - "
-                    + str(outer_quantiles[1] * 100)
-                    + "% CI"
-                )
+                if extra_quantiles:
 
-                # Plot median and outer quantiles
-                median_data.plot(
-                    linewidth=2.75, label=readable_col_names[col], ax=axs[i]
-                )
-                axs[i].fill_between(
-                    dates,
-                    oq_lower,
-                    oq_upper,
-                    linewidth=0,
-                    alpha=0.2,
-                    color="0.2",
-                    interpolate=True,
-                    label=outer_label,
-                )
+                    # Plot median and outer quantiles
+                    median_data.plot(
+                        linewidth=1.5, color='k', alpha=0.75, label=readable_col_names[col], ax=axs[i]
+                    )
 
-                # If there are more than 3, plot the inner quantiles as well
-                if num_intervals > 3:
-                    inner_quantiles = [quantiles[1], quantiles[-2]]
-                    iq_lower = area_data.xs(inner_quantiles[0], level=1)[col]
-                    iq_upper = area_data.xs(inner_quantiles[1], level=1)[col]
+                    # Iterate over pairs of quantiles
+                    num_quantiles = len(quantiles)
 
-                    inner_label = (
-                        str(inner_quantiles[0] * 100)
+                    # Scale opacity
+                    alpha = 1. / (num_quantiles  // 2)
+                    for q in range(num_quantiles // 2):
+
+                        lower_q = quantiles[q]
+                        upper_q = quantiles[num_quantiles - 1 - q]
+
+                        lower_data = area_data.xs(lower_q, level=1)[col]
+                        upper_data = area_data.xs(upper_q, level=1)[col]
+
+                        axs[i].fill_between(
+                            dates,
+                            lower_data,
+                            upper_data,
+                            linewidth=0,
+                            alpha=alpha,
+                            color="b",
+                            interpolate=True
+                        )
+
+                else:
+                    # Plot median and outer quantiles
+                    median_data.plot(
+                        linewidth=2.75, label=readable_col_names[col], ax=axs[i]
+                    )
+
+                    # Grab other quantiles in pairs
+                    outer_quantiles = [quantiles[0], quantiles[-1]]
+                    oq_lower = area_data.xs(outer_quantiles[0], level=1)[col]
+                    oq_upper = area_data.xs(outer_quantiles[1], level=1)[col]
+                    outer_label = (
+                        str(outer_quantiles[0] * 100)
                         + "% - "
-                        + str(inner_quantiles[1] * 100)
+                        + str(outer_quantiles[1] * 100)
                         + "% CI"
                     )
+
                     axs[i].fill_between(
                         dates,
-                        iq_lower,
-                        iq_upper,
+                        oq_lower,
+                        oq_upper,
                         linewidth=0,
                         alpha=0.2,
-                        color="r",
+                        color="0.2",
                         interpolate=True,
-                        label=inner_label,
+                        label=outer_label,
                     )
+
+                    # If there are more than 3, plot the inner quantiles as well
+                    if num_intervals > 3:
+                        inner_quantiles = [quantiles[1], quantiles[-2]]
+                        iq_lower = area_data.xs(inner_quantiles[0], level=1)[col]
+                        iq_upper = area_data.xs(inner_quantiles[1], level=1)[col]
+
+                        inner_label = (
+                            str(inner_quantiles[0] * 100)
+                            + "% - "
+                            + str(inner_quantiles[1] * 100)
+                            + "% CI"
+                        )
+                        axs[i].fill_between(
+                            dates,
+                            iq_lower,
+                            iq_upper,
+                            linewidth=0,
+                            alpha=0.2,
+                            color="r",
+                            interpolate=True,
+                            label=inner_label,
+                        )
 
                 # axs[i].set_ylim([.8*oq_lower.min(), 1.2*oq_upper.max()])
 
@@ -424,7 +465,8 @@ def plot(
                     print("Historical data missing for: " + name)
 
             axs[i].grid(True)
-            axs[i].legend()
+            if not extra_quantiles:
+                axs[i].legend()
             axs[i].set_ylabel("Count")
 
         plot_filename = os.path.join(output_dir, name + ".png")
@@ -450,6 +492,7 @@ def make_plots(
     admin1=None,
     hist_start=None,
     hist_file=None,
+    extra_quantiles=False
 ):
     """Wrapper function around plot. Creates plots, aggregating data if necessary.
 
@@ -488,7 +531,8 @@ def make_plots(
     hist_file : string or None
         File to use for historical data. If None, uses default defined at
         top of file.
-
+    extra_quantiles : bool
+        If true, more than 5 quantiles will be plotted
     """
     # Loop over requested levels
     for level in adm_levels:
@@ -601,6 +645,7 @@ def make_plots(
             hist_columns=hist_columns,
             use_std=use_std,
             n_mc=N,
+            extra_quantiles=extra_quantiles
         )
 
 
@@ -645,6 +690,7 @@ if __name__ == "__main__":
     verbose = args.verbose
     use_std = args.use_std
     end_date = args.end_date
+    extra_quantiles = args.extra_quantiles
 
     # Plot
     make_plots(
@@ -662,4 +708,5 @@ if __name__ == "__main__":
         args.adm1_name,
         hist_start,
         hist_file,
+        extra_quantiles
     )
