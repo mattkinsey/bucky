@@ -461,9 +461,8 @@ def process_csse_data():
     data = data[data.FIPS != 0]
     data = data.set_index(["FIPS", "date"])
 
-    # Distribute territory, NYC, and Michigan DOC data
+    # Distribute territory and Michigan DOC data
     data = distribute_territory_data(data, ADD_AMERICAN_SAMOA)
-    data = distribute_nyc_data(data)
     data = distribute_mdoc(data, deaths_file)
 
     data = data.reset_index()
