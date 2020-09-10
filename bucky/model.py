@@ -854,12 +854,12 @@ if __name__ == "__main__":
         try:
             env.run_once(seed=seed, outdir=args.output_dir, output_queue=to_write)
             success += 1
+            pbar.update(1)
         except SimulationException:
             pass
         seed += 1
         run_time = (datetime.datetime.now() - start).total_seconds()
         times.append(run_time)
-        pbar.update(1)
 
         logging.info(f"{seed}: {datetime.datetime.now() - start}")
     to_write.put(None)
