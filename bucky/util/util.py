@@ -136,23 +136,6 @@ def import_numerical_libs(gpu=False):
         import scipy.sparse as sparse
         xp.scatter_add = xp.add.at
 
-
-# TODO we should monkeypatch this
-def truncnorm(xp, loc=0.0, scale=1.0, size=1, a_min=None, a_max=None):
-    """ Provides a truncnorm implementation that is compatible with cupy
-    """
-    ret = xp.random.normal(loc, scale, size)
-    if a_min is None:
-        a_min = -xp.inf
-    if a_max is None:
-        a_max = xp.inf
-
-    while True:
-        valid = (ret > a_min) & (ret < a_max)
-        if valid.all():
-            return ret
-        ret[~valid] = xp.random.normal(loc, scale, ret[~valid].shape)
-
 def force_cpu(var):
     return var.get() if "cupy" in type(var).__module__ else var
 
