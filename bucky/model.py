@@ -370,7 +370,7 @@ class SEIR_covid(object):
             adm0_hosp_frac = xp.nansum(self.adm1_current_hosp)/xp.nansum(adm1_hosp)
             #print(adm0_hosp_frac)
             adm2_hosp_frac[xp.isnan(adm2_hosp_frac)] = adm0_hosp_frac
-            self.params.H = xp.clip(self.params.H * adm2_hosp_frac[None,:], 0.,1.)
+            self.params.H = xp.clip(self.params.H * adm2_hosp_frac[None,:], self.params.F, 1.)
             self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0.,1.)
     
             y[Ii] = (1.0 - self.params.H) * I_init / len(Ii)
