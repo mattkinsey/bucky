@@ -11,22 +11,26 @@ D:
   clip: [0, null]
 
 Tg: 
-  mean: 7.
-  CI: [5.,9.]
+  mean: 6.
+  CI: [4.,8.]
   clip: [1, null]
 
 Ts: 
-  mean: 5.
-  CI: [4.,6.]
+  mean: 6.
+  CI: [5.,7.]
   clip: [1., null]
 
 ASYM_FRAC:
-  mean: 0.35
+  mean: 0.40
+  clip: [0., 1.]
+
+rel_inf_asym:
+  mean: .75
   clip: [0., 1.]
 
 frac_trans_before_sym:
-  mean: 0.40
-  CI: [0.3, 0.5]
+  mean: 0.50
+  CI: [0.4, 0.6]
   clip: [0., 1.]
 
 F:
@@ -40,14 +44,14 @@ H:
 
 I_TO_H_TIME:
   age_bins: [[0,49], [50,64], [65,100]]
-  values: [6.9, 7.2, 6.2]
+  values: [6., 6., 3.]
   stddev: [5.0, 5.3, 5.7]
   clip: [1., null]
 
 H_TIME:
   age_bins: [[0,49], [50,64], [65,100]]
-  values: [3.9, 4.9, 6.3]
-  stddev: [3.7, 4.3, 5.1]
+  values: [3., 4., 6.]
+  #stddev: [3.7, 4.3, 5.1]
   clip: [1., null]
 
 ICU_TIME:
