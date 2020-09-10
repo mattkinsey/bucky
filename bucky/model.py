@@ -582,7 +582,7 @@ class SEIR_covid(object):
         # Aij_eff = A / xp.sum(A, axis=0)
 
         # Infectivity matrix (I made this name up, idk what its really called)
-        I_tot = xp.sum(Nij * s[Iai], axis=0)
+        I_tot = xp.sum(Nij * s[Iai], axis=0)  - (1.-par['rel_inf_asym'])*xp.sum(Nij*s[Iasi], axis=0)
 
         # I_tmp = (Aij.T @ I_tot.T).T
         I_tmp = I_tot @ Aij_eff  # using identity (A@B).T = B.T @ A.T
