@@ -278,8 +278,8 @@ class SEIR_covid(object):
             ifr_scale = ifr_scale * 0.0065/adm0_ifr #TODO this should be in par file (its from planning scenario5)
             self.params.F = xp.clip(self.params.F*ifr_scale, 0., 1.)
 
-        case_reporting = self.estimate_reporting(days_back=22).get()
-        self.case_reporting = self.estimate_reporting(days_back=22)
+        case_reporting = force_cpu(self.estimate_reporting(days_back=22))
+        self.case_reporting = xp.array(mPERT_sample(mu=xp.clip(case_reporting,a_min=.1, a_max=1.), a=xp.clip(.8*case_reporting, a_min=.1, a_max=None), b=xp.clip(1.2*case_reporting, a_min=None, a_max=1.), gamma=250.))
 
         self.doubling_t = self.estimate_doubling_time()
 
