@@ -59,7 +59,7 @@ class seir_params(object):
         while True:  # WTB python do-while...
             params = self.reroll_params(self.base_params, var)
             params = self.calc_derived_params(params)
-            if params.Te > 1.0 and params.Tg > params.Te:
+            if (params.Te > 1.0 and params.Tg > params.Te and params.Ti > 1.) or var==0.:
                 return params
 
     def reroll_params(self, base_params, var):
