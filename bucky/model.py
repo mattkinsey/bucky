@@ -705,7 +705,15 @@ class SEIR_covid(object):
         daily_deaths = xp.diff(
             out[Di], prepend=self.death_hist_cum[-1][:, None], axis=-1
         )
-        # daily_deaths_reported = daily_deaths * self.params.CASE_REPORT[:,None]
+        
+        init_inc_death_mean = xp.mean(xp.sum(daily_deaths[:,1:8],axis=0))
+        hist_inc_death_mean = xp.mean(xp.sum(self.death_hist[-7:], axis=-1))
+
+        inc_death_rejection_fac = 1.25
+        if (init_inc_death_mean > inc_death_rejection_fac*hist_inc_death_mean) or (inc_death_rejection_fac*init_inc_death_mean < hist_inc_death_mean):
+            logging.error("Inconsistent inc deaths, rejecting run")
+            raise SimulationException
+
         cum_cases = (
             xp.sum(
                 self.Nij[..., None] * (1.0 - xp.sum(y[: Ei[-1] + 1], axis=0)), axis=0
