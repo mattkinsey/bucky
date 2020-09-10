@@ -387,8 +387,8 @@ class SEIR_covid(object):
 
         R_init -= xp.sum(y[Rhi], axis=0)
 
-        y[Si] -= self.params.ASYM_FRAC * I_init
-        y[Iasi] = self.params.ASYM_FRAC * I_init / len(Iasi)
+        y[Si] -= self.params.ASYM_FRAC / self.params.SYM_FRAC * I_init
+        y[Iasi] = self.params.ASYM_FRAC / self.params.SYM_FRAC * I_init / len(Iasi)
         y[Si] -= exp_frac[None, :] * I_init
         y[Ei] = exp_frac[None, :] * I_init / len(Ei)
         y[Si] -= R_init
