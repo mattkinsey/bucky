@@ -43,7 +43,7 @@ from .util.util import ivp, sparse, xp  # isort:skip
 OUTPUT = True
 
 # TODO move to param file
-RR_VAR = 0.3  # variance to use for MC of params with no CI
+RR_VAR = 0.2  # variance to use for MC of params with no CI
 
 
 class SimulationException(Exception):
@@ -332,23 +332,27 @@ class SEIR_covid(object):
         current_I[current_I < 0.0] = 0.0
         current_I *= 1.0 / (self.params["CASE_REPORT"])
 
+        R_fac = xp.array(mPERT_sample(mu=.5, a=.25, b=.75, gamma=250.))
+        E_fac = xp.array(mPERT_sample(mu=1.5, a=1., b=2., gamma=250.))
+        H_fac = xp.array(mPERT_sample(mu=5., a=4., b=6., gamma=250.))
+
         I_init = current_I[None, :] / self.Nij / self.n_age_grps
         D_init = self.init_deaths[None, :] / self.Nij / self.n_age_grps
         recovered_init = (
             (self.init_cum_cases)
             / self.params["SYM_FRAC"]
             / (self.params["CASE_REPORT"])
-        )
+        ) * R_fac
         R_init = (
             (recovered_init) / self.Nij / self.n_age_grps
             - D_init
             - I_init / self.params["SYM_FRAC"]
         )  # rhi handled later
 
-        ic_frac = 1.0 / (1.0 + self.params.THETA / self.params.GAMMA_H)
-        hosp_frac = 1.0 / (1.0 + self.params.GAMMA_H / self.params.THETA)
+        ic_frac = H_fac / (1.0 + self.params.THETA / self.params.GAMMA_H)
+        hosp_frac = H_fac / (1.0 + self.params.GAMMA_H / self.params.THETA)
         exp_frac = (
-            1.0
+            E_fac
             * xp.ones(I_init.shape[-1])  # 5
             # * np.diag(self.A)
             # * np.sum(self.A, axis=1)
@@ -359,7 +363,7 @@ class SEIR_covid(object):
 
         y[Si] -= I_init
 
-        y[Ii] = (1.0 - self.params.H) * I_init / len(Ii)
+        y[Ii] = (1.0 - H_fac * self.params.H) * I_init / len(Ii)
         y[Ici] = ic_frac * self.params.H * I_init / (len(Ici))
         y[Rhi] = hosp_frac * self.params.H * I_init / (Rhn)
 
@@ -373,7 +377,7 @@ class SEIR_covid(object):
             self.params.H = xp.clip(self.params.H * adm2_hosp_frac[None,:], self.params.F, 1.)
             self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0.,1.)
     
-            y[Ii] = (1.0 - self.params.H) * I_init / len(Ii)
+            y[Ii] = (1.0 - H_fac * self.params.H) * I_init / len(Ii)
             y[Ici] = ic_frac * self.params.H * I_init / (len(Ici))
             y[Rhi] = hosp_frac * self.params.H * I_init / (Rhn)
 
