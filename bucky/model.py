@@ -151,6 +151,14 @@ class SEIR_covid(object):
             self.death_hist_cum = death_hist.astype(float)
             self.death_hist = xp.diff(death_hist, axis=0).astype(float)  # TODO rename
 
+            if 'IFR' in G.nodes[list(G.nodes.keys())[0]]:
+                print('found ifr on graph')
+                self.use_G_ifr = True
+                node_IFR = nx.get_node_attributes(G, "IFR")
+                self.ifr = xp.asarray((np.vstack(list(node_IFR.values()))).T)
+            else:
+                self.use_G_ifr = False
+
             # grab the geo id's for later
             self.adm2_id = np.fromiter(
                 nx.get_node_attributes(G, G.graph["adm2_key"]).values(), dtype=int
@@ -255,6 +263,17 @@ class SEIR_covid(object):
         self.params.H = xp.broadcast_to(self.params.H[:, None], self.Nij.shape)
         self.params.F = xp.broadcast_to(self.params.F[:, None], self.Nij.shape)
 
+        if self.use_G_ifr:
+            self.ifr[xp.isnan(self.ifr)] = 0.
+            ifr_scale = truncnorm(xp, 1.0, RR_VAR, a_min=1e-6)
+            self.params.F = self.ifr * self.params['SYM_FRAC']
+            adm0_ifr = xp.sum(self.ifr * self.Nij) / xp.sum(self.Nj)
+            ifr_scale = ifr_scale * 0.0065/adm0_ifr
+            #print(adm0_ifr)
+            self.params.F = xp.clip(self.params.F*ifr_scale, 0., 1.)
+            #self.params.F[xp.isnan(self.params.F)] = 0. # TODO where are these nans coming from? check make_input_graph
+
+        case_reporting = self.estimate_reporting(days_back=22).get()
         self.case_reporting = self.estimate_reporting(days_back=22)
 
         self.doubling_t = self.estimate_doubling_time()

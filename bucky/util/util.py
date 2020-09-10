@@ -29,15 +29,23 @@ def map_np_array(a, d):
         n[a == k] = d[k]
     return n
 
+def estimate_IFR(age):
+    # from best fit in https://www.medrxiv.org/content/10.1101/2020.07.23.20160895v4.full.pdf
+    #std err is 0.17 on the const and 0.003 on the linear term
+    return np.exp(-7.56 + 0.121 * age)/100.
 
 def bin_age_csv(filename, out_filename):
     df = pd.read_csv(filename, header=None, names=["fips", "age", "N"])
+    pop_weighted_IFR = df.N.to_numpy()*estimate_IFR(df.age.to_numpy())
+    df = df.assign(IFR=pop_weighted_IFR)
     df["age_group"] = pd.cut(
         df["age"], np.append(np.arange(0, 76, 5), 120), right=False
     )
-    df.groupby(["fips", "age_group"]).sum()["N"].unstack("age_group").to_csv(
-        out_filename
-    )
+    df = df.groupby(["fips", "age_group"]).sum()[["N", "IFR"]].unstack("age_group")
+
+    df = df.assign(IFR=df.IFR/df.N)
+
+    df.to_csv(out_filename)
 
 def date_to_t_int(dates, start_date):
         return np.array([(date - start_date).days for date in dates], dtype=int)
