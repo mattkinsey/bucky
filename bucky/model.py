@@ -9,6 +9,12 @@ import random
 import sys
 from collections import defaultdict, deque
 from functools import partial
+import warnings
+
+# supress pandas warning caused by pyarrow
+warnings.simplefilter(action='ignore', category=FutureWarning)
+# TODO we do alot of allowing div by 0 and then checking for nans later, we should probably refactor that
+warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 import networkx as nx
 import numpy as np
@@ -25,6 +31,7 @@ from .util import (
     map_np_array,
     date_to_t_int,
     force_cpu,
+    TqdmLoggingHandler,
 )
 from .util.distributions import truncnorm, mPERT_sample
 from .npi import read_npi_file
@@ -152,7 +159,7 @@ class SEIR_covid(object):
             self.death_hist = xp.diff(death_hist, axis=0).astype(float)  # TODO rename
 
             if 'IFR' in G.nodes[list(G.nodes.keys())[0]]:
-                print('found ifr on graph')
+                logging.info('Using ifr from graph')
                 self.use_G_ifr = True
                 node_IFR = nx.get_node_attributes(G, "IFR")
                 self.ifr = xp.asarray((np.vstack(list(node_IFR.values()))).T)
@@ -268,10 +275,8 @@ class SEIR_covid(object):
             ifr_scale = truncnorm(xp, 1.0, RR_VAR, a_min=1e-6)
             self.params.F = self.ifr * self.params['SYM_FRAC']
             adm0_ifr = xp.sum(self.ifr * self.Nij) / xp.sum(self.Nj)
-            ifr_scale = ifr_scale * 0.0065/adm0_ifr
-            #print(adm0_ifr)
+            ifr_scale = ifr_scale * 0.0065/adm0_ifr #TODO this should be in par file (its from planning scenario5)
             self.params.F = xp.clip(self.params.F*ifr_scale, 0., 1.)
-            #self.params.F[xp.isnan(self.params.F)] = 0. # TODO where are these nans coming from? check make_input_graph
 
         case_reporting = self.estimate_reporting(days_back=22).get()
         self.case_reporting = self.estimate_reporting(days_back=22)
@@ -715,7 +720,7 @@ class SEIR_covid(object):
 
         inc_death_rejection_fac = 1.25
         if (init_inc_death_mean > inc_death_rejection_fac*hist_inc_death_mean) or (inc_death_rejection_fac*init_inc_death_mean < hist_inc_death_mean):
-            logging.error("Inconsistent inc deaths, rejecting run")
+            logging.info("Inconsistent inc deaths, rejecting run")
             raise SimulationException
 
         cum_cases = (
@@ -821,10 +826,11 @@ class SEIR_covid(object):
 
 if __name__ == "__main__":
 
+    loglevel = 30 - 10*min(args.verbosity, 2)
     logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
+        level=loglevel,
         format="%(asctime)s - %(levelname)s - %(filename)s:%(funcName)s:%(lineno)d - %(message)s",
+        handlers=[TqdmLoggingHandler(),]
     )
 
     _banner()
@@ -852,26 +858,33 @@ if __name__ == "__main__":
         # Call to_write.get() until it returns None
         for fname, df in iter(to_write.get, None):
             df.reset_index().to_feather(fname)
-    threading.Thread(target=writer).start()
+    write_thread = threading.Thread(target=writer)
+    write_thread.start()
 
     total_start = datetime.datetime.now()
     seed = 0
     success = 0
     times = []
-    pbar = tqdm(total=n_mc)
-
-    while success < n_mc:
-        start = datetime.datetime.now()
-        try:
-            env.run_once(seed=seed, outdir=args.output_dir, output_queue=to_write)
-            success += 1
-            pbar.update(1)
-        except SimulationException:
-            pass
-        seed += 1
-        run_time = (datetime.datetime.now() - start).total_seconds()
-        times.append(run_time)
-
-        logging.info(f"{seed}: {datetime.datetime.now() - start}")
-    to_write.put(None)
-    logging.info(f"Total runtime: {datetime.datetime.now() - total_start}")
+    pbar = tqdm(total=n_mc, dynamic_ncols=True)
+    try:
+        while success < n_mc:
+            start = datetime.datetime.now()
+            try:
+                env.run_once(seed=seed, outdir=args.output_dir, output_queue=to_write)
+                success += 1
+                pbar.update(1)
+            except SimulationException:
+                pass
+            seed += 1
+            run_time = (datetime.datetime.now() - start).total_seconds()
+            times.append(run_time)
+    
+            logging.info(f"{seed}: {datetime.datetime.now() - start}")
+    except (KeyboardInterrupt, SystemExit):
+        logging.warning('Caught SIGINT, cleaning up')
+        to_write.put(None)
+        write_thread.join()
+    finally:
+        to_write.put(None)
+        pbar.close()
+        logging.info(f"Total runtime: {datetime.datetime.now() - total_start}")

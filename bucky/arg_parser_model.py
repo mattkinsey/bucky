@@ -42,10 +42,17 @@ parser.add_argument(
 parser.add_argument(
     "--days", "-d", default=40, type=int, help="Length of the runs in days"
 )
-parser.add_argument("-v", "--verbose", action="count", default=1)
-parser.add_argument(
-    "-q", "--quiet", action="store_true", help="Supress all console output"
-)
+parser.add_argument('-v', '--verbose',
+                    action='count',
+                    dest='verbosity',
+                    default=0,
+                    help="verbose output (repeat for increased verbosity; defaults to WARN, -v is INFO, -vv is DEBUG)")
+parser.add_argument('-q', '--quiet',
+                    action='store_const',
+                    const=-1,
+                    default=0,
+                    dest='verbosity',
+                    help="quiet output (only show ERROR and higher)")
 parser.add_argument(
     "-c",
     "--cache",
