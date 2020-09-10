@@ -23,10 +23,10 @@ from .util import (
     dotdict,
     import_numerical_libs,
     map_np_array,
-    truncnorm,
     date_to_t_int,
     force_cpu,
 )
+from .util.distributions import truncnorm, mPERT_sample
 from .npi import read_npi_file
 
 if __name__ == "__main__":
