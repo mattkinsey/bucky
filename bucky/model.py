@@ -69,7 +69,7 @@ class SEIR_covid(object):
 
         # save files to cache
         if args.cache:
-            logger.warn(
+            logging.warn(
                 "Cacheing is currently unsupported and probably doesnt work after the refactor"
             )
             files = glob.glob("*.py") + [self.graph_file, args.par_file]
