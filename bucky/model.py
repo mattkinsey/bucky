@@ -9,6 +9,12 @@ import random
 import sys
 from collections import defaultdict, deque
 from functools import partial
+import warnings
+
+# supress pandas warning caused by pyarrow
+warnings.simplefilter(action='ignore', category=FutureWarning)
+# TODO we do alot of allowing div by 0 and then checking for nans later, we should probably refactor that
+warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 import networkx as nx
 import numpy as np
@@ -23,10 +29,11 @@ from .util import (
     dotdict,
     import_numerical_libs,
     map_np_array,
-    truncnorm,
     date_to_t_int,
     force_cpu,
+    TqdmLoggingHandler,
 )
+from .util.distributions import truncnorm, mPERT_sample
 from .npi import read_npi_file
 
 if __name__ == "__main__":
@@ -43,7 +50,7 @@ from .util.util import ivp, sparse, xp  # isort:skip
 OUTPUT = True
 
 # TODO move to param file
-RR_VAR = 0.3  # variance to use for MC of params with no CI
+RR_VAR = 0.2  # variance to use for MC of params with no CI
 
 
 class SimulationException(Exception):
@@ -69,7 +76,7 @@ class SEIR_covid(object):
 
         # save files to cache
         if args.cache:
-            logger.warn(
+            logging.warn(
                 "Cacheing is currently unsupported and probably doesnt work after the refactor"
             )
             files = glob.glob("*.py") + [self.graph_file, args.par_file]
@@ -150,6 +157,14 @@ class SEIR_covid(object):
 
             self.death_hist_cum = death_hist.astype(float)
             self.death_hist = xp.diff(death_hist, axis=0).astype(float)  # TODO rename
+
+            if 'IFR' in G.nodes[list(G.nodes.keys())[0]]:
+                logging.info('Using ifr from graph')
+                self.use_G_ifr = True
+                node_IFR = nx.get_node_attributes(G, "IFR")
+                self.ifr = xp.asarray((np.vstack(list(node_IFR.values()))).T)
+            else:
+                self.use_G_ifr = False
 
             # grab the geo id's for later
             self.adm2_id = np.fromiter(
@@ -255,7 +270,16 @@ class SEIR_covid(object):
         self.params.H = xp.broadcast_to(self.params.H[:, None], self.Nij.shape)
         self.params.F = xp.broadcast_to(self.params.F[:, None], self.Nij.shape)
 
-        self.case_reporting = self.estimate_reporting(days_back=22)
+        if self.use_G_ifr:
+            self.ifr[xp.isnan(self.ifr)] = 0.
+            ifr_scale = truncnorm(xp, 1.0, RR_VAR, a_min=1e-6)
+            self.params.F = self.ifr * self.params['SYM_FRAC']
+            adm0_ifr = xp.sum(self.ifr * self.Nij) / xp.sum(self.Nj)
+            ifr_scale = ifr_scale * 0.0065/adm0_ifr #TODO this should be in par file (its from planning scenario5)
+            self.params.F = xp.clip(self.params.F*ifr_scale, 0., 1.)
+
+        case_reporting = force_cpu(self.estimate_reporting(days_back=22))
+        self.case_reporting = xp.array(mPERT_sample(mu=xp.clip(case_reporting,a_min=.1, a_max=1.), a=xp.clip(.8*case_reporting, a_min=.1, a_max=None), b=xp.clip(1.2*case_reporting, a_min=None, a_max=1.), gamma=250.))
 
         self.doubling_t = self.estimate_doubling_time()
 
@@ -313,23 +337,27 @@ class SEIR_covid(object):
         current_I[current_I < 0.0] = 0.0
         current_I *= 1.0 / (self.params["CASE_REPORT"])
 
+        R_fac = xp.array(mPERT_sample(mu=.5, a=.25, b=.75, gamma=250.))
+        E_fac = xp.array(mPERT_sample(mu=1.5, a=1., b=2., gamma=250.))
+        H_fac = xp.array(mPERT_sample(mu=5., a=4., b=6., gamma=250.))
+
         I_init = current_I[None, :] / self.Nij / self.n_age_grps
         D_init = self.init_deaths[None, :] / self.Nij / self.n_age_grps
         recovered_init = (
             (self.init_cum_cases)
             / self.params["SYM_FRAC"]
             / (self.params["CASE_REPORT"])
-        )
+        ) * R_fac
         R_init = (
             (recovered_init) / self.Nij / self.n_age_grps
             - D_init
             - I_init / self.params["SYM_FRAC"]
         )  # rhi handled later
 
-        ic_frac = 1.0 / (1.0 + self.params.THETA / self.params.GAMMA_H)
-        hosp_frac = 1.0 / (1.0 + self.params.GAMMA_H / self.params.THETA)
+        ic_frac = H_fac / (1.0 + self.params.THETA / self.params.GAMMA_H)
+        hosp_frac = H_fac / (1.0 + self.params.GAMMA_H / self.params.THETA)
         exp_frac = (
-            1.0
+            E_fac
             * xp.ones(I_init.shape[-1])  # 5
             # * np.diag(self.A)
             # * np.sum(self.A, axis=1)
@@ -340,7 +368,7 @@ class SEIR_covid(object):
 
         y[Si] -= I_init
 
-        y[Ii] = (1.0 - self.params.H) * I_init / len(Ii)
+        y[Ii] = (1.0 - H_fac * self.params.H) * I_init / len(Ii)
         y[Ici] = ic_frac * self.params.H * I_init / (len(Ici))
         y[Rhi] = hosp_frac * self.params.H * I_init / (Rhn)
 
@@ -351,10 +379,10 @@ class SEIR_covid(object):
             adm0_hosp_frac = xp.nansum(self.adm1_current_hosp)/xp.nansum(adm1_hosp)
             #print(adm0_hosp_frac)
             adm2_hosp_frac[xp.isnan(adm2_hosp_frac)] = adm0_hosp_frac
-            self.params.H = xp.clip(self.params.H * adm2_hosp_frac[None,:], 0.,1.)
+            self.params.H = xp.clip(self.params.H * adm2_hosp_frac[None,:], self.params.F, 1.)
             self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0.,1.)
     
-            y[Ii] = (1.0 - self.params.H) * I_init / len(Ii)
+            y[Ii] = (1.0 - H_fac * self.params.H) * I_init / len(Ii)
             y[Ici] = ic_frac * self.params.H * I_init / (len(Ici))
             y[Rhi] = hosp_frac * self.params.H * I_init / (Rhn)
 
@@ -368,8 +396,8 @@ class SEIR_covid(object):
 
         R_init -= xp.sum(y[Rhi], axis=0)
 
-        y[Si] -= self.params.ASYM_FRAC * I_init
-        y[Iasi] = self.params.ASYM_FRAC * I_init / len(Iasi)
+        y[Si] -= self.params.ASYM_FRAC / self.params.SYM_FRAC * I_init
+        y[Iasi] = self.params.ASYM_FRAC / self.params.SYM_FRAC * I_init / len(Iasi)
         y[Si] -= exp_frac[None, :] * I_init
         y[Ei] = exp_frac[None, :] * I_init / len(Ei)
         y[Si] -= R_init
@@ -563,7 +591,7 @@ class SEIR_covid(object):
         # Aij_eff = A / xp.sum(A, axis=0)
 
         # Infectivity matrix (I made this name up, idk what its really called)
-        I_tot = xp.sum(Nij * s[Iai], axis=0)
+        I_tot = xp.sum(Nij * s[Iai], axis=0)  - (1.-par['rel_inf_asym'])*xp.sum(Nij*s[Iasi], axis=0)
 
         # I_tmp = (Aij.T @ I_tot.T).T
         I_tmp = I_tot @ Aij_eff  # using identity (A@B).T = B.T @ A.T
@@ -686,7 +714,15 @@ class SEIR_covid(object):
         daily_deaths = xp.diff(
             out[Di], prepend=self.death_hist_cum[-1][:, None], axis=-1
         )
-        # daily_deaths_reported = daily_deaths * self.params.CASE_REPORT[:,None]
+        
+        init_inc_death_mean = xp.mean(xp.sum(daily_deaths[:,1:8],axis=0))
+        hist_inc_death_mean = xp.mean(xp.sum(self.death_hist[-7:], axis=-1))
+
+        inc_death_rejection_fac = 1.25
+        if (init_inc_death_mean > inc_death_rejection_fac*hist_inc_death_mean) or (inc_death_rejection_fac*init_inc_death_mean < hist_inc_death_mean):
+            logging.info("Inconsistent inc deaths, rejecting run")
+            raise SimulationException
+
         cum_cases = (
             xp.sum(
                 self.Nij[..., None] * (1.0 - xp.sum(y[: Ei[-1] + 1], axis=0)), axis=0
@@ -726,8 +762,7 @@ class SEIR_covid(object):
             "R": out[Ri],
             "Rh": out[Rhi],
             "D": out[Di],
-            "CiH": out[incH],
-            "CiI": out[incC],
+            "NH": xp.diff(out[incH], axis=-1, prepend=0.),
             "NC": daily_cases.reshape(-1),
             "NCR": daily_cases_reported.reshape(-1),
             "ND": daily_deaths.reshape(-1),
@@ -791,10 +826,11 @@ class SEIR_covid(object):
 
 if __name__ == "__main__":
 
+    loglevel = 30 - 10*min(args.verbosity, 2)
     logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
+        level=loglevel,
         format="%(asctime)s - %(levelname)s - %(filename)s:%(funcName)s:%(lineno)d - %(message)s",
+        handlers=[TqdmLoggingHandler(),]
     )
 
     _banner()
@@ -822,26 +858,33 @@ if __name__ == "__main__":
         # Call to_write.get() until it returns None
         for fname, df in iter(to_write.get, None):
             df.reset_index().to_feather(fname)
-    threading.Thread(target=writer).start()
+    write_thread = threading.Thread(target=writer)
+    write_thread.start()
 
     total_start = datetime.datetime.now()
     seed = 0
     success = 0
     times = []
-    pbar = tqdm(total=n_mc)
-
-    while success < n_mc:
-        start = datetime.datetime.now()
-        try:
-            env.run_once(seed=seed, outdir=args.output_dir, output_queue=to_write)
-            success += 1
-        except SimulationException:
-            pass
-        seed += 1
-        run_time = (datetime.datetime.now() - start).total_seconds()
-        times.append(run_time)
-        pbar.update(1)
-
-        logging.info(f"{seed}: {datetime.datetime.now() - start}")
-    to_write.put(None)
-    logging.info(f"Total runtime: {datetime.datetime.now() - total_start}")
+    pbar = tqdm(total=n_mc, dynamic_ncols=True)
+    try:
+        while success < n_mc:
+            start = datetime.datetime.now()
+            try:
+                env.run_once(seed=seed, outdir=args.output_dir, output_queue=to_write)
+                success += 1
+                pbar.update(1)
+            except SimulationException:
+                pass
+            seed += 1
+            run_time = (datetime.datetime.now() - start).total_seconds()
+            times.append(run_time)
+    
+            logging.info(f"{seed}: {datetime.datetime.now() - start}")
+    except (KeyboardInterrupt, SystemExit):
+        logging.warning('Caught SIGINT, cleaning up')
+        to_write.put(None)
+        write_thread.join()
+    finally:
+        to_write.put(None)
+        pbar.close()
+        logging.info(f"Total runtime: {datetime.datetime.now() - total_start}")

@@ -16,6 +16,7 @@ from tqdm import tqdm
 
 from .util.read_config import bucky_cfg
 from .util.update_data_repos import update_repos
+from .util import estimate_IFR
 
 # TODO all these paths should be combined properly rather than just with str cat
 
@@ -413,20 +414,32 @@ if __name__ == "__main__":
 
     ##### AGE AND DEMO DATA #####
     # Read age-stratified data
-    age_data = pd.read_csv(age_strat_file, index_col="fips")
+    age_data = pd.read_csv(age_strat_file, index_col=0, header=[0,1])
     age_data.index = age_data.index.astype(int)
 
     # Add age-stratified data for territories
     territory_df = pd.read_csv(bucky_cfg['data_dir'] + "/population/territory_pop.csv", index_col="fips")
     territory_df.index = territory_df.index.astype(int)
 
+    # TODO Temp use the mean age to get IFR until we can regenerate territory_pop.csv
+    if not isinstance(territory_df.columns, pd.MultiIndex):
+        terr_ifr_ind = territory_df.index
+        mean_bin_age = (np.arange(0,80,5) + np.arange(5,85,5))/2
+        mean_bin_age[-1] = 82 # just an estimate...
+        ifr_series = pd.Series(estimate_IFR(mean_bin_age), index=territory_df.columns)
+        ifr_df = pd.DataFrame({fips: ifr_series for fips in territory_df.index}).T
+
+        territory_df = pd.concat([territory_df, ifr_df], axis=1, keys=['N','IFR'])
+
     age_data = age_data.append(territory_df)
 
     # Create a dict (for node attribute)
+    # TODO this is be a to_dict or something rather than this loop and loc[]...
     age_dict = {
         fips: {
-            "N_age_init": age_data.loc[fips].values,
-            "Population": np.sum(age_data.loc[fips].values),
+            "N_age_init": age_data.N.loc[fips].values,
+            "Population": np.sum(age_data.N.loc[fips].values),
+            "IFR": age_data.IFR.loc[fips].values,
         }
         for fips in age_data.index
     }

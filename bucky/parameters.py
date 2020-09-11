@@ -4,18 +4,8 @@ import numpy as np
 import yaml
 import scipy.special as sc
 
-from .util import dotdict, truncnorm
-
-
-def mPERT_sample(mu, a=0.0, b=1.0, gamma=4.0, var=None):
-    if var is not None:
-        gamma = (mu - a) * (b - mu) / var - 3.0
-    alp1 = 1.0 + gamma * ((mu - a) / (b - a))
-    alp2 = 1.0 + gamma * ((b - mu) / (b - a))
-    u = np.random.random_sample(mu.shape)
-    alp3 = sc.betaincinv(alp1, alp2, u)
-    return (b - a) * alp3 + a
-
+from .util import dotdict
+from .util.distributions import mPERT_sample, truncnorm
 
 def calc_Te(Tg, Ts, n, f):
     num = 2.0 * n * f / (n + 1.0) * Tg - Ts
@@ -69,7 +59,7 @@ class seir_params(object):
         while True:  # WTB python do-while...
             params = self.reroll_params(self.base_params, var)
             params = self.calc_derived_params(params)
-            if params.Te > 1.0 and params.Tg > params.Te:
+            if (params.Te > 1.0 and params.Tg > params.Te and params.Ti > 1.) or var==0.:
                 return params
 
     def reroll_params(self, base_params, var):

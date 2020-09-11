@@ -15,4 +15,5 @@ readable_col_names = {
     "doubling_t": "Doubling Time",
     "ICU": "ICU Beds Usage",
     "N": "Population",
+    "NH": "Incident Hospitalizations",
 }

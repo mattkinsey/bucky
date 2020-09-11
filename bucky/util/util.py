@@ -11,6 +11,23 @@ import threading
 import numpy as np
 import pandas as pd
 
+import logging
+import tqdm
+
+# https://stackoverflow.com/questions/38543506/change-logging-print-function-to-tqdm-write-so-logging-doesnt-interfere-wit
+class TqdmLoggingHandler(logging.Handler):
+    def __init__(self, level=logging.NOTSET):
+        super().__init__(level)
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            tqdm.tqdm.write(msg)
+            self.flush()
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except:
+            self.handleError(record) 
 
 class dotdict(dict):
     """dot.notation access to dictionary attributes"""
@@ -29,15 +46,23 @@ def map_np_array(a, d):
         n[a == k] = d[k]
     return n
 
+def estimate_IFR(age):
+    # from best fit in https://www.medrxiv.org/content/10.1101/2020.07.23.20160895v4.full.pdf
+    #std err is 0.17 on the const and 0.003 on the linear term
+    return np.exp(-7.56 + 0.121 * age)/100.
 
 def bin_age_csv(filename, out_filename):
     df = pd.read_csv(filename, header=None, names=["fips", "age", "N"])
+    pop_weighted_IFR = df.N.to_numpy()*estimate_IFR(df.age.to_numpy())
+    df = df.assign(IFR=pop_weighted_IFR)
     df["age_group"] = pd.cut(
         df["age"], np.append(np.arange(0, 76, 5), 120), right=False
     )
-    df.groupby(["fips", "age_group"]).sum()["N"].unstack("age_group").to_csv(
-        out_filename
-    )
+    df = df.groupby(["fips", "age_group"]).sum()[["N", "IFR"]].unstack("age_group")
+
+    df = df.assign(IFR=df.IFR/df.N)
+
+    df.to_csv(out_filename)
 
 def date_to_t_int(dates, start_date):
         return np.array([(date - start_date).days for date in dates], dtype=int)
@@ -127,23 +152,6 @@ def import_numerical_libs(gpu=False):
         import numpy as xp
         import scipy.sparse as sparse
         xp.scatter_add = xp.add.at
-
-
-# TODO we should monkeypatch this
-def truncnorm(xp, loc=0.0, scale=1.0, size=1, a_min=None, a_max=None):
-    """ Provides a truncnorm implementation that is compatible with cupy
-    """
-    ret = xp.random.normal(loc, scale, size)
-    if a_min is None:
-        a_min = -xp.inf
-    if a_max is None:
-        a_max = xp.inf
-
-    while True:
-        valid = (ret > a_min) & (ret < a_max)
-        if valid.all():
-            return ret
-        ret[~valid] = xp.random.normal(loc, scale, ret[~valid].shape)
 
 def force_cpu(var):
     return var.get() if "cupy" in type(var).__module__ else var

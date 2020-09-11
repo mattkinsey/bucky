@@ -456,7 +456,7 @@ def plot(
 
                     actuals = actuals.assign(date=pd.to_datetime(actuals["date"]))
                     # actuals.set_index('date', inplace=True)
-                    actuals.plot.scatter(x="date", y=hist_columns[i], ax=axs[i])
+                    actuals.plot.scatter(x="date", y=hist_columns[i], ax=axs[i], color='r')
 
                     # Set xlim
                     axs[i].set_xlim(actuals["date"].min(), dates.max())
@@ -465,8 +465,7 @@ def plot(
                     print("Historical data missing for: " + name)
 
             axs[i].grid(True)
-            if not extra_quantiles:
-                axs[i].legend()
+            axs[i].legend()
             axs[i].set_ylabel("Count")
 
         plot_filename = os.path.join(output_dir, name + ".png")
