@@ -50,7 +50,7 @@ from .util.util import ivp, sparse, xp  # isort:skip
 OUTPUT = True
 
 # TODO move to param file
-RR_VAR = 0.2  # variance to use for MC of params with no CI
+RR_VAR = 0.1  # variance to use for MC of params with no CI
 
 
 class SimulationException(Exception):
@@ -338,8 +338,8 @@ class SEIR_covid(object):
         current_I *= 1.0 / (self.params["CASE_REPORT"])
 
         R_fac = xp.array(mPERT_sample(mu=.5, a=.25, b=.75, gamma=250.))
-        E_fac = xp.array(mPERT_sample(mu=1.5, a=1., b=2., gamma=250.))
-        H_fac = xp.array(mPERT_sample(mu=5., a=4., b=6., gamma=250.))
+        E_fac = xp.array(mPERT_sample(mu=1.5, a=1.25, b=1.75, gamma=250.))
+        H_fac = xp.array(mPERT_sample(mu=1., a=.8, b=1.2, gamma=250.))
 
         I_init = current_I[None, :] / self.Nij / self.n_age_grps
         D_init = self.init_deaths[None, :] / self.Nij / self.n_age_grps
@@ -718,7 +718,7 @@ class SEIR_covid(object):
         init_inc_death_mean = xp.mean(xp.sum(daily_deaths[:,1:8],axis=0))
         hist_inc_death_mean = xp.mean(xp.sum(self.death_hist[-7:], axis=-1))
 
-        inc_death_rejection_fac = 1.25
+        inc_death_rejection_fac = 1.5
         if (init_inc_death_mean > inc_death_rejection_fac*hist_inc_death_mean) or (inc_death_rejection_fac*init_inc_death_mean < hist_inc_death_mean):
             logging.info("Inconsistent inc deaths, rejecting run")
             raise SimulationException
