@@ -188,7 +188,7 @@ def add_daily_history(history_data, window_size=None):
         daily_data = (
             daily_data.reset_index(level=0)
             .groupby("adm2")
-            .rolling(window_size, min_periods=window_size // 2, center=True)
+            .rolling(window_size, min_periods=window_size // 2)
             .mean()
             .drop(columns=["adm2"])
         )
