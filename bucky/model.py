@@ -832,6 +832,17 @@ if __name__ == "__main__":
 
     _banner()
 
+    import threading, queue
+
+    to_write = queue.Queue()
+
+    def writer():
+        # Call to_write.get() until it returns None
+        for fname, df in iter(to_write.get, None):
+            df.reset_index().to_feather(fname)
+    write_thread = threading.Thread(target=writer)
+    write_thread.start()
+
     if not os.path.exists(args.output_dir):
         logging.info("Creating output directory @ " + args.output_dir)
         os.mkdir(args.output_dir)
@@ -846,17 +857,6 @@ if __name__ == "__main__":
     else:
         env = SEIR_covid(randomize_params_on_reset=True)
         n_mc = args.n_mc
-
-    import threading, queue
-
-    to_write = queue.Queue()
-
-    def writer():
-        # Call to_write.get() until it returns None
-        for fname, df in iter(to_write.get, None):
-            df.reset_index().to_feather(fname)
-    write_thread = threading.Thread(target=writer)
-    write_thread.start()
 
     total_start = datetime.datetime.now()
     seed = 0
