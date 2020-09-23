@@ -149,7 +149,8 @@ if __name__ == "__main__":
     # Use lookup, add prefix
     if args.lookup is not None:
         lookup_df = read_lookup(args.lookup)
-        prefix = Path(args.lookup).stem
+        if prefix is None:
+            prefix = Path(args.lookup).stem
     else:
         lookup_df = read_geoid_from_graph(args.graph_file)
 
