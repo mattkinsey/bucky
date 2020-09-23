@@ -624,11 +624,9 @@ class SEIR_covid(object):
 
         # dRhi/dt
         dG[Rhi[0]] = (
-            Im * GAMMA_H * s[Ici[-1]] - (1.0 - F_eff) * (Rhn * THETA) * s[Rhi[0]]
+            Im * GAMMA_H * s[Ici[-1]] - (Rhn * THETA) * s[Rhi[0]]
         )
-        dG[Rhi[1:]] = (1.0 - F_eff) * Rhn * THETA * s[Rhi[:-1]] - (1.0 - F_eff) * (
-            Rhn * THETA
-        ) * s[Rhi[1:]]
+        dG[Rhi[1:]] =  Rhn * THETA * s[Rhi[:-1]] - (Rhn * THETA) * s[Rhi[1:]]
 
         # dR/dt
         dG[Ri] = (
@@ -637,8 +635,7 @@ class SEIR_covid(object):
         )
 
         # dD/dt
-        dG[Rhi] -= F_eff * (THETA) * s[Rhi]
-        dG[Di] = xp.sum(F_eff * (THETA) * s[Rhi], axis=0)
+        dG[Di] += F_eff * (THETA) * Rhn * s[Rhi[-1]]
 
         dG[incH] = par["SYM_FRAC"] * H * En * SIGMA * s[Ei[-1]]
         dG[incC] = par["SYM_FRAC"] * par["CASE_REPORT"] * En * SIGMA * s[Ei[-1]]
