@@ -120,6 +120,8 @@ def import_numerical_libs(gpu=False):
 
         import cupy as cp
 
+        cp.cuda.set_allocator(cp.cuda.MemoryPool(cp.cuda.memory.malloc_managed).malloc)
+
         # add cupy search sorted for scipy.ivp (this was only added to cupy sometime between v6.0.0 and v7.0.0)
         if ~hasattr(cp, 'searchsorted'):
             # NB: this isn't correct in general but it works for what scipy solve_ivp needs...
