@@ -13,7 +13,9 @@ if not base_pkg_name in module_name[:6]:
 
 try:
     runpy.run_module(module_name, run_name='__main__', alter_sys=True)
-except ImportError:
+except ImportError as e:
+    if base_pkg_name not in str(e):
+        raise e
     print('\n !!! Submodule ' + module_name.replace(base_pkg_name,'') + ' not found !!!')
     from setuptools import find_packages
     from pkgutil import iter_modules
