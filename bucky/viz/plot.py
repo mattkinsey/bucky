@@ -486,7 +486,7 @@ def make_plots(
     hist_columns,
     use_std,
     N,
-    use_windowed,
+    window_size,
     end_date,
     admin1=None,
     hist_start=None,
@@ -516,8 +516,8 @@ def make_plots(
         confidence intervals
     N : int
         Number of Monte Carlo runs from simulation
-    use_windowed : boolean
-        Use windowed or cumulative historical data
+    window_size : int
+        Size of window (in days) to apply to historical data
     end_date : string, formatted as YYYY-MM-DD
         Plot data until this date
     admin1 : list of strings, or None
@@ -588,7 +588,7 @@ def make_plots(
                 hist_data.rename(columns={"FIPS": "adm2"}, inplace=True)
 
             # Add daily data
-            hist_data = add_daily_history(hist_data, use_windowed)
+            hist_data = add_daily_history(hist_data, window_size)
 
             # Aggregate if necessary
             if level == "adm1":
