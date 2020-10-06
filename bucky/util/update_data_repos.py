@@ -453,6 +453,11 @@ def process_csse_data():
 
     # Remove missing FIPS
     data = data[data.FIPS != 0]
+
+    # Replace FIPS with adm2
+    #data.rename(columns={"FIPS" : "adm2"}, inplace=True)
+    #print(data.columns)
+
     data = data.set_index(["FIPS", "date"])
 
     # Distribute territory and Michigan DOC data
@@ -465,9 +470,11 @@ def process_csse_data():
 
     data = distribute_unallocated_csse(confirmed_file, deaths_file, data)
 
+    # Rename FIPS index to adm2
+    data.index = data.index.rename(["date", "adm2"])
+    
     # Write to files
     hist_file = bucky_cfg['data_dir'] + "/cases/csse_hist_timeseries.csv"
-
     logging.info("Saving CSSE historical data as %s" % hist_file)
     data.to_csv(hist_file)
 
@@ -503,11 +510,12 @@ def update_covid_tracking_data():
     df.rename(columns={"fips": "adm1"}, inplace=True)
 
     # Pull a random county for each state to use as fips proxy
+    #from IPython import embed
+    #embed()
     csse_df = pd.read_csv("data/cases/csse_hist_timeseries.csv")
-    csse_df = csse_df.assign(adm1=csse_df["FIPS"] // 1000)
+    csse_df = csse_df.assign(adm1=csse_df["adm2"] // 1000)
     csse_df = csse_df.drop(columns=["date", "Confirmed", "Deaths"])
-    csse_df.drop_duplicates(subset=["FIPS"])
-    csse_df = csse_df.rename(columns={"FIPS": "adm2"})
+    csse_df.drop_duplicates(subset=["adm2"])
 
     # Drop invalid FIPS
     csse_df = csse_df.loc[~csse_df["adm1"].isin([0, 80, 88, 90, 99])]
@@ -638,6 +646,7 @@ def update_usafacts_data():
     # Sort by date
     data["date"] = pd.to_datetime(data["date"])
     data = data.sort_values(by="date")
+    data.rename(columns={'FIPS' : 'adm2'}, inplace=True)
     data.to_csv(bucky_cfg['data_dir'] + "/cases/usafacts_hist.csv")
 
 

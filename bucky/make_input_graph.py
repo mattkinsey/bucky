@@ -12,11 +12,13 @@ import geopandas as gpd
 import networkx as nx
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
+import tqdm
 
 from .util.read_config import bucky_cfg
 from .util.update_data_repos import update_repos
 from .util import estimate_IFR
+
+#from IPython import embed
 
 # TODO all these paths should be combined properly rather than just with str cat
 
@@ -77,13 +79,12 @@ def get_case_history(historical_data, end_date, num_days=DAYS_OF_HIST):
     historical_data["date"] = pd.to_datetime(historical_data["date"])
     end_date = pd.to_datetime(end_date)
     start_date = end_date - timedelta(days=num_days)
-
     hist = {}
 
     logging.info(
         "Getting " + str(num_days) + " days of case/death data for each county..."
     )
-    for fips, group in tqdm(historical_data.groupby("FIPS")):
+    for fips, group in tqdm.tqdm(historical_data.groupby("adm2")):
 
         # Get block of data
         block = group.loc[(group["date"] >= start_date) & (group["date"] <= end_date)]
@@ -152,7 +153,7 @@ def compute_population_density(age_df, shape_df):
     pop_df = pd.DataFrame(age_df.sum(axis=1))
     pop_df.rename(columns={0: "total"}, inplace=True)
     popdens = pop_df.merge(
-        counties.set_index("FIPS")["ALAND"].to_frame(),
+        counties.set_index("adm2")["ALAND"].to_frame(),
         left_index=True,
         right_index=True,
     )
@@ -188,9 +189,9 @@ def read_descartes_data(end_date):
     .. [1] Warren, Michael S. & Skillman, Samuel W. "Mobility Changes in Response to COVID-19". arXiv:2003.14228 [cs.SI], Mar. 2020. arxiv.org/abs/2003.14228
     """
     dl_data = pd.read_csv(mobility_dir + "DL-us-m50_index.csv")
-
+    dl_data.rename(columns={"fips" : "adm2"}, inplace=True)
     dl_data = (
-        dl_data.set_index(["admin_level", "fips"])
+        dl_data.set_index(["admin_level", "adm2"])
         .drop(columns=["country_code", "admin1", "admin2"])
         .stack()
         .reset_index()
@@ -209,7 +210,7 @@ def read_descartes_data(end_date):
     nat_frac_move = dl_data_nat.mean()[0] / 100.0
 
     # Compute for fips
-    dl_data = dl_data.groupby("fips").mean().rename(columns={0: "frac_move"})
+    dl_data = dl_data.groupby("adm2").mean().rename(columns={0: "frac_move"})
     dl_data["frac_move"] = dl_data["frac_move"] / 100.0
 
     # Drop national level and cast index to int
@@ -224,8 +225,7 @@ def read_descartes_data(end_date):
 
     return nat_frac_move, dl_state, dl_county
 
-
-def read_lex_data(last_date):
+def read_lex_data(date):
     """Reads county-level location exposure indices for a given date from
     PlaceIQ location data.
 
@@ -245,28 +245,19 @@ def read_lex_data(last_date):
 
     """
     # Check if a preprocessed version already exists
-    try:
-        df_long = pd.read_csv(
-            "data/mobility/preprocessed/county_lex_" + last_date + ".csv"
-        )
-        logging.info("Using cached lex data.")
-    except FileNotFoundError:
-        try:
-            df = pd.read_csv(
+    cache_file = "data/mobility/preprocessed/county_lex_" + date + ".csv.gz"
+    if os.path.exists(cache_file):
+        df_long = pd.read_csv(cache_file)
+        logging.info("Using cached lex data for " + str(date))
+    else:
+        df = pd.read_csv(
                 "data/mobility/COVIDExposureIndices/lex_data/county_lex_"
-                + last_date
+                + date
                 + ".csv.gz",
                 compression="gzip",
                 header=0,
-            )
-        except FileNotFoundError:
-            df = pd.read_csv(
-                glob.glob(
-                    "data/mobility/COVIDExposureIndices/lex_data/county_lex_*.csv.gz"
-                )[-1],
-                compression="gzip",
-                header=0,
-            )
+        )
+        logging.info(str(date) + ' not in cache')    
         countys = df.columns.values[1:]
         col_names = dict(zip(countys, ["a" + lab for lab in countys]))
         df = df.rename(columns=col_names)
@@ -280,10 +271,71 @@ def read_lex_data(last_date):
         if not os.path.exists("data/mobility/preprocessed"):
             os.makedirs("data/mobility/preprocessed")
 
-        df_long.to_csv("data/mobility/preprocessed/county_lex_" + last_date + ".csv")
+        df_long.to_csv("data/mobility/preprocessed/county_lex_" + date + ".csv.gz")
 
     return df_long
 
+def get_lex(last_date, window_size=7):
+    lex_df = None
+    success = 0
+    d = 0
+    while success < window_size: #d in tqdm.trange(window_size):
+        date = datetime.date.fromisoformat(last_date) - datetime.timedelta(days=d)
+        date_str = date.isoformat()
+        logging.info(date_str)
+        d += 1
+        try:
+            if lex_df is None:
+                lex_df = read_lex_data(date_str)
+                lex_df.set_index(['StartId','EndId'], inplace=True)
+                lex_df.rename(columns={'frac_count': date_str}, inplace=True)
+            else:
+                tmp_df = read_lex_data(date_str)
+                tmp_df.set_index(['StartId','EndId'], inplace=True)
+                tmp_df.rename(columns={'frac_count': date_str}, inplace=True)
+                lex_df = lex_df.merge(tmp_df, left_index=True, right_index=True, how='outer')
+            success += 1
+        except FileNotFoundError as e:
+            #print(e)
+            continue
+
+    lex_df.fillna(0., inplace=True)
+    mean_df = lex_df.mean(axis=1)
+    tot_df = mean_df.reset_index().groupby('StartId').sum()
+
+    frac_df = mean_df.divide(tot_df[0], axis=0, level=0)
+    return frac_df.to_frame(name='frac_count').reset_index()
+
+def get_safegraph(last_date, window_size=7):
+    sg_df = None
+    success = 0
+    d = 0
+    while success < window_size: #for d in tqdm.trange(window_size):
+
+        date = datetime.date.fromisoformat(last_date) - datetime.timedelta(days=d)
+        date_str = date.isoformat()
+        d += 1
+        try:
+            if sg_df is None:
+                sg_df = pd.read_csv('data/safegraph_processed/'+date_str+'_county.csv.gz')
+                sg_df.set_index(['origin','dest'], inplace=True)
+                sg_df.rename(columns={'count': date_str}, inplace=True)
+            else:
+                tmp_df = pd.read_csv('data/safegraph_processed/'+date_str+'_county.csv.gz')
+                tmp_df.set_index(['origin','dest'], inplace=True)
+                tmp_df.rename(columns={'count': date_str}, inplace=True)
+                sg_df = sg_df.merge(tmp_df, left_index=True, right_index=True, how='outer')
+            logging.info('using sg data from ' + date_str)
+            success += 1
+        except FileNotFoundError:
+            continue
+
+    sg_df.fillna(0., inplace=True)
+    mean_df = sg_df.mean(axis=1)
+    tot_df = mean_df.reset_index().groupby('origin').sum()
+
+    frac_df = mean_df.divide(tot_df[0], axis=0, level=0)
+    return frac_df
 
 def get_mobility_data(popdens, end_date, age_data, add_territories=True):
     """Fetches mobility data.
@@ -307,19 +359,29 @@ def get_mobility_data(popdens, end_date, age_data, add_territories=True):
         TODO
 
     """
-    lex = read_lex_data(last_date)
+    #lex = read_lex_data(last_date)
+    lex = get_lex(last_date)
 
     national_frac_move, dl_state, dl_county = read_descartes_data(last_date)
 
+    if os.path.exists(os.path.join(bucky_cfg["data_dir"], 'safegraph_processed')):
+        sg_df = get_safegraph(last_date)
+        tmp = lex.set_index(['StartId', 'EndId']).frac_count.sort_index()
+        sg_df.index.rename(['StartId','EndId'],inplace=True)
+        merged_df = tmp.to_frame().merge(sg_df.to_frame(), left_index=True, right_index=True, how='outer')
+        mean_df = merged_df.mean(axis=1, skipna=True)
+        lex = mean_df.to_frame(name='frac_count').reset_index()
+
     # Combine Teralytics, Descartes data
-    state_map = counties[["FIPS", "STATEFIPS"]].set_index("FIPS")
+    state_map = counties[["adm2", "adm1"]].set_index("adm2")
     lex = lex.reset_index().set_index("StartId")
     lex = lex.merge(state_map, left_index=True, right_index=True, how="left")
 
     # Merge state movement
-    lex = lex.merge(dl_state, left_on="STATEFIPS", right_index=True, how="left")
+    lex = lex.merge(dl_state, left_on="adm1", right_index=True, how="left")
 
     # Add in the counties that we have
+    # TODO Replace with loc for performance
     lex.update(dl_county)
 
     # use national to cover any nans (like PR)
@@ -334,7 +396,7 @@ def get_mobility_data(popdens, end_date, age_data, add_territories=True):
 
     lex = lex.merge(popdens, left_on="EndId", right_index=True, how="left")
     lex["frac_count"] = lex["frac_count"] * np.sqrt(
-        np.maximum(0.01, lex["pop_dens_scaled"]) ** 2
+        np.maximum(.02, lex["pop_dens_scaled"]) ** 2
     )
 
     # Use data to make mean edge weights
@@ -344,13 +406,6 @@ def get_mobility_data(popdens, end_date, age_data, add_territories=True):
     movement = lex.set_index(["StartId", "EndId"])["frac_move"]
     # TODO this takes forever:
     move_dict = {ind: {"R0_frac": movement.loc[ind]} for ind in movement.index}
-
-    # Add in data for some territories manually
-    if add_territories:
-        move_dict[(66010, 66010)] = {"R0_frac": 0.5}
-        move_dict[(69110, 69110)] = {"R0_frac": 0.5}
-        move_dict[(69100, 69100)] = {"R0_frac": 0.5}
-        move_dict[(69120, 69120)] = {"R0_frac": 0.5}
 
     return mean_edge_weights, move_dict
 
@@ -400,8 +455,8 @@ if __name__ == "__main__":
     ##### SHAPE FILE #####
     # Read county data
     counties = gpd.read_file(county_shapefile)
-    counties["FIPS"] = counties["GEOID"].astype(int)
-    counties["STATEFIPS"] = counties["STATEFP"].astype(int)
+    counties["adm2"] = counties["GEOID"].astype(int)
+    counties["adm1"] = counties["STATEFP"].astype(int)
 
     ##### GEOID MAPPING #####
 
@@ -473,14 +528,14 @@ if __name__ == "__main__":
 
     if len(non_increasing_fips) > 0:
 
-        logging.warning("Some FIPS have non-monotonically increasing historical data.")
+        logging.warning("Some adm2 have non-monotonically increasing historical data.")
 
     # Get historical data for start date of the simulation
-    date_data = hist_data.set_index(["FIPS", "date"]).xs(last_date, level=1)
+    date_data = hist_data.set_index(["adm2", "date"]).xs(last_date, level=1)
 
     # grab from covid tracking project, (only defined at state level)
     ct_data = pd.read_csv(bucky_cfg['data_dir'] + '/cases/covid_tracking.csv')
-    ct_data = ct_data.loc[ct_data.date >= last_date]
+    ct_data = ct_data.loc[ct_data.date <= last_date]
     ct_data.set_index(['adm1', 'date'], inplace=True)
 
     # Remove duplicates
@@ -497,12 +552,12 @@ if __name__ == "__main__":
 
     ##### COMBINE DATA #####
     # Start merging all of our data together
-    data = date_data.merge(popdens, left_on="FIPS", right_index=True, how="left")
+    data = date_data.merge(popdens, left_on="adm2", right_index=True, how="left")
 
     # Add shape data
     # Check if there are counties present in data but missing shapes
     data_fips = data.index.values
-    shape_fips = counties["FIPS"].unique()
+    shape_fips = counties["adm2"].unique()
     fips_diff = np.setdiff1d(data_fips, shape_fips)
     if len(fips_diff) > 0:
         logging.warning(
@@ -510,25 +565,25 @@ if __name__ == "__main__":
             + " FIPS appear in historical data but do not have shapefile information. This data is dropped"
         )
 
-    data = counties.merge(data, on="FIPS", sort=True, how="left")
+    data = counties.merge(data, on="adm2", sort=True, how="left")
 
     for col in ["Confirmed", "Deaths"]:
         data[col] = data[col].fillna(0.0)
 
     data = data[
-        ["FIPS", "STATEFIPS", "Confirmed", "Deaths", "pop_dens", "geometry", "NAMELSAD"]
+        ["adm2", "adm1", "Confirmed", "Deaths", "pop_dens", "geometry", "NAMELSAD"]
     ]
     data = data.rename(columns={"NAMELSAD": "adm2_name"})
 
     # Drop duplicates
-    data.drop(data[data.duplicated("FIPS", keep="first")].index, inplace=True)
+    data.drop(data[data.duplicated("adm2", keep="first")].index, inplace=True)
 
     data.dropna(
         subset=["geometry"], inplace=True
     )  # this should happen but 2 of the cases have unknown fips
 
     # Only keep FIPS that appear in our age data
-    data = data[data["FIPS"].isin(list(age_dict.keys()))]
+    data = data[data["adm2"].isin(list(age_dict.keys()))]
 
     # Ensure there are 3233 values
     required_num_nodes = 3233
@@ -542,7 +597,7 @@ if __name__ == "__main__":
 
     ##### EDGE CREATION #####
     # Get list of all unique FIPS
-    uniq_fips = pd.unique(data["FIPS"])
+    uniq_fips = pd.unique(data["adm2"])
 
     # Keep edges that have starts/ends in the list of FIPS
     edge_list = edge_list[edge_list["StartId"].isin(uniq_fips)]
@@ -552,16 +607,16 @@ if __name__ == "__main__":
     # Create edges
     logging.info("Creating edges...")
     edges = []
-    for index, row in tqdm(data.iterrows(), total=len(data)):
+    for index, row in tqdm.tqdm(data.iterrows(), total=len(data)):
 
         # Determine which counties touch
-        neighbors = data[data.geometry.touches(row["geometry"])].FIPS.to_numpy()
+        neighbors = data[data.geometry.touches(row["geometry"])].adm2.to_numpy()
         edges.append(
             np.vstack(
                 [
-                    np.full(neighbors.shape, row.FIPS),
+                    np.full(neighbors.shape, row.adm2),
                     neighbors,
-                    np.full(neighbors.shape, 0.01),
+                    np.full(neighbors.shape, 0.001),
                 ]
             )
         )  # *popdens['pop_dens'].loc[neighbors])]))
@@ -591,7 +646,7 @@ if __name__ == "__main__":
     G = nx.MultiDiGraph(contact_mats=contact_mats)
     G.add_weighted_edges_from(edge_list)
 
-    node_attr_dict = data.set_index("FIPS").to_dict("index")
+    node_attr_dict = data.set_index("adm2").to_dict("index")
     nx.set_node_attributes(G, node_attr_dict)
     nx.set_node_attributes(G, age_dict)
 
@@ -617,8 +672,8 @@ if __name__ == "__main__":
     # coalesce edges by summing weights
     G2 = nx.DiGraph(
         contact_mats=contact_mats,
-        adm1_key="STATEFIPS",
-        adm2_key="FIPS",
+        adm1_key="adm1",
+        adm2_key="adm2",
         adm1_to_str=statefp_to_name,
         adm0_name="US",
         start_date=last_date,
@@ -628,13 +683,13 @@ if __name__ == "__main__":
     G2.update(nodes=G.nodes(data=True))
 
     logging.info("Finalizing edge weights...")
-    for u, v, d in tqdm(G.edges(data=True), total=len(G.edges)):
+    for u, v, d in tqdm.tqdm(G.edges(data=True), total=len(G.edges)):
 
         G2[u][v]["weight"] += d["weight"]
         if (u, v) in move_dict:
             G2[u][v]["R0_frac"] = move_dict[(u, v)]["R0_frac"]
 
-    G_out = nx.convert_node_labels_to_integers(G2, label_attribute="FIPS")
+    G_out = nx.convert_node_labels_to_integers(G2, label_attribute="adm2")
 
     logging.info("Writing output pickle: " + out_file)
     # Write to pickle
