@@ -12,7 +12,7 @@ import geopandas as gpd
 import networkx as nx
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
+import tqdm
 
 from .util.read_config import bucky_cfg
 from .util.update_data_repos import update_repos
@@ -83,7 +83,7 @@ def get_case_history(historical_data, end_date, num_days=DAYS_OF_HIST):
     logging.info(
         "Getting " + str(num_days) + " days of case/death data for each county..."
     )
-    for fips, group in tqdm(historical_data.groupby("FIPS")):
+    for fips, group in tqdm.tqdm(historical_data.groupby("FIPS")):
 
         # Get block of data
         block = group.loc[(group["date"] >= start_date) & (group["date"] <= end_date)]
@@ -552,7 +552,7 @@ if __name__ == "__main__":
     # Create edges
     logging.info("Creating edges...")
     edges = []
-    for index, row in tqdm(data.iterrows(), total=len(data)):
+    for index, row in tqdm.tqdm(data.iterrows(), total=len(data)):
 
         # Determine which counties touch
         neighbors = data[data.geometry.touches(row["geometry"])].FIPS.to_numpy()
@@ -628,7 +628,7 @@ if __name__ == "__main__":
     G2.update(nodes=G.nodes(data=True))
 
     logging.info("Finalizing edge weights...")
-    for u, v, d in tqdm(G.edges(data=True), total=len(G.edges)):
+    for u, v, d in tqdm.tqdm(G.edges(data=True), total=len(G.edges)):
 
         G2[u][v]["weight"] += d["weight"]
         if (u, v) in move_dict:
