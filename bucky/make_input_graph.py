@@ -224,8 +224,8 @@ def read_descartes_data(end_date):
 
     return nat_frac_move, dl_state, dl_county
 
-
-def read_lex_data(last_date):
+# TODO this needs to be windowed like the safegraph data
+def read_lex_data(date):
     """Reads county-level location exposure indices for a given date from
     PlaceIQ location data.
 
@@ -245,28 +245,19 @@ def read_lex_data(last_date):
 
     """
     # Check if a preprocessed version already exists
-    try:
-        df_long = pd.read_csv(
-            "data/mobility/preprocessed/county_lex_" + last_date + ".csv"
-        )
-        logging.info("Using cached lex data.")
-    except FileNotFoundError:
-        try:
-            df = pd.read_csv(
+    cache_file = "data/mobility/preprocessed/county_lex_" + date + ".csv.gz"
+    if os.path.exists(cache_file):
+        df_long = pd.read_csv(cache_file)
+        logging.info("Using cached lex data for " + str(date))
+    else:
+        df = pd.read_csv(
                 "data/mobility/COVIDExposureIndices/lex_data/county_lex_"
-                + last_date
+                + date
                 + ".csv.gz",
                 compression="gzip",
                 header=0,
-            )
-        except FileNotFoundError:
-            df = pd.read_csv(
-                glob.glob(
-                    "data/mobility/COVIDExposureIndices/lex_data/county_lex_*.csv.gz"
-                )[-1],
-                compression="gzip",
-                header=0,
-            )
+        )
+        print(str(date) + ' not in cache')    
         countys = df.columns.values[1:]
         col_names = dict(zip(countys, ["a" + lab for lab in countys]))
         df = df.rename(columns=col_names)
@@ -280,10 +271,71 @@ def read_lex_data(last_date):
         if not os.path.exists("data/mobility/preprocessed"):
             os.makedirs("data/mobility/preprocessed")
 
-        df_long.to_csv("data/mobility/preprocessed/county_lex_" + last_date + ".csv")
+        df_long.to_csv("data/mobility/preprocessed/county_lex_" + date + ".csv.gz")
 
     return df_long
 
+def get_lex(last_date, window_size=7):
+    lex_df = None
+    success = 0
+    d = 0
+    while success < window_size: #d in tqdm.trange(window_size):
+        date = datetime.date.fromisoformat(last_date) - datetime.timedelta(days=d)
+        date_str = date.isoformat()
+        print(date_str)
+        d += 1
+        try:
+            if lex_df is None:
+                lex_df = read_lex_data(date_str)
+                lex_df.set_index(['StartId','EndId'], inplace=True)
+                lex_df.rename(columns={'frac_count': date_str}, inplace=True)
+            else:
+                tmp_df = read_lex_data(date_str)
+                tmp_df.set_index(['StartId','EndId'], inplace=True)
+                tmp_df.rename(columns={'frac_count': date_str}, inplace=True)
+                lex_df = lex_df.merge(tmp_df, left_index=True, right_index=True, how='outer')
+            success += 1
+        except FileNotFoundError as e:
+            #print(e)
+            continue
+
+    lex_df.fillna(0., inplace=True)
+    mean_df = lex_df.mean(axis=1)
+    tot_df = mean_df.reset_index().groupby('StartId').sum()
+
+    frac_df = mean_df.divide(tot_df[0], axis=0, level=0)
+    return frac_df.to_frame(name='frac_count').reset_index()
+
+def get_safegraph(last_date, window_size=7):
+    sg_df = None
+    success = 0
+    d = 0
+    while success < window_size: #for d in tqdm.trange(window_size):
+
+        date = datetime.date.fromisoformat(last_date) - datetime.timedelta(days=d)
+        date_str = date.isoformat()
+        d += 1
+        try:
+            if sg_df is None:
+                sg_df = pd.read_csv('data/safegraph_processed/'+date_str+'_county.csv.gz')
+                sg_df.set_index(['origin','dest'], inplace=True)
+                sg_df.rename(columns={'count': date_str}, inplace=True)
+            else:
+                tmp_df = pd.read_csv('data/safegraph_processed/'+date_str+'_county.csv.gz')
+                tmp_df.set_index(['origin','dest'], inplace=True)
+                tmp_df.rename(columns={'count': date_str}, inplace=True)
+                sg_df = sg_df.merge(tmp_df, left_index=True, right_index=True, how='outer')
+            logging.info('using sg data from ' + date_str)
+            success += 1
+        except FileNotFoundError:
+            continue
+
+    sg_df.fillna(0., inplace=True)
+    mean_df = sg_df.mean(axis=1)
+    tot_df = mean_df.reset_index().groupby('origin').sum()
+
+    frac_df = mean_df.divide(tot_df[0], axis=0, level=0)
+    return frac_df
 
 def get_mobility_data(popdens, end_date, age_data, add_territories=True):
     """Fetches mobility data.
@@ -307,9 +359,18 @@ def get_mobility_data(popdens, end_date, age_data, add_territories=True):
         TODO
 
     """
-    lex = read_lex_data(last_date)
+    #lex = read_lex_data(last_date)
+    lex = get_lex(last_date)
 
     national_frac_move, dl_state, dl_county = read_descartes_data(last_date)
+
+    if os.path.exists('data/safegraph_processed/'):
+        sg_df = get_safegraph(last_date)
+        tmp = lex.set_index(['StartId', 'EndId']).frac_count.sort_index()
+        sg_df.index.rename(['StartId','EndId'],inplace=True)
+        merged_df = tmp.to_frame().merge(sg_df.to_frame(), left_index=True, right_index=True, how='outer')
+        mean_df = merged_df.mean(axis=1, skipna=True)
+        lex = mean_df.to_frame(name='frac_count').reset_index()
 
     # Combine Teralytics, Descartes data
     state_map = counties[["FIPS", "STATEFIPS"]].set_index("FIPS")
