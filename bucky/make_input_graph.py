@@ -480,7 +480,7 @@ if __name__ == "__main__":
 
     # grab from covid tracking project, (only defined at state level)
     ct_data = pd.read_csv(bucky_cfg['data_dir'] + '/cases/covid_tracking.csv')
-    ct_data = ct_data.loc[ct_data.date >= last_date]
+    ct_data = ct_data.loc[ct_data.date <= last_date]
     ct_data.set_index(['adm1', 'date'], inplace=True)
 
     # Remove duplicates
