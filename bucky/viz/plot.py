@@ -1,7 +1,9 @@
 import argparse
 import glob
+import logging
 import os
 import pickle
+import sys
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -77,21 +79,13 @@ parser.add_argument(
     type=str,
     help="Columns to plot",
 )
+
 parser.add_argument(
     "--hist_columns",
     default=default_hist_cols,
     nargs="+",
     type=str,
     help="Historical columns to plot",
-)
-
-# Specify number of MC runs
-parser.add_argument(
-    "-n",
-    "--n_mc",
-    default=1000,
-    type=int,
-    help="Number of Monte Carlo runs that were performed during simulation",
 )
 
 # Can pass in a lookup table to use in place of graph
@@ -106,6 +100,7 @@ parser.add_argument(
     type=str,
     help="Start date of historical data. If not passed in, will align with start date of simulation",
 )
+
 parser.add_argument(
     "--hist_file",
     default=None,
@@ -117,20 +112,18 @@ parser.add_argument(
 parser.add_argument(
     "--adm1_name", default=None, type=str, help="Admin1 to make admin2-level plots for",
 )
+
 parser.add_argument(
     "--end_date",
     default=None,
     type=str,
     help="Data will not be plotted past this point",
 )
+
 parser.add_argument(
     "-v", "--verbose", action="store_true", help="Print extra information"
 )
-parser.add_argument(
-    "--use_std",
-    action="store_true",
-    help="Flag to indicate standard deviation should be used instead of quantiles",
-)
+
 parser.add_argument(
     "-hist",
     "--hist",
@@ -140,9 +133,11 @@ parser.add_argument(
 
 parser.add_argument(
     "-q",
-    "--extra_quantiles",
-    action="store_true",
-    help="Indicate that more than 5 quantiles should be plotted")
+    "--quantiles",
+    nargs='+',
+    type=float,
+    default=None,
+    help="Specify the quantiles to plot. Defaults to all quantiles present in data.")
 
 # Size of window in days
 parser.add_argument(
@@ -152,7 +147,6 @@ parser.add_argument(
     type=int,
     help="Size of window (in days) to apply to historical data",
 )
-
 
 def add_daily_history(history_data, window_size=None):
     """Applies a window to cumulative historical data to get daily data.
@@ -216,9 +210,7 @@ def plot(
     hist_data,
     plot_columns,
     hist_columns,
-    use_std=False,
-    n_mc=None,
-    extra_quantiles=False
+    quantiles
 ):
     """Given a dataframe and a key, creates plots with requested columns.
 
@@ -246,20 +238,20 @@ def plot(
         Simulation columns to plot
     hist_columns : list of strings
         Historical data columns to plot
-    use_std : boolean, default=False
-        Indicating whether standard deviation should be used instead of 
-        confidence intervals
-    n_mc : int
-        Number of Monte Carlos performed for this simulation. Required if
-        using standard deviation instead of confidence intervals.
-    extra_quantiles : bool
-        If true, more than 5 quantiles will be plotted
+    quantiles : list of floats (or None)
+        List of quantiles to plot. If None, will plot all available 
+        quantiles in data.
     """
 
-    # Need N to plot standard dev
-    if use_std and not n_mc:
-        print("Error: Need number of Monte Carlo runs to plot standard deviation")
-        return
+    # If quantiles were not specified, get all quantiles present in data
+    if quantiles is None:
+        quantiles = sim_data['q'].unique()
+
+    # Get number of quantiles
+    num_intervals = len(quantiles)
+
+    # make sure they're sorted
+    quantiles.sort()
 
     # Drop lookup nans
     lookup_df = lookup_df.dropna()
@@ -282,6 +274,7 @@ def plot(
         name = lookup_df.loc[lookup_df[key] == area][key + "_name"].values[0]
 
         # If admin2-level, get admin1-level as well
+        # TODO change to function call with descriptive name
         if key == "adm2":
 
             admin1_name = lookup_df.loc[lookup_df[key] == area]["adm1_name"].values[0]
@@ -302,150 +295,45 @@ def plot(
 
         for i, col in enumerate(plot_columns):
 
-            # Data is either quantiles or mean/std
-            if not use_std:
+            # Set index
+            area_data.set_index(["date", "q"], inplace=True)
 
-                # Get number of quantiles
-                quantiles = area_data["q"].unique()
-                num_intervals = len(quantiles)
+            # Middle is median
+            median_data = area_data.xs(quantiles[int(num_intervals / 2)], level=1)[
+                col
+            ]
+            dates = median_data.index.values
 
-                # make sure they're sorted
-                quantiles.sort()
+            # Plot median and outer quantiles
+            median_data.plot(
+                linewidth=1.5, color='k', alpha=0.75, label=readable_col_names[col], ax=axs[i]
+            )
 
-                # Set index
-                area_data.set_index(["date", "q"], inplace=True)
+            # Iterate over pairs of quantiles
+            num_quantiles = len(quantiles)
 
-                # Middle is median
-                median_data = area_data.xs(quantiles[int(num_intervals / 2)], level=1)[
-                    col
-                ]
-                dates = median_data.index.values
+            # Scale opacity
+            alpha = 1. / (num_quantiles  // 2)
+            for q in range(num_quantiles // 2):
 
-                if extra_quantiles:
+                lower_q = quantiles[q]
+                upper_q = quantiles[num_quantiles - 1 - q]
 
-                    # Plot median and outer quantiles
-                    median_data.plot(
-                        linewidth=1.5, color='k', alpha=0.75, label=readable_col_names[col], ax=axs[i]
-                    )
+                lower_data = area_data.xs(lower_q, level=1)[col]
+                upper_data = area_data.xs(upper_q, level=1)[col]
 
-                    # Iterate over pairs of quantiles
-                    num_quantiles = len(quantiles)
-
-                    # Scale opacity
-                    alpha = 1. / (num_quantiles  // 2)
-                    for q in range(num_quantiles // 2):
-
-                        lower_q = quantiles[q]
-                        upper_q = quantiles[num_quantiles - 1 - q]
-
-                        lower_data = area_data.xs(lower_q, level=1)[col]
-                        upper_data = area_data.xs(upper_q, level=1)[col]
-
-                        axs[i].fill_between(
-                            dates,
-                            lower_data,
-                            upper_data,
-                            linewidth=0,
-                            alpha=alpha,
-                            color="b",
-                            interpolate=True
-                        )
-
-                else:
-                    # Plot median and outer quantiles
-                    median_data.plot(
-                        linewidth=2.75, label=readable_col_names[col], ax=axs[i]
-                    )
-
-                    # Grab other quantiles in pairs
-                    outer_quantiles = [quantiles[0], quantiles[-1]]
-                    oq_lower = area_data.xs(outer_quantiles[0], level=1)[col]
-                    oq_upper = area_data.xs(outer_quantiles[1], level=1)[col]
-                    outer_label = (
-                        str(outer_quantiles[0] * 100)
-                        + "% - "
-                        + str(outer_quantiles[1] * 100)
-                        + "% CI"
-                    )
-
-                    axs[i].fill_between(
-                        dates,
-                        oq_lower,
-                        oq_upper,
-                        linewidth=0,
-                        alpha=0.2,
-                        color="0.2",
-                        interpolate=True,
-                        label=outer_label,
-                    )
-
-                    # If there are more than 3, plot the inner quantiles as well
-                    if num_intervals > 3:
-                        inner_quantiles = [quantiles[1], quantiles[-2]]
-                        iq_lower = area_data.xs(inner_quantiles[0], level=1)[col]
-                        iq_upper = area_data.xs(inner_quantiles[1], level=1)[col]
-
-                        inner_label = (
-                            str(inner_quantiles[0] * 100)
-                            + "% - "
-                            + str(inner_quantiles[1] * 100)
-                            + "% CI"
-                        )
-                        axs[i].fill_between(
-                            dates,
-                            iq_lower,
-                            iq_upper,
-                            linewidth=0,
-                            alpha=0.2,
-                            color="r",
-                            interpolate=True,
-                            label=inner_label,
-                        )
-
-                # axs[i].set_ylim([.8*oq_lower.min(), 1.2*oq_upper.max()])
-
-                area_data.reset_index(inplace=True)
-
-            # Plot mean/standard deviation
-            else:
-
-                # Set index
-                area_data.set_index("date", inplace=True)
-
-                # Get mean, std, and dates
-                mu = area_data.loc[area_data["stat"] == "mean"][col]
-                dates = mu.index.values
-                sem = area_data.loc[area_data["stat"] == "std"][col]
-
-                # Compute intervals
-                col_25, col_75 = interval(mu, sem, 0.5, n_mc)
-
-                col_05, col_95 = interval(mu, sem, 0.95, n_mc)
-
-                # Plot data
-                mu.plot(linewidth=2.75, label=readable_col_names[col], ax=axs[i])
                 axs[i].fill_between(
                     dates,
-                    col_05,
-                    col_95,
+                    lower_data,
+                    upper_data,
                     linewidth=0,
-                    alpha=0.2,
-                    color="0.2",
-                    interpolate=True,
-                    label="2.5% - 97.5% CI",
-                )
-                axs[i].fill_between(
-                    dates,
-                    col_25,
-                    col_75,
-                    linewidth=0,
-                    alpha=0.2,
-                    color="r",
-                    interpolate=True,
-                    label="25% - 75% CI",
+                    alpha=alpha,
+                    color="b",
+                    interpolate=True
                 )
 
-                area_data.reset_index(inplace=True)
+            # axs[i].set_ylim([.8*oq_lower.min(), 1.2*oq_upper.max()])
+            area_data.reset_index(inplace=True)
 
             # Plot historical data which is already at the correct level
             if hist_data is not None and i <= (len(hist_columns) - 1):
@@ -468,7 +356,7 @@ def plot(
             axs[i].legend()
             axs[i].set_ylabel("Count")
 
-        plot_filename = os.path.join(output_dir, name + ".png")
+        plot_filename = os.path.join(output_dir, readable_col_names[plot_columns[0]] + "_"+ name + ".png")
         plot_filename = plot_filename.replace(" : ", "_")
         plot_filename = plot_filename.replace(" ", "")
         area_data.to_csv(plot_filename.replace(".png", ".csv"))
@@ -484,16 +372,15 @@ def make_plots(
     plot_hist,
     plot_columns,
     hist_columns,
-    use_std,
-    N,
-    use_windowed,
+    quantiles,
+    window_size,
     end_date,
     admin1=None,
     hist_start=None,
-    hist_file=None,
-    extra_quantiles=False
+    hist_file=None
 ):
-    """Wrapper function around plot. Creates plots, aggregating data if necessary.
+    """Wrapper function around plot. Creates plots, aggregating data 
+    if necessary.
 
     Parameters
     ----------
@@ -511,13 +398,11 @@ def make_plots(
         List of columns to plot from simulation data
     hist_columns : list of strings
         List of columns to plot from historical data
-    use_std : boolean
-        If true, use standard deviation instead of quantiles for
-        confidence intervals
-    N : int
-        Number of Monte Carlo runs from simulation
-    use_windowed : boolean
-        Use windowed or cumulative historical data
+    quantiles : list of floats (or None)
+        List of quantiles to plot. If None, will plot all available 
+        quantiles in data.
+    window_size : int
+        Size of window (in days) to apply to historical data
     end_date : string, formatted as YYYY-MM-DD
         Plot data until this date
     admin1 : list of strings, or None
@@ -530,16 +415,12 @@ def make_plots(
     hist_file : string or None
         File to use for historical data. If None, uses default defined at
         top of file.
-    extra_quantiles : bool
-        If true, more than 5 quantiles will be plotted
     """
+
     # Loop over requested levels
     for level in adm_levels:
 
-        if use_std:
-            filename = level + "_mean_std.csv"
-        else:
-            filename = level + "_quantiles.csv"
+        filename = level + "_quantiles.csv"
 
         # Read the requested file from the input dir
         data = pd.read_csv(os.path.join(input_dir, filename))
@@ -588,7 +469,7 @@ def make_plots(
                 hist_data.rename(columns={"FIPS": "adm2"}, inplace=True)
 
             # Add daily data
-            hist_data = add_daily_history(hist_data, use_windowed)
+            hist_data = add_daily_history(hist_data, window_size)
 
             # Aggregate if necessary
             if level == "adm1":
@@ -642,17 +523,21 @@ def make_plots(
             hist_data=level_hist_data,
             plot_columns=plot_columns,
             hist_columns=hist_columns,
-            use_std=use_std,
-            n_mc=N,
-            extra_quantiles=extra_quantiles
+            quantiles=quantiles
         )
-
 
 if __name__ == "__main__":
 
+    # Logging
+    logging.basicConfig(
+        level=logging.INFO,
+        stream=sys.stdout,
+        format="%(asctime)s - %(levelname)s - %(filename)s:%(funcName)s:%(lineno)d - %(message)s",
+    )
+
     # Parse CLI args
     args = parser.parse_args()
-    print(args)
+    logging.info(args)
 
     # Parse arguments
     input_dir = args.input_dir
@@ -684,12 +569,10 @@ if __name__ == "__main__":
 
     # Parse optional flags
     window = args.window_size
-    N = args.n_mc
     plot_historical = args.hist
     verbose = args.verbose
-    use_std = args.use_std
     end_date = args.end_date
-    extra_quantiles = args.extra_quantiles
+    quantiles = args.quantiles
 
     # Plot
     make_plots(
@@ -700,12 +583,10 @@ if __name__ == "__main__":
         plot_historical,
         plot_cols,
         hist_cols,
-        use_std,
-        N,
+        quantiles,
         window,
         end_date,
         args.adm1_name,
         hist_start,
-        hist_file,
-        extra_quantiles
+        hist_file
     )
