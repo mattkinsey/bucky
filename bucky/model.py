@@ -921,7 +921,8 @@ if __name__ == "__main__":
         while success < n_mc:
             start = datetime.datetime.now()
             try:
-                env.run_once(seed=seed, outdir=args.output_dir, output_queue=to_write)
+                with xp.optimize_kernels():
+                    env.run_once(seed=seed, outdir=args.output_dir, output_queue=to_write)
                 success += 1
                 pbar.update(1)
             except SimulationException:
