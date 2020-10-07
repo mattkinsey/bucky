@@ -48,6 +48,7 @@ from .util.util import ivp, sparse, xp  # isort:skip
 # Params TODO move all this to arg_parser or elsewhere
 #
 OUTPUT = True
+REJECT_RUNS = True
 
 # TODO move to param file
 RR_VAR = 0.1  # variance to use for MC of params with no CI
@@ -149,7 +150,7 @@ class SEIR_covid(object):
             self.case_hist_cum = case_hist.astype(float)
             self.case_hist = xp.diff(case_hist, axis=0).astype(
                 float
-            )  # TODO rename to daily_case_hist
+            )  # TODO rename to inc_case_hist
 
             death_hist = xp.vstack(
                 list(nx.get_node_attributes(G, "death_hist").values())
@@ -730,13 +731,14 @@ class SEIR_covid(object):
             out[Di], prepend=self.death_hist_cum[-1][:, None], axis=-1
         )
         
-        init_inc_death_mean = xp.mean(xp.sum(daily_deaths[:,1:8],axis=0))
+        init_inc_death_mean = xp.mean(xp.sum(daily_deaths[:,1:4],axis=0))
         hist_inc_death_mean = xp.mean(xp.sum(self.death_hist[-7:], axis=-1))
 
-        inc_death_rejection_fac = 1.5
+        inc_death_rejection_fac = 2. #1.1
         if (init_inc_death_mean > inc_death_rejection_fac*hist_inc_death_mean) or (inc_death_rejection_fac*init_inc_death_mean < hist_inc_death_mean):
-            logging.info("Inconsistent inc deaths, rejecting run")
-            raise SimulationException
+            if REJECT_RUNS:
+                logging.info("Inconsistent inc deaths, rejecting run")
+                raise SimulationException
 
         cum_cases = (
             xp.sum(
@@ -751,6 +753,15 @@ class SEIR_covid(object):
         )
         n_daily_cases = xp.diff(out[incC], axis=-1, prepend=self.case_hist_cum[-1][:, None])
         n_cum_cases = self.case_hist_cum[-1][:, None] + out[incC]
+
+        init_inc_case_mean = xp.mean(xp.sum(n_daily_cases[:,1:4],axis=0))
+        hist_inc_case_mean = xp.mean(xp.sum(self.case_hist[-7:], axis=-1))
+
+        inc_case_rejection_fac = 2.
+        if (init_inc_case_mean > inc_case_rejection_fac*hist_inc_case_mean) or (inc_case_rejection_fac*init_inc_case_mean < hist_inc_case_mean):
+            if REJECT_RUNS:
+                logging.info("Inconsistent inc cases, rejecting run")
+                raise SimulationException
 
         # cum_cases_reported = cum_cases * self.params["SYM_FRAC"] * self.params.CASE_REPORT[:,None]
         daily_cases_reported = (
