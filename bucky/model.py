@@ -579,10 +579,8 @@ class SEIR_covid(object):
         # reshape to a sane form (compartment, age, node)
         s = y.reshape(N_compartments, Nij.shape[0], -1)
 
-        # y = xp.clip(y, 0., 1.)
         # Clip state to be in bounds (except allocs b/c thats a counter)
-        s = xp.maximum(s, xp.ones(s.shape) * lower)
-        s = xp.minimum(s, xp.ones(s.shape) * upper)
+        xp.clip(s, a_min=lower, a_max=upper, out=s)
 
         # init d(state)/dt
         dG = xp.zeros(s.shape)
@@ -662,15 +660,8 @@ class SEIR_covid(object):
         dG = dG.reshape(-1)
 
         # zero derivatives for things we had to clip if they are going further out of bounds
-        # TODO we can probably do this better, we really dont want to branch in the RHS
-        if args.gpu:
-            low_count = too_low.sum().get().item()
-            high_count = too_high.sum().get().item()
-        else:
-            low_count = too_low.sum()
-            high_count = too_high.sum()
-        dG[too_low] = xp.maximum(dG[too_low], xp.ones(low_count) * lower)
-        dG[too_high] = xp.minimum(dG[too_high], xp.ones(high_count) * upper)
+        dG = xp.where(too_low & (dG < 0.), 0., dG)
+        dG = xp.where(too_high & (dG > 0.), 0., dG)
 
         return dG
 
