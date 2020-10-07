@@ -395,7 +395,7 @@ def get_mobility_data(popdens, end_date, age_data, add_territories=True):
 
     lex = lex.merge(popdens, left_on="EndId", right_index=True, how="left")
     lex["frac_count"] = lex["frac_count"] * np.sqrt(
-        np.maximum(0.01, lex["pop_dens_scaled"]) ** 2
+        np.maximum(.02, lex["pop_dens_scaled"]) ** 2
     )
 
     # Use data to make mean edge weights
@@ -622,7 +622,7 @@ if __name__ == "__main__":
                 [
                     np.full(neighbors.shape, row.FIPS),
                     neighbors,
-                    np.full(neighbors.shape, 0.01),
+                    np.full(neighbors.shape, 0.001),
                 ]
             )
         )  # *popdens['pop_dens'].loc[neighbors])]))
