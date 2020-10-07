@@ -213,7 +213,7 @@ if __name__ == "__main__":
     admin2_key = "ADM2_ID"
 
     write_header = True
-    all_files = glob.glob(args.file + "/*")
+    all_files = glob.glob(args.file + "/*.feather")
     all_files_df = pd.DataFrame(
         [x.split("/")[-1].split(".")[0].split("_") for x in all_files],
         columns=["rid", "date"],
