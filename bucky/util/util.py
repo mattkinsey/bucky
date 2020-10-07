@@ -7,6 +7,7 @@ import lzma  # lzma is slow but reallllly gets that file size down...
 import os
 import pickle
 import threading
+import contextlib
 
 import numpy as np
 import pandas as pd
@@ -146,6 +147,7 @@ def import_numerical_libs(gpu=False):
 
         import cupyx
         cp.scatter_add = cupyx.scatter_add
+        cp.optimize_kernels = cupyx.optimizing.optimize
 
         xp = cp
         import cupyx.scipy.sparse as sparse
@@ -154,6 +156,7 @@ def import_numerical_libs(gpu=False):
         import numpy as xp
         import scipy.sparse as sparse
         xp.scatter_add = xp.add.at
+        xp.optimize_kernels = contextlib.nullcontext
 
 def force_cpu(var):
     return var.get() if "cupy" in type(var).__module__ else var

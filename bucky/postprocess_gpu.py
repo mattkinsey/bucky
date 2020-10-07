@@ -7,7 +7,7 @@ from pathlib import Path
 import pickle
 from datetime import timedelta
 from functools import partial
-from multiprocessing import Pool, cpu_count, Queue, current_process, RLock, Process
+from multiprocessing import Pool, cpu_count, Queue, current_process, RLock, Process, JoinableQueue
 import gc
 
 import networkx as nx
@@ -177,18 +177,21 @@ if __name__ == "__main__":
     all_files_df = pd.DataFrame([x.split('/')[-1].split('.')[0].split('_') for x in all_files], columns=['rid', 'date'])
     dates = all_files_df.date.unique().tolist()
 
-    to_write = Queue()
+    to_write = JoinableQueue()
 
-    def writer():
+    def writer(q):
         # Call to_write.get() until it returns None
         has_header_dict = {}
-        for fname, df in iter(to_write.get, None):
+        for fname, df in iter(q.get, None):
             if fname in has_header_dict:
                 df.to_csv(fname, header=False, mode='a')
             else: 
                 df.to_csv(fname, header=True, mode='w')
                 has_header_dict[fname] = True
-    write_thread = Process(target=writer)
+            q.task_done()
+        q.task_done()
+    write_thread = Process(target=writer, args=(to_write,))
+    write_thread.deamon = True
     write_thread.start()
 
 
@@ -349,15 +352,16 @@ if __name__ == "__main__":
 
     
     
-    with Pool(processes=args.nprocs) as pool:
-        for _ in tqdm(pool.imap_unordered(process_date, dates), total=len(dates)):
-            pass
+    pool = Pool(processes=args.nprocs)
+    for _ in tqdm(pool.imap_unordered(process_date, dates), total=len(dates)):
+        pass
+    pool.close()
+    pool.join() # wait until everything is done
 
-    to_write.put(None)
-    to_write.close()
-    #to_write.join_thread()
-    #write_thread.close()
-    #write_thread.join()
+    to_write.join() # wait until queue is empty
+    to_write.put(None) # send signal to term loop
+    to_write.join() # wait until write_thread handles it
+    write_thread.join() # join the write_thread
 
 
     #sort output csvs

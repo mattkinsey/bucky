@@ -7,11 +7,16 @@ import argparse
 import glob
 import importlib
 import os
+import logging
 
 from .util.read_config import bucky_cfg
 
 cupy_spec = importlib.util.find_spec("cupy")
 cupy_found = cupy_spec is not None
+
+if os.getenv('BUCKY_CPU', 0):
+    logging.info('BUCKY_CPU found, forcing cpu usage')
+    cupy_found = False
 
 most_recent_graph = max(
     glob.glob(bucky_cfg["data_dir"] + "/input_graphs/*.p"),
