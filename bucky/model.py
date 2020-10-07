@@ -1,5 +1,4 @@
 import copy
-import csv
 import datetime
 import glob
 import logging
@@ -9,6 +8,7 @@ import random
 import sys
 from collections import defaultdict, deque
 from functools import partial
+from pprint import pformat #TODO set some defaults for width/etc with partial?
 import warnings
 
 # supress pandas warning caused by pyarrow
@@ -180,7 +180,7 @@ class SEIR_covid(object):
 
             # Make contact mats sym and normalized
             self.contact_mats = G.graph["contact_mats"]
-            logging.debug(f"graph contact mats: {G.graph['contact_mats']}")
+            logging.debug(f"graph contact mats: {G.graph['contact_mats'].keys()}")
             for mat in self.contact_mats:
                 c_mat = xp.array(self.contact_mats[mat])
                 c_mat = (c_mat + c_mat.T) / 2.0
@@ -261,7 +261,7 @@ class SEIR_covid(object):
         if params is not None:
             self.params = copy.deepcopy(params)
 
-        logging.info(f"params: {self.params}")
+        logging.debug('params: ' + pformat(self.params, width=120))
 
         for k in self.params:
             if type(self.params[k]).__module__ == np.__name__:
@@ -284,7 +284,10 @@ class SEIR_covid(object):
         self.doubling_t = self.estimate_doubling_time()
 
         if xp.any(~xp.isfinite(self.doubling_t)):
-            raise RuntimeError("non finite doubling times, is there enough case data?")
+            logging.info("non finite doubling times, is there enough case data?")
+            logging.debug(self.doubling_t)
+            logging.debug(self.adm1_id[~xp.isfinite(self.doubling_t)])
+            raise SimulationException
 
         if RR_VAR > 0.0:
             self.doubling_t *= truncnorm(
@@ -408,9 +411,8 @@ class SEIR_covid(object):
         self.y = y
 
         if xp.any(~xp.isfinite(self.y)):
-            raise RuntimeError(
-                "nonfinite values in the state vector, something is wrong with init"
-            )
+            logging.info("nonfinite values in the state vector, something is wrong with init")
+            raise SimulationException
 
         logging.debug("done reset")
 
@@ -436,6 +438,12 @@ class SEIR_covid(object):
             * xp.log(2.0)
             / xp.log(xp.sum(cases, axis=1) / xp.sum(cases_old, axis=1))
         )
+
+        logging.debug('Adm0 doubling time: ' + str(adm0_doubling_t))
+        if xp.any(~xp.isfinite(adm0_doubling_t)):
+            logging.debug(xp.nansum(cases,axis=1))
+            logging.debug(xp.nansum(cases_old,axis=1))
+            raise SimulationException
 
         doubling_t = xp.repeat(adm0_doubling_t[:, None], cases.shape[-1], axis=1)
 
@@ -500,6 +508,13 @@ class SEIR_covid(object):
                 cases_lagged, axis=1
             )
         adm0_case_report = adm0_cfr_param / self.adm0_cfr_reported
+
+        logging.debug('Adm0 case reporting rate: ' + pformat(adm0_case_report))
+        if xp.any(~xp.isfinite(adm0_case_report)):
+            logging.debug('adm0 case report not finite')
+            logging.debug(adm0_cfr_param)
+            logging.debug(self.adm0_cfr_reported)
+            raise SimulationException
 
         case_report = xp.repeat(
             adm0_case_report[:, None], cases_lagged.shape[-1], axis=1
@@ -662,11 +677,14 @@ class SEIR_covid(object):
     def run_once(self, seed=None, outdir="raw_output/", output=True, output_queue=None):
 
         # reset everything
+        logging.debug('Resetting state')
         self.reset(seed=seed)
+        logging.debug('Done reset')
 
         # TODO should output the IC here
 
         # do integration
+        logging.debug('Starting integration')
         t_eval = np.arange(0, self.t_max + self.dt, self.dt)
         sol = ivp.solve_ivp(
             self._dGdt_vec,
@@ -676,7 +694,7 @@ class SEIR_covid(object):
             t_eval=t_eval,
             args=(self.Nij, self.Cij, self.A, self.params, self.npi_params),
         )
-
+        logging.debug('Done integration')
         y = sol.y.reshape(N_compartments, self.n_age_grps, -1, len(t_eval))
 
         out = self.Nij[None, ..., None] * y
