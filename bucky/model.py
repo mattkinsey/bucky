@@ -51,7 +51,7 @@ OUTPUT = True
 REJECT_RUNS = True
 
 # TODO move to param file
-RR_VAR = 0.1  # variance to use for MC of params with no CI
+RR_VAR = 0.12  # variance to use for MC of params with no CI
 
 
 class SimulationException(Exception):
@@ -244,6 +244,24 @@ class SEIR_covid(object):
                 hosp_data_count = hosp_data['hospitalizedCurrently'].to_numpy()
                 self.adm1_current_hosp = xp.zeros((self.adm1_max+1,), dtype=float)
                 self.adm1_current_hosp[hosp_data_adm1] = hosp_data_count
+                logging.debug('Current hosp: ' + pformat(self.adm1_current_hosp))
+                df = G.graph['covid_tracking_data']
+                self.adm1_current_cfr = xp.zeros((self.adm1_max+1,), dtype=float)
+                cfr_delay = 12
+                
+                for adm1, g in df.groupby('adm1'):
+                    g_df = g.set_index('date').sort_index().rolling(7).mean().dropna(how='all')
+                    g_df.clip(lower=0., inplace=True)
+                    g_df = g_df.rolling(7).sum()
+                    new_deaths = g_df.deathIncrease.to_numpy()
+                    new_cases = g_df.positiveIncrease.to_numpy()
+                    new_deaths = np.clip(new_deaths, a_min=0., a_max=None)
+                    new_cases = np.clip(new_cases, a_min=0., a_max=None)
+                    hist_cfr = new_deaths[cfr_delay:]/new_cases[:-cfr_delay]
+                    cfr = np.nanmean(hist_cfr[-7:])
+                    self.adm1_current_cfr[adm1] = cfr
+                logging.debug('Current CFR: ' + pformat(self.adm1_current_cfr)) 
+
             else:
                 self.rescale_chr = False
                            
@@ -273,16 +291,37 @@ class SEIR_covid(object):
 
         if self.use_G_ifr:
             self.ifr[xp.isnan(self.ifr)] = 0.
-            ifr_scale = truncnorm(xp, 1.0, RR_VAR, a_min=1e-6)
-            self.params.F = self.ifr * self.params['SYM_FRAC']
+            self.params.F = self.ifr / self.params['SYM_FRAC']
             adm0_ifr = xp.sum(self.ifr * self.Nij) / xp.sum(self.Nj)
-            ifr_scale = ifr_scale * 0.0065/adm0_ifr #TODO this should be in par file (its from planning scenario5)
+            ifr_scale = 0.0065/adm0_ifr #TODO this should be in par file (its from planning scenario5)
             self.params.F = xp.clip(self.params.F*ifr_scale, 0., 1.)
+            self.params.F_old = self.params.F.copy()
 
-        case_reporting = force_cpu(self.estimate_reporting(days_back=22))
-        self.case_reporting = xp.array(mPERT_sample(mu=xp.clip(case_reporting,a_min=.1, a_max=1.), a=xp.clip(.8*case_reporting, a_min=.1, a_max=None), b=xp.clip(1.2*case_reporting, a_min=None, a_max=1.), gamma=250.))
+            # TODO this needs to be cleaned up BAD
+            # should add a util function to do the rollups to adm1 (it shows up in case_reporting/doubling t calc too)
+            adm1_Fi = xp.zeros((self.adm1_max+1, self.n_age_grps))
+            xp.scatter_add(adm1_Fi, self.adm1_id, (self.params.F*self.Nij).T)
+            adm1_Ni = xp.zeros((self.adm1_max+1, self.n_age_grps))
+            xp.scatter_add(adm1_Ni, self.adm1_id, self.Nij.T)
+            adm1_Fi = adm1_Fi/adm1_Ni
+            adm1_F = xp.mean(adm1_Fi, axis=1)
+          
+            adm1_F_fac = self.adm1_current_cfr/adm1_F
+            adm1_F_fac[xp.isnan(adm1_F_fac)] = 1.
 
-        self.doubling_t = self.estimate_doubling_time()
+            F_RR_fac = truncnorm(xp, 1.0, RR_VAR, size=adm1_F_fac.size, a_min=1e-6)
+            adm1_F_fac = adm1_F_fac * F_RR_fac
+            adm1_F_fac = xp.clip(adm1_F_fac, a_min=.1, a_max=10.) #prevent extreme values
+            logging.debug('adm1 cfr rescaling factor: ' + pformat(adm1_F_fac))
+            self.params.F = self.params.F*adm1_F_fac[self.adm1_id]
+            self.params.F = .75*xp.clip(self.params.F, a_min=1.e-10, a_max=1.)
+            self.params.H = xp.clip(self.params.H, a_min=self.params.F, a_max=1.)
+
+        case_reporting = force_cpu(self.estimate_reporting(cfr=self.params.F, days_back=22))
+        self.case_reporting = xp.array(mPERT_sample(mu=xp.clip(case_reporting,a_min=.2, a_max=1.), a=xp.clip(.8*case_reporting, a_min=.2, a_max=None), b=xp.clip(1.2*case_reporting, a_min=None, a_max=1.), gamma=500.))
+        #self.case_reporting = self.estimate_reporting(cfr=self.params.F, days_back=22)
+
+        self.doubling_t = self.estimate_doubling_time(mean_time_window=7)
 
         if xp.any(~xp.isfinite(self.doubling_t)):
             logging.info("non finite doubling times, is there enough case data?")
@@ -301,29 +340,17 @@ class SEIR_covid(object):
         )
 
         n_nodes = len(self.G.nodes())
-        # hist_weights = xp.arange(1.0, self.case_reporting.shape[0] + 1.0, 1.0)
-        # hist_case_reporting = xp.sum(
-        #    self.case_reporting * hist_weights[:, None], axis=0
-        # ) / xp.sum(hist_weights)
 
-        hist_case_reporting = xp.mean(self.case_reporting[:-4], axis=0)
+        mean_case_reporting = xp.mean(self.case_reporting[-7:], axis=0)
 
-        self.params["CASE_REPORT"] = hist_case_reporting
-        #self.params["F"] = xp.tile(self.params.F[:, None], n_nodes)
-        #self.params["H"] = (
-        #    xp.tile(self.params.H[:, None], n_nodes)
-        #    * 8398.0
-        #    / 11469.0
-        #    * 8353.0
-        #    / 17530.0
-        #)
+        self.params["CASE_REPORT"] = mean_case_reporting
         self.params["THETA"] = xp.broadcast_to(
             self.params["THETA"][:, None], (self.n_age_grps, n_nodes)
         )
         self.params["GAMMA_H"] = xp.broadcast_to(
             self.params["GAMMA_H"][:, None], (self.n_age_grps, n_nodes)
         )
-        self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0., 1.)
+        self.params["F_eff"] = xp.clip(self.params["F"] / self.params['H'], 0., 1.)
 
         # init state vector (self.y)
         y = xp.zeros((N_compartments, self.n_age_grps, n_nodes))
@@ -341,9 +368,9 @@ class SEIR_covid(object):
         current_I[current_I < 0.0] = 0.0
         current_I *= 1.0 / (self.params["CASE_REPORT"])
 
-        R_fac = xp.array(mPERT_sample(mu=.5, a=.25, b=.75, gamma=250.))
-        E_fac = xp.array(mPERT_sample(mu=1.5, a=1.25, b=1.75, gamma=250.))
-        H_fac = xp.array(mPERT_sample(mu=1., a=.8, b=1.2, gamma=250.))
+        R_fac = xp.array(mPERT_sample(mu=.5, a=.25, b=.75, gamma=50.))
+        E_fac = xp.array(mPERT_sample(mu=1.6, a=1.35, b=1.85, gamma=50.))
+        H_fac = xp.array(mPERT_sample(mu=1., a=.9, b=1.1, gamma=100.))
 
         I_init = current_I[None, :] / self.Nij / self.n_age_grps
         D_init = self.init_deaths[None, :] / self.Nij / self.n_age_grps
@@ -358,46 +385,45 @@ class SEIR_covid(object):
             - I_init / self.params["SYM_FRAC"]
         )  # rhi handled later
 
-        ic_frac = H_fac / (1.0 + self.params.THETA / self.params.GAMMA_H)
-        hosp_frac = H_fac / (1.0 + self.params.GAMMA_H / self.params.THETA)
+        self.params.H = self.params.H * H_fac
+
+        ic_frac = 1. / (1.0 + self.params.THETA / self.params.GAMMA_H)
+        hosp_frac = 1. / (1.0 + self.params.GAMMA_H / self.params.THETA)
+
+        #print(ic_frac + hosp_frac)
         exp_frac = (
             E_fac
-            * xp.ones(I_init.shape[-1])  # 5
+            * xp.ones(I_init.shape[-1])
             # * np.diag(self.A)
             # * np.sum(self.A, axis=1)
-            * (self.params.R0 @ self.A)
+            * (self.params.R0)# @ self.A)
             * self.params.GAMMA
             / self.params.SIGMA
         )
 
-        y[Si] -= I_init
-
-        y[Ii] = (1.0 - H_fac * self.params.H) * I_init / len(Ii)
-        y[Ici] = ic_frac * self.params.H * I_init / (len(Ici))
-        y[Rhi] = hosp_frac * self.params.H * I_init / (Rhn)
+        y[Ii] = (1.0 - self.params.H) * I_init / len(Ii)
+        #y[Ici] = ic_frac * self.params.H * I_init / (len(Ici))
+        #y[Rhi] = hosp_frac * self.params.H * I_init / (Rhn)
+        y[Ici] = self.params.CASE_REPORT * self.params.H * I_init / (len(Ici))
+        y[Rhi] = self.params.CASE_REPORT * self.params.H * I_init * self.params.GAMMA_H / self.params.THETA / Rhn
 
         if self.rescale_chr:
             adm1_hosp = xp.zeros((self.adm1_max+1, ), dtype=float)
             xp.scatter_add(adm1_hosp, self.adm1_id, xp.sum(y[Hi]*self.Nij, axis=(0,1)))
             adm2_hosp_frac = (self.adm1_current_hosp/adm1_hosp)[self.adm1_id]
             adm0_hosp_frac = xp.nansum(self.adm1_current_hosp)/xp.nansum(adm1_hosp)
-            #print(adm0_hosp_frac)
             adm2_hosp_frac[xp.isnan(adm2_hosp_frac)] = adm0_hosp_frac
-            self.params.H = xp.clip(self.params.H * adm2_hosp_frac[None,:], self.params.F, 1.)
+            self.params.H = xp.clip(H_fac*self.params.H * adm2_hosp_frac[None,:], self.params.F, 1.)
+
             self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0.,1.)
     
-            y[Ii] = (1.0 - H_fac * self.params.H) * I_init / len(Ii)
-            y[Ici] = ic_frac * self.params.H * I_init / (len(Ici))
-            y[Rhi] = hosp_frac * self.params.H * I_init / (Rhn)
+            y[Ii] = (1.0 - self.params.H) * I_init / len(Ii)
+            #y[Ici] = ic_frac * self.params.H * I_init / (len(Ici))
+            #y[Rhi] = hosp_frac * self.params.H * I_init / (Rhn)
+            y[Ici] = self.params.CASE_REPORT * self.params.H * I_init / (len(Ici))
+            y[Rhi] = self.params.CASE_REPORT * self.params.H * I_init * self.params.GAMMA_H / self.params.THETA / Rhn
 
-        # y[Ici] = self.params.H * I_init / (len(Ici)+Rhn)
-        # y[Rhi] = (
-        #    # (self.params.THETA / self.params.GAMMA_H) *
-        #    np.sum(y[Ici], axis=0)
-        #    / (len(Ici)+len(Rhi))
-        # )
-        # y[Si] -= cp.sum(y[Rhi], axis=0)
-
+        y[Si] -= xp.sum(y[Ii], axis=0) + xp.sum(y[Ici], axis=0) + xp.sum(y[Rhi], axis=0)
         R_init -= xp.sum(y[Rhi], axis=0)
 
         y[Si] -= self.params.ASYM_FRAC / self.params.SYM_FRAC * I_init
@@ -410,6 +436,9 @@ class SEIR_covid(object):
         y[Di] = D_init
 
         self.y = y
+
+        # TODO assert this is 1. (need to take mean and around b/c fp err)
+        #if xp.sum(self.y, axis=0)
 
         if xp.any(~xp.isfinite(self.y)):
             logging.info("nonfinite values in the state vector, something is wrong with init")
