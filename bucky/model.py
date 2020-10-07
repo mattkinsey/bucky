@@ -7,7 +7,7 @@ import pickle
 import random
 import sys
 from collections import defaultdict, deque
-from functools import partial
+from functools import partial, lru_cache
 from pprint import pformat #TODO set some defaults for width/etc with partial?
 import warnings
 
@@ -57,6 +57,10 @@ RR_VAR = 0.12  # variance to use for MC of params with no CI
 class SimulationException(Exception):
     pass
 
+@lru_cache(maxsize=None)
+def get_runid(pid=0):
+    start = datetime.datetime.now()
+    return str(start).replace(" ", "__").replace(":", "_").split(".")[0]
 
 class SEIR_covid(object):
     def __init__(self, seed=None, randomize_params_on_reset=True):
@@ -69,8 +73,8 @@ class SEIR_covid(object):
         self.t_max = args.days
         self.done = False
         start = datetime.datetime.now()
-        self.mc_id = str(start).replace(" ", "__").replace(":", "_").split(".")[0]
-        logging.info(f"MC ID: {self.mc_id}")
+        self.run_id = get_runid()
+        logging.info(f"Run ID: {self.run_id}")
 
         self.G = None
         self.graph_file = args.graph_file
@@ -82,7 +86,7 @@ class SEIR_covid(object):
             )
             files = glob.glob("*.py") + [self.graph_file, args.par_file]
             logging.info(f"Cacheing: {files}")
-            cache_files(files, self.mc_id)
+            cache_files(files, self.run_id)
 
         # disease params
         self.s_par = seir_params(args.par_file, args.gpu)
@@ -844,7 +848,7 @@ class SEIR_covid(object):
             df_data[k] = force_cpu(df_data[k])
 
         # Append data to the hdf5 file
-        output_folder = os.path.join(outdir, self.mc_id)
+        output_folder = os.path.join(outdir, self.run_id)
         os.makedirs(output_folder, exist_ok=True)
         out_df = pd.DataFrame(data=df_data)
 
@@ -879,13 +883,21 @@ class SEIR_covid(object):
 
 if __name__ == "__main__":
 
+    if not os.path.exists(args.output_dir):
+        os.mkdir(args.output_dir)
+
     loglevel = 30 - 10*min(args.verbosity, 2)
+    runid = get_runid()
+    if not os.path.exists(args.output_dir+'/'+runid):
+        os.mkdir(args.output_dir+'/'+runid)
+    fh = logging.FileHandler(args.output_dir + '/' + runid + '/stdout')
+    fh.setLevel(logging.DEBUG)
     logging.basicConfig(
         level=loglevel,
         format="%(asctime)s - %(levelname)s - %(filename)s:%(funcName)s:%(lineno)d - %(message)s",
-        handlers=[TqdmLoggingHandler(),]
+        handlers=[TqdmLoggingHandler()]
     )
-
+    # TODO we should output the logs to output_dir too...
     _banner()
 
     import threading, queue
@@ -898,10 +910,6 @@ if __name__ == "__main__":
             df.reset_index().to_feather(fname)
     write_thread = threading.Thread(target=writer)
     write_thread.start()
-
-    if not os.path.exists(args.output_dir):
-        logging.info("Creating output directory @ " + args.output_dir)
-        os.mkdir(args.output_dir)
 
     if args.gpu:
         logging.info("Using GPU backend")
@@ -928,7 +936,7 @@ if __name__ == "__main__":
                 pbar.update(1)
             except SimulationException:
                 pass
-            seed += 1
+            seed += 1 # TODO add last seed to pbar
             run_time = (datetime.datetime.now() - start).total_seconds()
             times.append(run_time)
     
