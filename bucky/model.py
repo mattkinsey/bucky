@@ -826,8 +826,8 @@ class SEIR_covid(object):
             "NC": daily_cases.reshape(-1),
             "NCR": daily_cases_reported.reshape(-1),
             "ND": daily_deaths.reshape(-1),
-            "CC": cum_cases.reshape(-1),
-            "CCR": cum_cases_reported.reshape(-1),
+            "CC": n_cum_cases.reshape(-1) / self.params.CASE_REPORT[:, None], #cum_cases.reshape(-1),
+            "CCR": n_cum_cases.reshape(-1), #cum_cases_reported.reshape(-1),
             "ICU": xp.sum(icu, axis=0).reshape(-1),
             "VENT": xp.sum(vent, axis=0).reshape(-1),
             "nNCR": n_daily_cases.reshape(-1),
@@ -869,19 +869,6 @@ class SEIR_covid(object):
                     output_queue.put((os.path.join(output_folder, str(seed) + '_' + str(date.date()) + ".feather"), date_df))
 
         # TODO we should output the per monte carlo param rolls, this got lost when we switched from hdf5
-
-        # Append params to the hdf5 file TODO  better handle the arrays
-        """
-        out_params = pd.DataFrame(self.params).assign(rid=seed)
-        out_params.to_hdf(
-            outdir + "mc--" + self.mc_id + ".h5",
-            key="params",
-            mode="a",
-            append=True,
-            format="table",
-            data_columns=["rid", "R0"],
-        )
-        """
 
 
 if __name__ == "__main__":
