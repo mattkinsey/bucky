@@ -619,30 +619,35 @@ class SEIR_covid(object):
         dG[Si] = -BETA_eff * (beta_mat)
         # dE/dt
         dG[Ei[0]] = BETA_eff * (beta_mat) - En * SIGMA * s[Ei[0]]
-        dG[Ei[1:]] = En * SIGMA * s[Ei[:-1]] - En * SIGMA * s[Ei[1:]]
+        for i in Ei[1:]:
+            dG[i] = En * SIGMA * s[i-1] - En * SIGMA * s[i]
 
         # dI/dt
         dG[Iasi[0]] = (
             par["ASYM_FRAC"] * En * SIGMA * s[Ei[-1]] - Im * GAMMA * s[Iasi[0]]
         )
-        dG[Iasi[1:]] = Im * GAMMA * s[Iasi[:-1]] - Im * GAMMA * s[Iasi[1:]]
+        for i in Iasi[1:]:
+            dG[i] = Im * GAMMA * s[i-1] - Im * GAMMA * s[i]
 
         dG[Ii[0]] = (
             par["SYM_FRAC"] * (1.0 - H) * En * SIGMA * s[Ei[-1]] - Im * GAMMA * s[Ii[0]]
         )
-        dG[Ii[1:]] = Im * GAMMA * s[Ii[:-1]] - Im * GAMMA * s[Ii[1:]]
+        for i in Ii[1:]:
+            dG[i] = Im * GAMMA * s[i-1] - Im * GAMMA * s[i]
 
         # dIc/dt
         dG[Ici[0]] = (
             par["SYM_FRAC"] * H * En * SIGMA * s[Ei[-1]] - Im * GAMMA_H * s[Ici[0]]
         )
-        dG[Ici[1:]] = Im * GAMMA_H * s[Ici[:-1]] - Im * GAMMA_H * s[Ici[1:]]
+        for i in Ici[1:]:
+            dG[i] = Im * GAMMA_H * s[i-1] - Im * GAMMA_H * s[i]
 
         # dRhi/dt
         dG[Rhi[0]] = (
             Im * GAMMA_H * s[Ici[-1]] - (Rhn * THETA) * s[Rhi[0]]
         )
-        dG[Rhi[1:]] =  Rhn * THETA * s[Rhi[:-1]] - (Rhn * THETA) * s[Rhi[1:]]
+        for i in Rhi[1:]:
+            dG[i] =  Rhn * THETA * s[i-1] - (Rhn * THETA) * s[i]
 
         # dR/dt
         dG[Ri] = (
