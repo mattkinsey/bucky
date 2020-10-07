@@ -1,20 +1,19 @@
 # TODO break into file now that we have the utils submodule (also update __init__)
 
+import contextlib
 import copy
-
+import importlib
+import logging
 # import lz4.frame
 import lzma  # lzma is slow but reallllly gets that file size down...
 import os
 import pickle
 import threading
-import contextlib
-import importlib
 
 import numpy as np
 import pandas as pd
-
-import logging
 import tqdm
+
 
 # https://stackoverflow.com/questions/38543506/change-logging-print-function-to-tqdm-write-so-logging-doesnt-interfere-wit
 class TqdmLoggingHandler(logging.Handler):

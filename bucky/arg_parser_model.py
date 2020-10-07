@@ -6,8 +6,8 @@ This module handles all the CLI argument parsing for bucky.model and autodetects
 import argparse
 import glob
 import importlib
-import os
 import logging
+import os
 
 from .util.read_config import bucky_cfg
 

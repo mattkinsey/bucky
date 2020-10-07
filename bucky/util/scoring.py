@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def logistic(x, x0=0., k=1., L=1.):
     return L/(1.+np.exp(-k*x-x0))
 
@@ -27,4 +28,3 @@ def WIS(x, q, x_q, norm=False, log=False, smooth=False):
     if log:
         ret = np.log(ret)
     return ret
-

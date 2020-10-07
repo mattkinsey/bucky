@@ -12,8 +12,8 @@ from matplotlib.ticker import LogFormatter, ScalarFormatter
 from tqdm import tqdm
 
 from ..util.read_config import bucky_cfg
-from .geoid import read_geoid_from_graph, read_lookup
 from ..util.readable_col_names import readable_col_names
+from .geoid import read_geoid_from_graph, read_lookup
 
 parser = argparse.ArgumentParser(description="Bucky model mapping tools")
 

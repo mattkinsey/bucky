@@ -14,9 +14,9 @@ import numpy as np
 import pandas as pd
 import tqdm
 
+from .util import estimate_IFR
 from .util.read_config import bucky_cfg
 from .util.update_data_repos import update_repos
-from .util import estimate_IFR
 
 #from IPython import embed
 

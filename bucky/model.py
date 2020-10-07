@@ -6,15 +6,11 @@ import os
 import pickle
 import random
 import sys
-from collections import defaultdict, deque
-from functools import partial, lru_cache
-from pprint import pformat #TODO set some defaults for width/etc with partial?
 import warnings
-
-# supress pandas warning caused by pyarrow
-warnings.simplefilter(action='ignore', category=FutureWarning)
-# TODO we do alot of allowing div by 0 and then checking for nans later, we should probably refactor that
-warnings.simplefilter(action='ignore', category=RuntimeWarning)
+from collections import defaultdict, deque
+from functools import lru_cache, partial
+from pprint import \
+    pformat  # TODO set some defaults for width/etc with partial?
 
 import networkx as nx
 import numpy as np
@@ -22,19 +18,18 @@ import pandas as pd
 from tqdm import tqdm
 
 from .arg_parser_model import parser
-from .parameters import seir_params
-from .util import (
-    _banner,
-    cache_files,
-    dotdict,
-    import_numerical_libs,
-    map_np_array,
-    date_to_t_int,
-    force_cpu,
-    TqdmLoggingHandler,
-)
-from .util.distributions import truncnorm, mPERT_sample
 from .npi import read_npi_file
+from .parameters import seir_params
+from .util import (TqdmLoggingHandler, _banner, cache_files, date_to_t_int,
+                   dotdict, force_cpu, import_numerical_libs, map_np_array)
+from .util.distributions import mPERT_sample, truncnorm
+
+# supress pandas warning caused by pyarrow
+warnings.simplefilter(action='ignore', category=FutureWarning)
+# TODO we do alot of allowing div by 0 and then checking for nans later, we should probably refactor that
+warnings.simplefilter(action='ignore', category=RuntimeWarning)
+
+
 
 if __name__ == "__main__":
     args = parser.parse_args()

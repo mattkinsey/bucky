@@ -28,4 +28,3 @@ def truncnorm(xp, loc=0.0, scale=1.0, size=1, a_min=None, a_max=None):
         if valid.all():
             return ret
         ret[~valid] = xp.random.normal(loc, scale, ret[~valid].shape)
-

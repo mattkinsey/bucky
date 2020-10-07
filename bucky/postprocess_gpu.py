@@ -1,14 +1,15 @@
 import argparse
 import datetime
+import gc
 import glob
 import logging
 import os
-from pathlib import Path
 import pickle
 from datetime import timedelta
 from functools import partial
-from multiprocessing import Pool, cpu_count, Queue, current_process, RLock, Process, JoinableQueue
-import gc
+from multiprocessing import (JoinableQueue, Pool, Process, Queue, RLock,
+                             cpu_count, current_process)
+from pathlib import Path
 
 import networkx as nx
 import numpy as np
@@ -16,10 +17,11 @@ import pandas as pd
 import scipy.stats
 from tqdm import tqdm
 
+import cupy as cp
+
 from .util.read_config import bucky_cfg
 from .viz.geoid import read_geoid_from_graph, read_lookup
 
-import cupy as cp
 
 def divide_by_pop(dataframe, cols):
     """Given a dataframe and list of columns, divides the columns by the 
@@ -373,4 +375,3 @@ if __name__ == "__main__":
             df.sort_values([level, 'date', 'q'], inplace=True)
             df.to_csv(fname, index=False)
             print(' Done')
-

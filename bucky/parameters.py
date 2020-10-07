@@ -3,11 +3,12 @@ import logging
 from pprint import pformat
 
 import numpy as np
-import yaml
 import scipy.special as sc
+import yaml
 
 from .util import dotdict
 from .util.distributions import mPERT_sample, truncnorm
+
 
 def calc_Te(Tg, Ts, n, f):
     num = 2.0 * n * f / (n + 1.0) * Tg - Ts
