@@ -26,7 +26,6 @@ from .util import (
     date_to_t_int,
     dotdict,
     force_cpu,
-    import_numerical_libs,
     map_np_array,
 )
 from .util.distributions import mPERT_sample, truncnorm
@@ -36,14 +35,14 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 # TODO we do alot of allowing div by 0 and then checking for nans later, we should probably refactor that
 warnings.simplefilter(action="ignore", category=RuntimeWarning)
 
+from .numerical_libs import use_cupy
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    import_numerical_libs(args.gpu)
-else:  # skip arg parse for sphinx
-    import_numerical_libs(False)
+    if args.gpu:
+        use_cupy(optimize=True)
 
-from .util.util import ivp, sparse, xp  # isort:skip
+from .numerical_libs import xp, ivp, sparse # isort:skip
 
 #
 # Params TODO move all this to arg_parser or elsewhere
