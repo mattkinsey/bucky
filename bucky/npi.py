@@ -10,7 +10,7 @@ def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
     df = pd.read_csv(fname)
     df['date'] = pd.to_datetime(df.date) # force a parse in case it's an odd format
     # rename adm2 column b/c people keep using different names
-    df.rename(columns={'admin2': 'adm2', 'FIPS', 'adm2'}, inplace=True)
+    df.rename(columns={'admin2': 'adm2', 'FIPS': 'adm2'}, inplace=True)
     end_date = start_date + datetime.timedelta(days=end_t)
     mask = (df['date'] >= str(start_date)) & (df['date'] <= str(end_date))
     df = df.loc[mask]
