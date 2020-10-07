@@ -2,55 +2,64 @@
 model_struct:
   En: 3
   Im: 2
-  Rhn: 2
+  Rhn: 3
   age_bins: [[0,4], [5,9], [10, 14], [15, 19], [20,24], [25,29], [30,34], [35,39], [40,44], [45, 49], [50,54], [55,59], [60, 64], [65,69], [70,74], [74,120]]
 
-D: 
+D:
+  # This isn't used if we have enough case data
   mean: 5.5
   CI: [3.5, 7.5]
   clip: [0, null]
 
 Tg: 
-  mean: 6.
-  CI: [4.,8.]
+  # Mean generation interval
+  mean: 7.
+  CI: [5.5,8.5]
   clip: [1, null]
 
 Ts: 
+  # Mean serial interval
   mean: 6.
   CI: [5.,7.]
   clip: [1., null]
 
 ASYM_FRAC:
+  # Fraction of infections that are asymptomatic
   mean: 0.40
   clip: [0., 1.]
 
 rel_inf_asym:
+  # Relative infectiousness of asymptomatic infections
   mean: .75
   clip: [0., 1.]
 
 frac_trans_before_sym:
+  # Fraction of transmissions occuring before symptom onset
   mean: 0.50
   CI: [0.4, 0.6]
   clip: [0., 1.]
 
 F:
+  # CFR
   age_bins: [[0,49], [50,64], [65,100]]
   values: [0.0005, 0.002, 0.013]
   clip: [0., 1.]
 H:
+  # CHR
   age_bins: [[0,49], [50,64], [65,100]]
   values: [0.017, 0.045, 0.074]
   clip: [0., 1.]
 
 I_TO_H_TIME:
   age_bins: [[0,49], [50,64], [65,100]]
-  values: [6., 6., 3.]
+  values: [6., 6., 4.]
   stddev: [5.0, 5.3, 5.7]
   clip: [1., null]
 
 H_TIME:
+  # TODO this needs to be calced as the weighted avg of the icu and non icu params in the new planning doc
   age_bins: [[0,49], [50,64], [65,100]]
-  values: [3., 4., 6.]
+  values: [4.9, 7.6, 8.1]
   #stddev: [3.7, 4.3, 5.1]
   clip: [1., null]
 
@@ -62,7 +71,7 @@ ICU_TIME:
 
 ICU_FRAC:
   age_bins: [[0,49], [50,64], [65,100]]
-  values: [.219, .292, .268]
+  values: [.238, .361, .353]
   clip: [0., 1.]
 
 ICU_VENT_FRAC:
