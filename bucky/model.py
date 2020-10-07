@@ -425,19 +425,18 @@ class SEIR_covid(object):
         A = self.baseline_A * new_R0_fracij
         self.A = A / xp.sum(A, axis=0)
 
-    def estimate_doubling_time(self, days_back=14, time_window=7, min_doubling_t=1.0):
-
+    def estimate_doubling_time(self, days_back=14, doubling_time_window=7, mean_time_window=None, min_doubling_t=1.0):
         cases = self.case_hist_cum[-days_back:] / self.case_reporting[-days_back:]
         cases_old = (
-            self.case_hist_cum[-days_back - time_window : -time_window]
-            / self.case_reporting[-days_back - time_window : -time_window]
+            self.case_hist_cum[-days_back - doubling_time_window : -doubling_time_window]
+            / self.case_reporting[-days_back - doubling_time_window : -doubling_time_window]
         )
 
         # adm0
         adm0_doubling_t = (
-            time_window
+            doubling_time_window
             * xp.log(2.0)
-            / xp.log(xp.sum(cases, axis=1) / xp.sum(cases_old, axis=1))
+            / xp.log(xp.nansum(cases, axis=1) / xp.nansum(cases_old, axis=1))
         )
 
         logging.debug('Adm0 doubling time: ' + str(adm0_doubling_t))
@@ -455,7 +454,7 @@ class SEIR_covid(object):
         xp.scatter_add(cases_adm1, self.adm1_id, cases.T)
         xp.scatter_add(cases_old_adm1, self.adm1_id, cases_old.T)
 
-        adm1_doubling_t = time_window*xp.log(2.0)/xp.log(cases_adm1/cases_old_adm1)
+        adm1_doubling_t = doubling_time_window*xp.log(2.0)/xp.log(cases_adm1/cases_old_adm1)
 
         tmp_doubling_t = adm1_doubling_t[self.adm1_id].T
         valid_mask = xp.isfinite(tmp_doubling_t) & (tmp_doubling_t > min_doubling_t)
@@ -463,7 +462,7 @@ class SEIR_covid(object):
         doubling_t[valid_mask] = tmp_doubling_t[valid_mask]
 
         # adm2
-        adm2_doubling_t = time_window * xp.log(2.0) / xp.log(cases / cases_old)
+        adm2_doubling_t = doubling_time_window * xp.log(2.0) / xp.log(cases / cases_old)
 
         valid_adm2_dt = xp.isfinite(adm2_doubling_t) & (
             adm2_doubling_t > min_doubling_t
@@ -474,7 +473,10 @@ class SEIR_covid(object):
         # hist_doubling_t = xp.sum(doubling_t * hist_weights[:, None], axis=0) / xp.sum(
         #    hist_weights
         # )
-        hist_doubling_t = xp.mean(doubling_t, axis=0) / 2.0
+
+        # Take mean of most recent values
+        if mean_time_window is not None:
+            hist_doubling_t = xp.nanmean(doubling_t[-mean_time_window:], axis=0)
 
         return hist_doubling_t
 
