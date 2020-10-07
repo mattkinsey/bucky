@@ -480,14 +480,14 @@ class SEIR_covid(object):
 
         return hist_doubling_t
 
-    def estimate_reporting(self, days_back=14, case_lag=None, min_deaths=100.0):
+    def estimate_reporting(self, cfr, days_back=14, case_lag=None, min_deaths=100.0):
 
         if case_lag is None:
             adm0_cfr_by_age = (
-                xp.sum(self.params.F * self.Nij, axis=1) / xp.sum(self.Nj, axis=0)
+                xp.sum(cfr * self.Nij, axis=1) / xp.sum(self.Nj, axis=0)
             )
             adm0_cfr_total = xp.sum(
-                xp.sum(self.params.F * self.Nij, axis=1) / xp.sum(self.Nj, axis=0),
+                xp.sum(cfr * self.Nij, axis=1) / xp.sum(self.Nj, axis=0),
                 axis=0,
             )
             case_lag = xp.sum(
@@ -504,7 +504,7 @@ class SEIR_covid(object):
 
         # adm0
         adm0_cfr_param = xp.sum(
-            xp.sum(self.params.F * self.Nij, axis=1) / xp.sum(self.Nj, axis=0), axis=0
+            xp.sum(cfr * self.Nij, axis=1) / xp.sum(self.Nj, axis=0), axis=0
         )
         if self.adm0_cfr_reported is None:
             self.adm0_cfr_reported = xp.sum(self.death_hist_cum[-days_back:], axis=1) / xp.sum(
@@ -527,7 +527,7 @@ class SEIR_covid(object):
         adm1_cfr_param = xp.zeros((self.adm1_max+1,), dtype=float)
         adm1_totpop = xp.zeros((self.adm1_max+1,), dtype=float)
 
-        tmp_adm1_cfr = xp.sum(self.params.F * self.Nij, axis=0)
+        tmp_adm1_cfr = xp.sum(cfr * self.Nij, axis=0)
 
         xp.scatter_add(adm1_cfr_param, self.adm1_id, tmp_adm1_cfr)
         xp.scatter_add(adm1_totpop, self.adm1_id, self.Nj)
@@ -545,11 +545,11 @@ class SEIR_covid(object):
 
         adm1_case_report = (adm1_cfr_param[:,None]/self.adm1_cfr_reported)[self.adm1_id].T
 
-        valid_mask = xp.isfinite(self.adm1_deaths_reported > min_deaths)[self.adm1_id].T & xp.isfinite(adm1_case_report)
+        valid_mask = (self.adm1_deaths_reported > min_deaths)[self.adm1_id].T & xp.isfinite(adm1_case_report)
         case_report[valid_mask] = adm1_case_report[valid_mask]
 
         # adm2
-        adm2_cfr_param = xp.sum(self.params.F * (self.Nij / self.Nj), axis=0)
+        adm2_cfr_param = xp.sum(cfr * (self.Nij / self.Nj), axis=0)
 
         if self.adm2_cfr_reported is None:
             self.adm2_cfr_reported = self.death_hist_cum[-days_back:] / cases_lagged
