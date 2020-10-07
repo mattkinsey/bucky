@@ -1,4 +1,6 @@
 import copy
+import logging
+from pprint import pformat
 
 import numpy as np
 import yaml
@@ -61,6 +63,8 @@ class seir_params(object):
             params = self.calc_derived_params(params)
             if (params.Te > 1.0 and params.Tg > params.Te and params.Ti > 1.) or var==0.:
                 return params
+            else:
+                logging.debug('Rejected params: ' + pformat(params))
 
     def reroll_params(self, base_params, var):
         params = dotdict({})
