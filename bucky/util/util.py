@@ -8,6 +8,7 @@ import os
 import pickle
 import threading
 import contextlib
+import importlib
 
 import numpy as np
 import pandas as pd
@@ -147,7 +148,13 @@ def import_numerical_libs(gpu=False):
 
         import cupyx
         cp.scatter_add = cupyx.scatter_add
-        cp.optimize_kernels = cupyx.optimizing.optimize
+
+        spec = importlib.util.find_spec('optuna')
+        if spec is None:
+            logging.info("Optuna not installed, kernel opt is disabled")
+            cp.optimize_kernels = contextlib.nullcontext
+        else:
+            cp.optimize_kernels = cupyx.optimizing.optimize
 
         xp = cp
         import cupyx.scipy.sparse as sparse
