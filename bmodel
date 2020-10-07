@@ -6,17 +6,19 @@ import sys
 module_name = sys.argv[1]
 del sys.argv[1]
 
-base_pkg_name = 'bucky.'
+base_pkg_name = "bucky."
 
 if not base_pkg_name in module_name[:6]:
     module_name = base_pkg_name + module_name
 
 try:
-    runpy.run_module(module_name, run_name='__main__', alter_sys=True)
+    runpy.run_module(module_name, run_name="__main__", alter_sys=True)
 except ImportError as e:
     if base_pkg_name not in str(e):
         raise e
-    print('\n !!! Submodule ' + module_name.replace(base_pkg_name,'') + ' not found !!!')
+    print(
+        "\n !!! Submodule " + module_name.replace(base_pkg_name, "") + " not found !!!"
+    )
     from setuptools import find_packages
     from pkgutil import iter_modules
 
@@ -24,20 +26,22 @@ except ImportError as e:
         modules = set()
         for pkg in find_packages(path):
             modules.add(pkg)
-            pkgpath = path + '/' + pkg.replace('.', '/')
-            if sys.version_info.major == 2 or (sys.version_info.major == 3 and sys.version_info.minor < 6):
+            pkgpath = path + "/" + pkg.replace(".", "/")
+            if sys.version_info.major == 2 or (
+                sys.version_info.major == 3 and sys.version_info.minor < 6
+            ):
                 for _, name, ispkg in iter_modules([pkgpath]):
                     if not ispkg:
-                        modules.add(pkg + '.' + name)
+                        modules.add(pkg + "." + name)
             else:
                 for info in iter_modules([pkgpath]):
                     if not info.ispkg:
-                        modules.add(pkg + '.' + info.name)
+                        modules.add(pkg + "." + info.name)
         return modules
 
-    print('\nValid submodules:')
-    for mod_name in sorted(find_modules('.')):
-        print('    ' + mod_name.replace(base_pkg_name,''))
+    print("\nValid submodules:")
+    for mod_name in sorted(find_modules(".")):
+        print("    " + mod_name.replace(base_pkg_name, ""))
 
 
 # TODO add some 'standard' options here like make_input_graph->model->postprocess->plot

@@ -18,6 +18,6 @@ for k in ("data_dir", "raw_output_dir", "output_dir"):
     bucky_cfg[k] = str(path.resolve())
 
 # Replace bucky_cfg with human readable descriptions if generating docs
-if 'sphinx' in sys.modules:
+if "sphinx" in sys.modules:
     for k in bucky_cfg:
-        bucky_cfg[k] = 'config.yml: <' + k + '>'
+        bucky_cfg[k] = "config.yml: <" + k + ">"

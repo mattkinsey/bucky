@@ -4,6 +4,7 @@ import contextlib
 import copy
 import importlib
 import logging
+
 # import lz4.frame
 import lzma  # lzma is slow but reallllly gets that file size down...
 import os
@@ -28,7 +29,8 @@ class TqdmLoggingHandler(logging.Handler):
         except (KeyboardInterrupt, SystemExit):
             raise
         except:
-            self.handleError(record) 
+            self.handleError(record)
+
 
 class dotdict(dict):
     """dot.notation access to dictionary attributes"""
@@ -47,26 +49,30 @@ def map_np_array(a, d):
         n[a == k] = d[k]
     return n
 
+
 def estimate_IFR(age):
     # from best fit in https://www.medrxiv.org/content/10.1101/2020.07.23.20160895v4.full.pdf
-    #std err is 0.17 on the const and 0.003 on the linear term
-    return np.exp(-7.56 + 0.121 * age)/100.
+    # std err is 0.17 on the const and 0.003 on the linear term
+    return np.exp(-7.56 + 0.121 * age) / 100.0
+
 
 def bin_age_csv(filename, out_filename):
     df = pd.read_csv(filename, header=None, names=["fips", "age", "N"])
-    pop_weighted_IFR = df.N.to_numpy()*estimate_IFR(df.age.to_numpy())
+    pop_weighted_IFR = df.N.to_numpy() * estimate_IFR(df.age.to_numpy())
     df = df.assign(IFR=pop_weighted_IFR)
     df["age_group"] = pd.cut(
         df["age"], np.append(np.arange(0, 76, 5), 120), right=False
     )
     df = df.groupby(["fips", "age_group"]).sum()[["N", "IFR"]].unstack("age_group")
 
-    df = df.assign(IFR=df.IFR/df.N)
+    df = df.assign(IFR=df.IFR / df.N)
 
     df.to_csv(out_filename)
 
+
 def date_to_t_int(dates, start_date):
-        return np.array([(date - start_date).days for date in dates], dtype=int)
+    return np.array([(date - start_date).days for date in dates], dtype=int)
+
 
 def _cache_files(fname_list, cache_name):
     tmp = {f: open(f, "rb").read() for f in fname_list}
@@ -124,7 +130,7 @@ def import_numerical_libs(gpu=False):
         cp.cuda.set_allocator(cp.cuda.MemoryPool(cp.cuda.memory.malloc_managed).malloc)
 
         # add cupy search sorted for scipy.ivp (this was only added to cupy sometime between v6.0.0 and v7.0.0)
-        if ~hasattr(cp, 'searchsorted'):
+        if ~hasattr(cp, "searchsorted"):
             # NB: this isn't correct in general but it works for what scipy solve_ivp needs...
             def cp_searchsorted(a, v, side="right", sorter=None):
                 if side != "right":
@@ -146,9 +152,10 @@ def import_numerical_libs(gpu=False):
             )
 
         import cupyx
+
         cp.scatter_add = cupyx.scatter_add
 
-        spec = importlib.util.find_spec('optuna')
+        spec = importlib.util.find_spec("optuna")
         if spec is None:
             logging.info("Optuna not installed, kernel opt is disabled")
             cp.optimize_kernels = contextlib.nullcontext
@@ -161,11 +168,14 @@ def import_numerical_libs(gpu=False):
         import scipy.integrate._ivp.ivp as ivp
         import numpy as xp
         import scipy.sparse as sparse
+
         xp.scatter_add = xp.add.at
         xp.optimize_kernels = contextlib.nullcontext
 
+
 def force_cpu(var):
     return var.get() if "cupy" in type(var).__module__ else var
+
 
 def _banner():
     print(r" ____             _          ")

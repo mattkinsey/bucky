@@ -239,28 +239,32 @@ if __name__ == "__main__":
         inplace=True,
     )
 
-    if 'pop_fraction' in lookup_df.columns:
+    if "pop_fraction" in lookup_df.columns:
 
         # Apply correction
-        tot_df = tot_df.merge(lookup_df['pop_fraction'], left_on='ADM2_ID', right_on='adm2')
+        tot_df = tot_df.merge(
+            lookup_df["pop_fraction"], left_on="ADM2_ID", right_on="adm2"
+        )
 
-        exclude_cols = ['pop_fraction', 
-                        'CASE_REPORT', 
-                        'Reff', 
-                        'cases_per_100k',
-                        'ADM2_ID',
-                        'rid',
-                        'adm2',
-                        'adm1',
-                        'adm0',
-                        'date',
-                        'doubling_t']
+        exclude_cols = [
+            "pop_fraction",
+            "CASE_REPORT",
+            "Reff",
+            "cases_per_100k",
+            "ADM2_ID",
+            "rid",
+            "adm2",
+            "adm1",
+            "adm0",
+            "date",
+            "doubling_t",
+        ]
         for col in tot_df.columns:
             print(col)
             if col not in exclude_cols:
-                tot_df[col] = tot_df[col] * tot_df['pop_fraction']
+                tot_df[col] = tot_df[col] * tot_df["pop_fraction"]
 
-        tot_df.drop(columns=['pop_fraction'], inplace=True)
+        tot_df.drop(columns=["pop_fraction"], inplace=True)
 
     # Multiply column by N, then at end divide by aggregated N
     pop_mean_cols = ["CASE_REPORT", "Reff", "doubling_t"]
@@ -302,7 +306,7 @@ if __name__ == "__main__":
         tot_df[level] = (
             tot_df[admin2_key].map(level_dict).map(level_inv_map).astype(int)
         )
-        
+
         # Compute quantiles
         if use_quantiles:
             with Pool(cpu_count()) as p:

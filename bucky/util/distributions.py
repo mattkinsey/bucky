@@ -14,6 +14,7 @@ def mPERT_sample(mu, a=0.0, b=1.0, gamma=4.0, var=None):
     alp3 = sc.betaincinv(alp1, alp2, u)
     return (b - a) * alp3 + a
 
+
 def truncnorm(xp, loc=0.0, scale=1.0, size=1, a_min=None, a_max=None):
     """ Provides a truncnorm implementation that is compatible with cupy
     """

@@ -18,7 +18,7 @@ from .util import estimate_IFR
 from .util.read_config import bucky_cfg
 from .util.update_data_repos import update_repos
 
-#from IPython import embed
+# from IPython import embed
 
 # TODO all these paths should be combined properly rather than just with str cat
 
@@ -190,7 +190,7 @@ def read_descartes_data(end_date):
     .. [1] Warren, Michael S. & Skillman, Samuel W. "Mobility Changes in Response to COVID-19". arXiv:2003.14228 [cs.SI], Mar. 2020. arxiv.org/abs/2003.14228
     """
     dl_data = pd.read_csv(mobility_dir + "DL-us-m50_index.csv")
-    dl_data.rename(columns={"fips" : "adm2"}, inplace=True)
+    dl_data.rename(columns={"fips": "adm2"}, inplace=True)
     dl_data = (
         dl_data.set_index(["admin_level", "adm2"])
         .drop(columns=["country_code", "admin1", "admin2"])
@@ -226,6 +226,7 @@ def read_descartes_data(end_date):
 
     return nat_frac_move, dl_state, dl_county
 
+
 def read_lex_data(date):
     """Reads county-level location exposure indices for a given date from
     PlaceIQ location data.
@@ -252,14 +253,14 @@ def read_lex_data(date):
         logging.info("Using cached lex data for " + str(date))
     else:
         df = pd.read_csv(
-                "data/mobility/COVIDExposureIndices/lex_data/county_lex_"
-                + date
-                + ".csv.gz",
-                compression="gzip",
-                header=0,
+            "data/mobility/COVIDExposureIndices/lex_data/county_lex_"
+            + date
+            + ".csv.gz",
+            compression="gzip",
+            header=0,
         )
 
-        logging.info(str(date) + ' not in cache')    
+        logging.info(str(date) + " not in cache")
         counties = df.columns.values[1:]
         col_names = dict(zip(counties, ["a" + lab for lab in counties]))
         df = df.rename(columns=col_names)
@@ -277,11 +278,12 @@ def read_lex_data(date):
 
     return df_long
 
+
 def get_lex(last_date, window_size=7):
     lex_df = None
     success = 0
     d = 0
-    while success < window_size: #d in tqdm.trange(window_size):
+    while success < window_size:  # d in tqdm.trange(window_size):
         date = datetime.date.fromisoformat(last_date) - datetime.timedelta(days=d)
         date_str = date.isoformat()
         logging.info(date_str)
@@ -290,55 +292,65 @@ def get_lex(last_date, window_size=7):
         try:
             if lex_df is None:
                 lex_df = read_lex_data(date_str)
-                lex_df.set_index(['StartId','EndId'], inplace=True)
-                lex_df.rename(columns={'frac_count': date_str}, inplace=True)
+                lex_df.set_index(["StartId", "EndId"], inplace=True)
+                lex_df.rename(columns={"frac_count": date_str}, inplace=True)
             else:
                 tmp_df = read_lex_data(date_str)
-                tmp_df.set_index(['StartId','EndId'], inplace=True)
-                tmp_df.rename(columns={'frac_count': date_str}, inplace=True)
-                lex_df = lex_df.merge(tmp_df, left_index=True, right_index=True, how='outer')
+                tmp_df.set_index(["StartId", "EndId"], inplace=True)
+                tmp_df.rename(columns={"frac_count": date_str}, inplace=True)
+                lex_df = lex_df.merge(
+                    tmp_df, left_index=True, right_index=True, how="outer"
+                )
             success += 1
         except FileNotFoundError as e:
-            #print(e)
+            # print(e)
             continue
 
-    lex_df.fillna(0., inplace=True)
+    lex_df.fillna(0.0, inplace=True)
     mean_df = lex_df.mean(axis=1)
-    tot_df = mean_df.reset_index().groupby('StartId').sum()
+    tot_df = mean_df.reset_index().groupby("StartId").sum()
 
     frac_df = mean_df.divide(tot_df[0], axis=0, level=0)
-    return frac_df.to_frame(name='frac_count').reset_index()
+    return frac_df.to_frame(name="frac_count").reset_index()
+
 
 def get_safegraph(last_date, window_size=7):
     sg_df = None
     success = 0
     d = 0
-    while success < window_size: #for d in tqdm.trange(window_size):
+    while success < window_size:  # for d in tqdm.trange(window_size):
 
         date = datetime.date.fromisoformat(last_date) - datetime.timedelta(days=d)
         date_str = date.isoformat()
         d += 1
         try:
             if sg_df is None:
-                sg_df = pd.read_csv('data/safegraph_processed/'+date_str+'_county.csv.gz')
-                sg_df.set_index(['origin','dest'], inplace=True)
-                sg_df.rename(columns={'count': date_str}, inplace=True)
+                sg_df = pd.read_csv(
+                    "data/safegraph_processed/" + date_str + "_county.csv.gz"
+                )
+                sg_df.set_index(["origin", "dest"], inplace=True)
+                sg_df.rename(columns={"count": date_str}, inplace=True)
             else:
-                tmp_df = pd.read_csv('data/safegraph_processed/'+date_str+'_county.csv.gz')
-                tmp_df.set_index(['origin','dest'], inplace=True)
-                tmp_df.rename(columns={'count': date_str}, inplace=True)
-                sg_df = sg_df.merge(tmp_df, left_index=True, right_index=True, how='outer')
-            logging.info('using sg data from ' + date_str)
+                tmp_df = pd.read_csv(
+                    "data/safegraph_processed/" + date_str + "_county.csv.gz"
+                )
+                tmp_df.set_index(["origin", "dest"], inplace=True)
+                tmp_df.rename(columns={"count": date_str}, inplace=True)
+                sg_df = sg_df.merge(
+                    tmp_df, left_index=True, right_index=True, how="outer"
+                )
+            logging.info("using sg data from " + date_str)
             success += 1
         except FileNotFoundError:
             continue
 
-    sg_df.fillna(0., inplace=True)
+    sg_df.fillna(0.0, inplace=True)
     mean_df = sg_df.mean(axis=1)
-    tot_df = mean_df.reset_index().groupby('origin').sum()
+    tot_df = mean_df.reset_index().groupby("origin").sum()
 
     frac_df = mean_df.divide(tot_df[0], axis=0, level=0)
     return frac_df
+
 
 def get_mobility_data(popdens, end_date, age_data, add_territories=True):
     """Fetches mobility data.
@@ -362,19 +374,21 @@ def get_mobility_data(popdens, end_date, age_data, add_territories=True):
         TODO
 
     """
-    #lex = read_lex_data(last_date)
+    # lex = read_lex_data(last_date)
     lex = get_lex(last_date)
 
     national_frac_move, dl_state, dl_county = read_descartes_data(last_date)
 
-    if os.path.exists(os.path.join(bucky_cfg["data_dir"], 'safegraph_processed')):
+    if os.path.exists(os.path.join(bucky_cfg["data_dir"], "safegraph_processed")):
 
         sg_df = get_safegraph(last_date)
-        tmp = lex.set_index(['StartId', 'EndId']).frac_count.sort_index()
-        sg_df.index.rename(['StartId','EndId'],inplace=True)
-        merged_df = tmp.to_frame().merge(sg_df.to_frame(), left_index=True, right_index=True, how='outer')
+        tmp = lex.set_index(["StartId", "EndId"]).frac_count.sort_index()
+        sg_df.index.rename(["StartId", "EndId"], inplace=True)
+        merged_df = tmp.to_frame().merge(
+            sg_df.to_frame(), left_index=True, right_index=True, how="outer"
+        )
         mean_df = merged_df.mean(axis=1, skipna=True)
-        lex = mean_df.to_frame(name='frac_count').reset_index()
+        lex = mean_df.to_frame(name="frac_count").reset_index()
 
     # Combine Teralytics, Descartes data
     state_map = counties[["adm2", "adm1"]].set_index("adm2")
@@ -400,7 +414,7 @@ def get_mobility_data(popdens, end_date, age_data, add_territories=True):
 
     lex = lex.merge(popdens, left_on="EndId", right_index=True, how="left")
     lex["frac_count"] = lex["frac_count"] * np.sqrt(
-        np.maximum(.02, lex["pop_dens_scaled"]) ** 2
+        np.maximum(0.02, lex["pop_dens_scaled"]) ** 2
     )
 
     # Use data to make mean edge weights
@@ -473,22 +487,24 @@ if __name__ == "__main__":
 
     ##### AGE AND DEMO DATA #####
     # Read age-stratified data
-    age_data = pd.read_csv(age_strat_file, index_col=0, header=[0,1])
+    age_data = pd.read_csv(age_strat_file, index_col=0, header=[0, 1])
     age_data.index = age_data.index.astype(int)
 
     # Add age-stratified data for territories
-    territory_df = pd.read_csv(bucky_cfg['data_dir'] + "/population/territory_pop.csv", index_col="fips")
+    territory_df = pd.read_csv(
+        bucky_cfg["data_dir"] + "/population/territory_pop.csv", index_col="fips"
+    )
     territory_df.index = territory_df.index.astype(int)
 
     # TODO Temp use the mean age to get IFR until we can regenerate territory_pop.csv
     if not isinstance(territory_df.columns, pd.MultiIndex):
         terr_ifr_ind = territory_df.index
-        mean_bin_age = (np.arange(0,80,5) + np.arange(5,85,5))/2
-        mean_bin_age[-1] = 82 # just an estimate...
+        mean_bin_age = (np.arange(0, 80, 5) + np.arange(5, 85, 5)) / 2
+        mean_bin_age[-1] = 82  # just an estimate...
         ifr_series = pd.Series(estimate_IFR(mean_bin_age), index=territory_df.columns)
         ifr_df = pd.DataFrame({fips: ifr_series for fips in territory_df.index}).T
 
-        territory_df = pd.concat([territory_df, ifr_df], axis=1, keys=['N','IFR'])
+        territory_df = pd.concat([territory_df, ifr_df], axis=1, keys=["N", "IFR"])
 
     age_data = age_data.append(territory_df)
 
@@ -538,9 +554,9 @@ if __name__ == "__main__":
     date_data = hist_data.set_index(["adm2", "date"]).xs(last_date, level=1)
 
     # grab from covid tracking project, (only defined at state level)
-    ct_data = pd.read_csv(bucky_cfg['data_dir'] + '/cases/covid_tracking.csv')
+    ct_data = pd.read_csv(bucky_cfg["data_dir"] + "/cases/covid_tracking.csv")
     ct_data = ct_data.loc[ct_data.date <= last_date]
-    ct_data.set_index(['adm1', 'date'], inplace=True)
+    ct_data.set_index(["adm1", "date"], inplace=True)
 
     # Remove duplicates
     # TODO: Find cause of duplicates
@@ -681,7 +697,7 @@ if __name__ == "__main__":
         adm1_to_str=statefp_to_name,
         adm0_name="US",
         start_date=last_date,
-        covid_tracking_data = ct_data,
+        covid_tracking_data=ct_data,
     )
     G2.add_edges_from(G.edges(), weight=0.0, R0_frac=1.0)
     G2.update(nodes=G.nodes(data=True))

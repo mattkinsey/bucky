@@ -62,10 +62,12 @@ class seir_params(object):
         while True:  # WTB python do-while...
             params = self.reroll_params(self.base_params, var)
             params = self.calc_derived_params(params)
-            if (params.Te > 1.0 and params.Tg > params.Te and params.Ti > 1.) or var==0.:
+            if (
+                params.Te > 1.0 and params.Tg > params.Te and params.Ti > 1.0
+            ) or var == 0.0:
                 return params
             else:
-                logging.debug('Rejected params: ' + pformat(params))
+                logging.debug("Rejected params: " + pformat(params))
 
     def reroll_params(self, base_params, var):
         params = dotdict({})

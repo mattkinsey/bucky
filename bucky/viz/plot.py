@@ -134,10 +134,11 @@ parser.add_argument(
 parser.add_argument(
     "-q",
     "--quantiles",
-    nargs='+',
+    nargs="+",
     type=float,
     default=None,
-    help="Specify the quantiles to plot. Defaults to all quantiles present in data.")
+    help="Specify the quantiles to plot. Defaults to all quantiles present in data.",
+)
 
 # Size of window in days
 parser.add_argument(
@@ -147,6 +148,7 @@ parser.add_argument(
     type=int,
     help="Size of window (in days) to apply to historical data",
 )
+
 
 def add_daily_history(history_data, window_size=None):
     """Applies a window to cumulative historical data to get daily data.
@@ -210,7 +212,7 @@ def plot(
     hist_data,
     plot_columns,
     hist_columns,
-    quantiles
+    quantiles,
 ):
     """Given a dataframe and a key, creates plots with requested columns.
 
@@ -245,7 +247,7 @@ def plot(
 
     # If quantiles were not specified, get all quantiles present in data
     if quantiles is None:
-        quantiles = sim_data['q'].unique()
+        quantiles = sim_data["q"].unique()
 
     # Get number of quantiles
     num_intervals = len(quantiles)
@@ -299,21 +301,23 @@ def plot(
             area_data.set_index(["date", "q"], inplace=True)
 
             # Middle is median
-            median_data = area_data.xs(quantiles[int(num_intervals / 2)], level=1)[
-                col
-            ]
+            median_data = area_data.xs(quantiles[int(num_intervals / 2)], level=1)[col]
             dates = median_data.index.values
 
             # Plot median and outer quantiles
             median_data.plot(
-                linewidth=1.5, color='k', alpha=0.75, label=readable_col_names[col], ax=axs[i]
+                linewidth=1.5,
+                color="k",
+                alpha=0.75,
+                label=readable_col_names[col],
+                ax=axs[i],
             )
 
             # Iterate over pairs of quantiles
             num_quantiles = len(quantiles)
 
             # Scale opacity
-            alpha = 1. / (num_quantiles  // 2)
+            alpha = 1.0 / (num_quantiles // 2)
             for q in range(num_quantiles // 2):
 
                 lower_q = quantiles[q]
@@ -329,7 +333,7 @@ def plot(
                     linewidth=0,
                     alpha=alpha,
                     color="b",
-                    interpolate=True
+                    interpolate=True,
                 )
 
             # axs[i].set_ylim([.8*oq_lower.min(), 1.2*oq_upper.max()])
@@ -344,7 +348,9 @@ def plot(
 
                     actuals = actuals.assign(date=pd.to_datetime(actuals["date"]))
                     # actuals.set_index('date', inplace=True)
-                    actuals.plot.scatter(x="date", y=hist_columns[i], ax=axs[i], color='r')
+                    actuals.plot.scatter(
+                        x="date", y=hist_columns[i], ax=axs[i], color="r"
+                    )
 
                     # Set xlim
                     axs[i].set_xlim(actuals["date"].min(), dates.max())
@@ -356,7 +362,9 @@ def plot(
             axs[i].legend()
             axs[i].set_ylabel("Count")
 
-        plot_filename = os.path.join(output_dir, readable_col_names[plot_columns[0]] + "_"+ name + ".png")
+        plot_filename = os.path.join(
+            output_dir, readable_col_names[plot_columns[0]] + "_" + name + ".png"
+        )
         plot_filename = plot_filename.replace(" : ", "_")
         plot_filename = plot_filename.replace(" ", "")
         area_data.to_csv(plot_filename.replace(".png", ".csv"))
@@ -377,7 +385,7 @@ def make_plots(
     end_date,
     admin1=None,
     hist_start=None,
-    hist_file=None
+    hist_file=None,
 ):
     """Wrapper function around plot. Creates plots, aggregating data 
     if necessary.
@@ -523,8 +531,9 @@ def make_plots(
             hist_data=level_hist_data,
             plot_columns=plot_columns,
             hist_columns=hist_columns,
-            quantiles=quantiles
+            quantiles=quantiles,
         )
+
 
 if __name__ == "__main__":
 
@@ -588,5 +597,5 @@ if __name__ == "__main__":
         end_date,
         args.adm1_name,
         hist_start,
-        hist_file
+        hist_file,
     )

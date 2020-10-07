@@ -14,8 +14,8 @@ from .util.read_config import bucky_cfg
 cupy_spec = importlib.util.find_spec("cupy")
 cupy_found = cupy_spec is not None
 
-if os.getenv('BUCKY_CPU', 0):
-    logging.info('BUCKY_CPU found, forcing cpu usage')
+if os.getenv("BUCKY_CPU", 0):
+    logging.info("BUCKY_CPU found, forcing cpu usage")
     cupy_found = False
 
 most_recent_graph = max(
@@ -47,17 +47,23 @@ parser.add_argument(
 parser.add_argument(
     "--days", "-d", default=40, type=int, help="Length of the runs in days"
 )
-parser.add_argument('-v', '--verbose',
-                    action='count',
-                    dest='verbosity',
-                    default=0,
-                    help="verbose output (repeat for increased verbosity; defaults to WARN, -v is INFO, -vv is DEBUG)")
-parser.add_argument('-q', '--quiet',
-                    action='store_const',
-                    const=-1,
-                    default=0,
-                    dest='verbosity',
-                    help="quiet output (only show ERROR and higher)")
+parser.add_argument(
+    "-v",
+    "--verbose",
+    action="count",
+    dest="verbosity",
+    default=0,
+    help="verbose output (repeat for increased verbosity; defaults to WARN, -v is INFO, -vv is DEBUG)",
+)
+parser.add_argument(
+    "-q",
+    "--quiet",
+    action="store_const",
+    const=-1,
+    default=0,
+    dest="verbosity",
+    help="quiet output (only show ERROR and higher)",
+)
 parser.add_argument(
     "-c",
     "--cache",
@@ -85,5 +91,11 @@ parser.add_argument(
     help="Dir to put the output files",
 )
 
-parser.add_argument('--npi_file', default=None, nargs='?', type=str, help='File containing NPIs')
-parser.add_argument('--disable-npi', action='store_true', help='Disable all active NPI from the npi_file at the start of the run')
+parser.add_argument(
+    "--npi_file", default=None, nargs="?", type=str, help="File containing NPIs"
+)
+parser.add_argument(
+    "--disable-npi",
+    action="store_true",
+    help="Disable all active NPI from the npi_file at the start of the run",
+)
