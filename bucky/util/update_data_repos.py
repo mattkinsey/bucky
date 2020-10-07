@@ -18,7 +18,6 @@ ADD_AMERICAN_SAMOA = False
 # CSSE UIDs for Michigan prison information
 MI_PRISON_UIDS = [84070004, 84070005]
 
-
 def get_timeseries_data(col_name, filename, fips_key="FIPS", is_csse=True):
     """Takes a historical data file and reduces it to a dataframe with FIPs, 
     date, and case or death data.
@@ -50,7 +49,8 @@ def get_timeseries_data(col_name, filename, fips_key="FIPS", is_csse=True):
         # Michigan prisons have no FIPS, replace with their UID to be processed later
         mi_data = df.loc[df["UID"].isin(MI_PRISON_UIDS)]
         mi_data = mi_data.assign(FIPS=mi_data["UID"])
-        df.update(mi_data)
+
+        df.loc[mi_data.index] = mi_data.values
 
     # Get dates and FIPS columns only
     cols = list(df.columns)
@@ -75,7 +75,6 @@ def get_timeseries_data(col_name, filename, fips_key="FIPS", is_csse=True):
     df.columns = ["FIPS", "date", col_name]
 
     return df
-
 
 def distribute_unallocated_csse(confirmed_file, deaths_file, hist_df):
     """Distributes unallocated historical case and deaths data from CSSE.
@@ -174,14 +173,14 @@ def distribute_unallocated_csse(confirmed_file, deaths_file, hist_df):
 
         # Index historical data
         state_df = state_df.set_index(["date", "FIPS"])
-        state_df = state_df.assign(Deaths=state_df["Deaths"] + dist_deaths)
-        state_df = state_df.assign(Confirmed=state_df["Confirmed"] + dist_cases)
+        tmp = dist_deaths.to_frame(name="Deaths")
+        tmp["Confirmed"] = dist_cases
+        state_df += tmp
 
-        hist_df.update(state_df)
+        hist_df.loc[state_df.index] = state_df.values
 
     hist_df = hist_df.drop(columns=["state_fips"])
     return hist_df
-
 
 def distribute_data_by_population(total_df, dist_vect, data_to_dist, replace):
     """Distributes data by population across a state or territory.
@@ -226,10 +225,9 @@ def distribute_data_by_population(total_df, dist_vect, data_to_dist, replace):
     # Discard merge columns
     tmp = tmp[["FIPS", "date", "Confirmed", "Deaths"]]
     tmp.set_index(["FIPS", "date"], inplace=True)
-    total_df.update(tmp)
+    total_df.loc[tmp.index] = tmp.values
 
     return total_df
-
 
 def get_county_population_data(csse_deaths_file, county_fips):
     """Uses JHU CSSE deaths file to get county-level population data as 
@@ -259,7 +257,6 @@ def get_county_population_data(csse_deaths_file, county_fips):
     population_df.drop(columns=["Population"], inplace=True)
 
     return population_df
-
 
 def distribute_nyc_data(df):
     """Distributes NYC case data across the six NYC counties.
@@ -306,7 +303,6 @@ def distribute_nyc_data(df):
     df = distribute_data_by_population(df, population_df, nyc_data, True)
     return df
 
-
 def distribute_mdoc(df, csse_deaths_file):
     """Distributes Michigan Department of Corrections data across Michigan
     counties by population.
@@ -342,10 +338,9 @@ def distribute_mdoc(df, csse_deaths_file):
     df = distribute_data_by_population(df, michigan_pop, mi_unallocated, False)
 
     # Drop prison data from dataframe
-    df = df.drop(index=MI_PRISON_UIDS, level=0)
+    df = df.loc[~df.index.get_level_values(0).isin(MI_PRISON_UIDS)]
 
     return df
-
 
 def distribute_territory_data(df, add_american_samoa):
     """Distributes territory-wide case and death data for territories.
@@ -429,7 +424,6 @@ def distribute_territory_data(df, add_american_samoa):
 
     return df
 
-
 def process_csse_data():
     """Performs pre-processing on CSSE data.
 
@@ -459,6 +453,11 @@ def process_csse_data():
 
     # Remove missing FIPS
     data = data[data.FIPS != 0]
+
+    # Replace FIPS with adm2
+    #data.rename(columns={"FIPS" : "adm2"}, inplace=True)
+    #print(data.columns)
+
     data = data.set_index(["FIPS", "date"])
 
     # Distribute territory and Michigan DOC data
@@ -471,12 +470,13 @@ def process_csse_data():
 
     data = distribute_unallocated_csse(confirmed_file, deaths_file, data)
 
+    # Rename FIPS index to adm2
+    data.index = data.index.rename(["date", "adm2"])
+    
     # Write to files
     hist_file = bucky_cfg['data_dir'] + "/cases/csse_hist_timeseries.csv"
-
     logging.info("Saving CSSE historical data as %s" % hist_file)
     data.to_csv(hist_file)
-
 
 def update_covid_tracking_data():
     """Downloads and processes data from the Atlantic's COVID Tracking project
@@ -504,17 +504,18 @@ def update_covid_tracking_data():
     df = pd.read_csv(data_file)
 
     # Fix date
-    df["date"] = df["date"].astype(str).apply(lambda x: datetime.strptime(x, "%Y%m%d"))
-
+    df["date"] = pd.to_datetime(df["date"], format="%Y%m%d")
+    
     # Rename FIPS
     df.rename(columns={"fips": "adm1"}, inplace=True)
 
     # Pull a random county for each state to use as fips proxy
+    #from IPython import embed
+    #embed()
     csse_df = pd.read_csv("data/cases/csse_hist_timeseries.csv")
-    csse_df = csse_df.assign(adm1=csse_df["FIPS"] // 1000)
+    csse_df = csse_df.assign(adm1=csse_df["adm2"] // 1000)
     csse_df = csse_df.drop(columns=["date", "Confirmed", "Deaths"])
-    csse_df.drop_duplicates(subset=["FIPS"])
-    csse_df = csse_df.rename(columns={"FIPS": "adm2"})
+    csse_df.drop_duplicates(subset=["adm2"])
 
     # Drop invalid FIPS
     csse_df = csse_df.loc[~csse_df["adm1"].isin([0, 80, 88, 90, 99])]
@@ -529,7 +530,6 @@ def update_covid_tracking_data():
     covid_tracking_name = bucky_cfg['data_dir'] + "/cases/covid_tracking.csv"
     logging.info("Saving COVID Tracking Data as %s" % covid_tracking_name)
     df.to_csv(covid_tracking_name, index=False)
-
 
 def process_usafacts(case_file, deaths_file):
     """Performs preprocessing on USA Facts data.
@@ -605,7 +605,7 @@ def process_usafacts(case_file, deaths_file):
                     columns={"countyFIPS": "FIPS", "level_1": "date", 0: cols[i]}
                 )
                 state_df.set_index(["FIPS", "date"], inplace=True)
-                ts.update(state_df)
+                ts.loc[state_df.index] = state_df.values
 
         processed_frames.append(ts)
 
@@ -614,7 +614,6 @@ def process_usafacts(case_file, deaths_file):
         processed_frames[0], processed_frames[1], on=["FIPS", "date"], how="left"
     ).fillna(0)
     return combined_df
-
 
 def update_usafacts_data():
     """Retrieves updated historical data from USA Facts, preprocesses it,
@@ -647,6 +646,7 @@ def update_usafacts_data():
     # Sort by date
     data["date"] = pd.to_datetime(data["date"])
     data = data.sort_values(by="date")
+    data.rename(columns={'FIPS' : 'adm2'}, inplace=True)
     data.to_csv(bucky_cfg['data_dir'] + "/cases/usafacts_hist.csv")
 
 
