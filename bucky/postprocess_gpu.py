@@ -15,6 +15,7 @@ from multiprocessing import (
     RLock,
     cpu_count,
     current_process,
+    set_start_method,
 )
 from pathlib import Path
 
@@ -24,10 +25,11 @@ import pandas as pd
 import scipy.stats
 from tqdm import tqdm
 
-import cupy as cp
-
+from .util import force_cpu
 from .util.read_config import bucky_cfg
 from .viz.geoid import read_geoid_from_graph, read_lookup
+
+from .numerical_libs import use_cupy
 
 
 def divide_by_pop(dataframe, cols):
@@ -147,7 +149,15 @@ parser.add_argument(
     help="Lookup table defining geoid relationships",
 )
 
-parser.add_argument("-n", "--nprocs", default=1, type=int)
+parser.add_argument(
+    "-n",
+    "--nprocs",
+    default=1,
+    type=int,
+    help="Number of threads doing aggregations, more is better till you go OOM...",
+)
+
+parser.add_argument("-cpu", "--cpu", action="store_true", help="Do not use cupy")
 
 parser.add_argument(
     "--verify", action="store_true", help="Verify the quality of the data"
@@ -169,12 +179,13 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # logging.basicConfig(level=logging.INFO)
+    # set_start_method("fork")
 
     # Start parsing args
     quantiles = args.quantiles
     verbose = args.verbose
     prefix = args.prefix
+    use_gpu = not args.cpu
 
     if verbose:
         logging.info(args)
@@ -344,6 +355,12 @@ if __name__ == "__main__":
             if (tot_df.drop(columns=["date"]).lt(0).sum() > 0).any():  # TODO same here
                 logging.warning("Floating point errors are present in output data.")
 
+        # NB: this has to happen after we fork the process
+        # see e.g. https://github.com/chainer/chainer/issues/1087
+        if use_gpu:
+            use_cupy(optimize=True)
+        from .numerical_libs import xp  # isort:skip
+
         for level in agg_levels:
 
             logging.info("Currently processing: " + level)
@@ -368,21 +385,26 @@ if __name__ == "__main__":
             # Compute quantiles
             # TODO why is this in the for loop? pretty sure we can move it but check for deps
             def quantiles_group(tot_df):
-                tot_df_stacked = tot_df.stack()
-                tot_df_unstack = tot_df_stacked.unstack("rid")
-                percentiles = cp.array(quantiles) * 100.0
-                test = cp.percentile(
-                    cp.array(tot_df_unstack.to_numpy()), q=percentiles, axis=1
-                )
-                q_df = (
-                    pd.DataFrame(
-                        test.T.get(), index=tot_df_unstack.index, columns=quantiles
+                # Kernel opt currently only works on reductions (@v8.0.0) but maybe someday it'll help here
+                with xp.optimize_kernels():
+                    # can we do this pivot in cupy?
+                    tot_df_stacked = tot_df.stack()
+                    tot_df_unstack = tot_df_stacked.unstack("rid")
+                    percentiles = xp.array(quantiles) * 100.0
+                    test = xp.percentile(
+                        xp.array(tot_df_unstack.to_numpy()), q=percentiles, axis=1
                     )
-                    .unstack()
-                    .stack(level=0)
-                    .reset_index()
-                    .rename(columns={"level_2": "q"})
-                )
+                    q_df = (
+                        pd.DataFrame(
+                            force_cpu(test.T),
+                            index=tot_df_unstack.index,
+                            columns=quantiles,
+                        )
+                        .unstack()
+                        .stack(level=0)
+                        .reset_index()
+                        .rename(columns={"level_2": "q"})
+                    )
                 return q_df
 
             g = tot_df.groupby([level, "date", "rid"]).sum().groupby(level)

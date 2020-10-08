@@ -11,6 +11,7 @@ import os
 
 from .util.read_config import bucky_cfg
 
+# TODO this logic should be in numerical_libs so we can apply it everywhere
 cupy_spec = importlib.util.find_spec("cupy")
 cupy_found = cupy_spec is not None
 

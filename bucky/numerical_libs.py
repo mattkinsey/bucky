@@ -21,9 +21,19 @@ def use_cupy(optimize=False):
 
     returns nothing but imports a version of 'xp', 'ivp', and 'sparse' to the global scope of this module
     """
-    global xp, ivp, sparse
- 
     import importlib
+    import logging
+    cupy_spec = importlib.util.find_spec("cupy")
+    if cupy_spec is None:
+        logging.warn("CuPy not found, reverting to cpu/numpy")
+        return 1
+
+    global xp, ivp, sparse
+
+    if xp.__name__ is "cupy":
+        logging.info("CuPy already loaded, skipping")
+        return 0
+
     import sys
 
     # modify src before importing
@@ -78,3 +88,5 @@ def use_cupy(optimize=False):
 
     xp = cp
     import cupyx.scipy.sparse as sparse
+
+    return 0
