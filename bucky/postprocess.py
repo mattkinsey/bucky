@@ -1,21 +1,34 @@
 import argparse
 import datetime
+import gc
 import glob
 import logging
 import os
 import pickle
 from datetime import timedelta
 from functools import partial
-from multiprocessing import Pool, cpu_count
+from multiprocessing import (
+    JoinableQueue,
+    Pool,
+    Process,
+    Queue,
+    RLock,
+    cpu_count,
+    current_process,
+    set_start_method,
+)
 from pathlib import Path
 
 import networkx as nx
 import numpy as np
 import pandas as pd
 import scipy.stats
+from tqdm import tqdm
 
 from .util.read_config import bucky_cfg
 from .viz.geoid import read_geoid_from_graph, read_lookup
+
+from .numerical_libs import use_cupy
 
 
 def divide_by_pop(dataframe, cols):
@@ -73,7 +86,31 @@ parser.add_argument(
 )
 
 # Quantiles
-default_quantiles = [0.05, 0.25, 0.5, 0.75, 0.95]
+default_quantiles = [
+    0.01,
+    0.025,
+    0.050,
+    0.100,
+    0.150,
+    0.200,
+    0.250,
+    0.300,
+    0.350,
+    0.400,
+    0.450,
+    0.500,
+    0.550,
+    0.600,
+    0.650,
+    0.7,
+    0.750,
+    0.800,
+    0.85,
+    0.9,
+    0.950,
+    0.975,
+    0.990,
+]
 parser.add_argument(
     "-q",
     "--quantiles",
@@ -111,23 +148,43 @@ parser.add_argument(
     help="Lookup table defining geoid relationships",
 )
 
+parser.add_argument(
+    "-n",
+    "--nprocs",
+    default=1,
+    type=int,
+    help="Number of threads doing aggregations, more is better till you go OOM...",
+)
+
+parser.add_argument("-cpu", "--cpu", action="store_true", help="Do not use cupy")
+
+parser.add_argument(
+    "--verify", action="store_true", help="Verify the quality of the data"
+)
+
+parser.add_argument(
+    "--no-sort",
+    "--no_sort",
+    action="store_true",
+    help="Skip sorting the aggregated files",
+)
+
 # Optional flags
 parser.add_argument(
     "-v", "--verbose", action="store_true", help="Print extra information"
-)
-parser.add_argument(
-    "--no_quantiles", action="store_false", help="Skip creating quantiles"
 )
 
 if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # set_start_method("fork")
+
     # Start parsing args
     quantiles = args.quantiles
     verbose = args.verbose
-    use_quantiles = args.no_quantiles
     prefix = args.prefix
+    use_gpu = not args.cpu
 
     if verbose:
         logging.info(args)
@@ -142,7 +199,8 @@ if __name__ == "__main__":
     # Use lookup, add prefix
     if args.lookup is not None:
         lookup_df = read_lookup(args.lookup)
-        prefix = Path(args.lookup).stem
+        if prefix is None:
+            prefix = Path(args.lookup).stem
     else:
         lookup_df = read_geoid_from_graph(args.graph_file)
 
@@ -164,169 +222,194 @@ if __name__ == "__main__":
 
     admin2_key = "ADM2_ID"
 
-    # Read H5 file
-    run_data = [pd.read_feather(f) for f in glob.glob(args.file + "/*")]
-    tot_df = pd.concat(run_data)
-    # tot_df = pd.read_hdf(args.file, key='data')
-
-    # Get start date of simulation
-    start_date = tot_df["date"].min()
-
-    # If user passes in an end date, use it
-    if args.end_date is not None:
-        end_date = pd.to_datetime(args.end_date)
-
-    # Otherwise use last day in data
-    else:
-        end_date = tot_df["date"].max()
-
-    # Drop data not within requested time range
-    tot_df = tot_df.loc[(tot_df["date"] <= end_date) & (tot_df["date"] >= start_date)]
-
-    # Some lookups only contain a subset of counties, drop extras if necessary
-    unique_adm2 = lookup_df.index
-    tot_df = tot_df.loc[tot_df[admin2_key].isin(unique_adm2)]
-
-    # Start reading data
-    seird_cols = ["S", "E", "I", "Ic", "Ia", "R", "Rh", "D"]
-    # asym = p_df.groupby('rid').mean()['ASYM_FRAC']
-    tot_df = tot_df.assign(N=tot_df[seird_cols].sum(axis=1))
-    # tot_df = tot_df.merge(asym, left_on='rid', right_index=True)
-
-    # For cases, don't include asymptomatic
-    infected_columns = ["I", "Ic"]  # , 'Ia']
-    tot_df = tot_df.assign(cases_active=tot_df[infected_columns].sum(axis=1))
-
-    # Calculate hospitalization
-    tot_df = tot_df.assign(hospitalizations=tot_df[["Rh", "Ic"]].sum(axis=1))
-    # tot_df = tot_df.assign(hospitalizations=tot_df['Rh'])
-
-    # Drop columns other than these
-    keep_cols = [
-        "N",
-        "hospitalizations",
-        "NCR",
-        "CCR",
-        "NC",
-        "CC",
-        "ND",
-        "D",
-        "Ia",
-        "ICU",
-        "VENT",
-        "cases_active",
-        admin2_key,
-        "date",
-        "rid",
-        "CASE_REPORT",
-        "Reff",
-        "doubling_t",
-    ]
-
-    tot_df = tot_df.drop(columns=[c for c in tot_df.columns if c not in keep_cols])
-
-    # Rename
-    tot_df.rename(
-        columns={
-            "D": "cumulative_deaths",
-            "NC": "daily_cases",
-            "ND": "daily_deaths",
-            "CC": "cumulative_cases",
-            "Ia": "cases_asymptomatic_active",
-            "NCR": "daily_cases_reported",
-            "CCR": "cumulative_cases_reported",
-        },
-        inplace=True,
+    write_header = True
+    all_files = glob.glob(args.file + "/*.feather")
+    all_files_df = pd.DataFrame(
+        [x.split("/")[-1].split(".")[0].split("_") for x in all_files],
+        columns=["rid", "date"],
     )
+    dates = all_files_df.date.unique().tolist()
 
-    if "pop_fraction" in lookup_df.columns:
+    to_write = JoinableQueue()
 
-        # Apply correction
-        tot_df = tot_df.merge(
-            lookup_df["pop_fraction"], left_on="ADM2_ID", right_on="adm2"
+    def writer(q):
+        # Call to_write.get() until it returns None
+        has_header_dict = {}
+        for fname, df in iter(q.get, None):
+            if fname in has_header_dict:
+                df.to_csv(fname, header=False, mode="a")
+            else:
+                df.to_csv(fname, header=True, mode="w")
+                has_header_dict[fname] = True
+            q.task_done()
+        q.task_done()
+
+    write_thread = Process(target=writer, args=(to_write,))
+    write_thread.deamon = True
+    write_thread.start()
+
+    def process_date(date, write_header=False, write_queue=to_write):
+        date_files = glob.glob(args.file + "/*_" + str(date) + ".feather")  # [:NFILES]
+
+        # Read feather files
+        run_data = [pd.read_feather(f) for f in date_files]
+        tot_df = pd.concat(run_data)
+
+        # force GC to free up lingering cuda allocs
+        del run_data
+        gc.collect()
+
+        # Get start date of simulation
+        # start_date = tot_df["date"].min()
+
+        # If user passes in an end date, use it
+        if args.end_date is not None:
+            end_date = pd.to_datetime(args.end_date)
+
+        # Otherwise use last day in data
+        else:
+            end_date = tot_df["date"].max()
+
+            # Drop data not within requested time range
+            tot_df = tot_df.loc[(tot_df["date"] <= end_date)]
+
+        # Some lookups only contain a subset of counties, drop extras if necessary
+        unique_adm2 = lookup_df.index
+        tot_df = tot_df.loc[tot_df[admin2_key].isin(unique_adm2)]
+
+        # Start reading data
+        seird_cols = ["S", "E", "I", "Ic", "Ia", "R", "Rh", "D"]
+        N = tot_df[seird_cols].sum(axis=1)
+
+        # For cases, don't include asymptomatic
+        infected_columns = ["I", "Ic"]  # , 'Ia']
+        cases_active = tot_df[infected_columns].sum(axis=1)
+        # Calculate hospitalization
+        hospitalizations = tot_df[["Rh", "Ic"]].sum(axis=1)
+
+        tot_df = tot_df.assign(
+            N=N, cases_active=cases_active, hospitalizations=hospitalizations
         )
 
-        exclude_cols = [
-            "pop_fraction",
+        # Drop columns other than these
+        keep_cols = [
+            "N",
+            "hospitalizations",
+            "NCR",
+            "CCR",
+            "NC",
+            "CC",
+            "ND",
+            "D",
+            "Ia",
+            "ICU",
+            "VENT",
+            "cases_active",
+            admin2_key,
+            "date",
+            "rid",
             "CASE_REPORT",
             "Reff",
-            "cases_per_100k",
-            "ADM2_ID",
-            "rid",
-            "adm2",
-            "adm1",
-            "adm0",
-            "date",
             "doubling_t",
+            "nCCR",
+            "nNCR",
+            "NH",
         ]
-        for col in tot_df.columns:
-            print(col)
-            if col not in exclude_cols:
-                tot_df[col] = tot_df[col] * tot_df["pop_fraction"]
 
-        tot_df.drop(columns=["pop_fraction"], inplace=True)
+        tot_df = tot_df[keep_cols]
+        gc.collect()
 
-    # Multiply column by N, then at end divide by aggregated N
-    pop_mean_cols = ["CASE_REPORT", "Reff", "doubling_t"]
-    for col in pop_mean_cols:
-        tot_df[col] = tot_df[col] * tot_df["N"]
-
-    # No columns should contain negatives or NaNs
-    nan_vals = tot_df.isna().sum()
-    if nan_vals.sum() > 0:
-        logging.error("NANs are present in output data: \n" + str(nan_vals))
-        # raise ValueError('NANs are present in output data: ' + str(nan_vals))
-
-    # Check all columns except date for negative values
-    if (tot_df.drop(columns=["date"]).lt(-1).sum() > 0).any():
-        logging.error("Negative values are present in output data.")
-        # raise ValueError('Negative values are present in output data: ' + str(negative_vals))
-
-    # Check for floating point errors
-    if (tot_df.drop(columns=["date"]).lt(0).sum() > 0).any():
-        logging.warning("Floating point errors are present in output data.")
-
-    for level in agg_levels:
-
-        logging.info("Currently processing: " + level)
-
-        if level != "adm2":
-
-            # Create a mapping for aggregation level
-            level_dict = lookup_df[level].to_dict()
-            levels = np.unique(list(level_dict.values()))
-        else:
-            levels = lookup_df.index.values
-            level_dict = {x: x for x in levels}
-
-        level_map = dict(enumerate(levels))
-        level_inv_map = {v: k for k, v in level_map.items()}
-
-        # Apply map
-        tot_df[level] = (
-            tot_df[admin2_key].map(level_dict).map(level_inv_map).astype(int)
+        # Rename
+        tot_df.rename(
+            columns={
+                "D": "cumulative_deaths",
+                "NC": "daily_cases",
+                "ND": "daily_deaths",
+                "CC": "cumulative_cases",
+                "Ia": "cases_asymptomatic_active",
+                "NCR": "daily_cases_reported",
+                "CCR": "cumulative_cases_reported",
+            },
+            inplace=True,
         )
 
-        # Compute quantiles
-        if use_quantiles:
-            with Pool(cpu_count()) as p:
-                q_df = (
-                    pd.concat(
-                        p.map(
-                            partial(
-                                pd.DataFrame.quantile, q=quantiles, numeric_only=False
-                            ),
-                            [
-                                g.assign(level=n[0], date=n[1])
-                                for n, g in tot_df.groupby([level, "date", "rid"])
-                                .sum()
-                                .groupby([level, "date"])
-                            ],
-                        )
+        # Multiply column by N, then at end divide by aggregated N
+        pop_mean_cols = ["CASE_REPORT", "Reff", "doubling_t"]
+        for col in pop_mean_cols:
+            tot_df[col] = tot_df[col] * tot_df["N"]
+
+        # No columns should contain negatives or NaNs
+        nan_vals = tot_df.isna().sum()
+        if nan_vals.sum() > 0:
+            logging.error("NANs are present in output data: \n" + str(nan_vals))
+
+        if args.verify:
+            # Check all columns except date for negative values
+            if (
+                tot_df.drop(columns=["date"]).lt(-1).sum() > 0
+            ).any():  # TODO this drop does a deep copy and is super slow
+                logging.error("Negative values are present in output data.")
+
+            # Check for floating point errors
+            if (tot_df.drop(columns=["date"]).lt(0).sum() > 0).any():  # TODO same here
+                logging.warning("Floating point errors are present in output data.")
+
+        # NB: this has to happen after we fork the process
+        # see e.g. https://github.com/chainer/chainer/issues/1087
+        if use_gpu:
+            use_cupy(optimize=True)
+        from .numerical_libs import xp  # isort:skip
+
+        for level in agg_levels:
+
+            logging.info("Currently processing: " + level)
+
+            if level != "adm2":
+
+                # Create a mapping for aggregation level
+                level_dict = lookup_df[level].to_dict()
+                levels = np.unique(list(level_dict.values()))
+            else:
+                levels = lookup_df.index.values
+                level_dict = {x: x for x in levels}
+
+            level_map = dict(enumerate(levels))
+            level_inv_map = {v: k for k, v in level_map.items()}
+
+            # Apply map
+            tot_df[level] = (
+                tot_df[admin2_key].map(level_dict).map(level_inv_map).astype(int)
+            )
+
+            # Compute quantiles
+            # TODO why is this in the for loop? pretty sure we can move it but check for deps
+            def quantiles_group(tot_df):
+                # Kernel opt currently only works on reductions (@v8.0.0) but maybe someday it'll help here
+                with xp.optimize_kernels():
+                    # can we do this pivot in cupy?
+                    tot_df_stacked = tot_df.stack()
+                    tot_df_unstack = tot_df_stacked.unstack("rid")
+                    percentiles = xp.array(quantiles) * 100.0
+                    test = xp.percentile(
+                        xp.array(tot_df_unstack.to_numpy()), q=percentiles, axis=1
                     )
-                    .reset_index()
-                    .rename(columns={"index": "q", "level": level})
-                )
+                    q_df = (
+                        pd.DataFrame(
+                            xp.to_cpu(test.T),
+                            index=tot_df_unstack.index,
+                            columns=quantiles,
+                        )
+                        .unstack()
+                        .stack(level=0)
+                        .reset_index()
+                        .rename(columns={"level_2": "q"})
+                    )
+                return q_df
+
+            g = tot_df.groupby([level, "date", "rid"]).sum().groupby(level)
+
+            q_df = g.apply(quantiles_group)
+
             q_df[level] = q_df[level].round().astype(int).map(level_map)
             q_df.set_index([level, "date", "q"], inplace=True)
             q_df = q_df.assign(
@@ -334,85 +417,34 @@ if __name__ == "__main__":
             )
             q_df = divide_by_pop(q_df, pop_mean_cols)
 
-        # Compute mean
-        mean_df = (
-            tot_df.groupby([level, "date", "rid"])
-            .sum()
-            .groupby([level, "date"])
-            .mean()
-            .assign(q=-1)
-            .reset_index()
-        )
-        mean_df[level] = mean_df[level].map(level_map)
-        mean_df.set_index([level, "date", "q"], inplace=True)
-        mean_df.index.set_names([level, "date", "q"], inplace=True)
-        mean_df = mean_df.assign(
-            cases_per_100k=(mean_df["cases_active"] / mean_df["N"]) * 100000.0
-        )
-        mean_df = divide_by_pop(mean_df, pop_mean_cols)
+            # Column management
+            if level != admin2_key:
+                del q_df[admin2_key]
 
-        # Compute standard deviation
-        std_df = (
-            tot_df.groupby([level, "date", "rid"])
-            .sum()
-            .groupby([level, "date"])
-            .std()
-            .assign(q=-2)
-            .reset_index()
-        )
-        std_df[level] = std_df[level].map(level_map)
-        std_df.set_index([level, "date", "q"], inplace=True)
-        std_df.index.set_names([level, "date", "q"], inplace=True)
-
-        # Get mean_df's N to compute cases_per_100k
-        tmp_N = (
-            mean_df.reset_index()
-            .drop(columns=["q"])
-            .assign(q=-2)
-            .set_index(std_df.index.names)
-        )
-        std_df = std_df.assign(
-            cases_per_100k=(std_df["cases_active"] / tmp_N["N"]) * 100000.0
-        )
-
-        for col in pop_mean_cols:
-            std_df[col] = std_df[col] / tmp_N["N"]
-
-        # Column management
-        if level != admin2_key:
-
-            # Remove unncessary FIPS column from new dataframe
-            if use_quantiles:
-                q_df.drop(columns=admin2_key, inplace=True)
-            mean_df.drop(columns=admin2_key, inplace=True)
-            std_df.drop(columns=admin2_key, inplace=True)
-
-            # And remove now unnecessary level column from original dataframe
-            tot_df.drop(columns=[level], inplace=True)
-        else:
-            tot_df[level] = tot_df[admin2_key].map(level_map)
-
-        if verbose:
-            logging.info("Mean dataframe:")
-            logging.info(mean_df.head())
-
-            logging.info("\nStandard deviation dataframe:")
-            logging.info(std_df.head())
-
-            if use_quantiles:
+            if verbose:
                 logging.info("\nQuantiles dataframe:")
                 logging.info(q_df.head())
 
-        # Create two output files: one for quantiles and one for mean+standard deviation
-        if use_quantiles:
-            q_df.to_csv(os.path.join(output_dir, level + "_quantiles.csv"), header=True)
+            # Push output df to write queue
+            write_queue.put((os.path.join(output_dir, level + "_quantiles.csv"), q_df))
 
-        # Combine mean and standard deviation into one DF
-        mean_df = pd.concat([mean_df, std_df])
-        mean_df = mean_df.reset_index()
+    pool = Pool(processes=args.nprocs)
+    for _ in tqdm(pool.imap_unordered(process_date, dates), total=len(dates)):
+        pass
+    pool.close()
+    pool.join()  # wait until everything is done
 
-        # Rename q column
-        mean_df = mean_df.assign(stat=mean_df["q"].map({-1: "mean", -2: "std"}))
-        mean_df.drop(columns=["q"], inplace=True)
-        mean_df.set_index([level, "date", "stat"], inplace=True)
-        mean_df.to_csv(os.path.join(output_dir, level + "_mean_std.csv"), header=True)
+    to_write.join()  # wait until queue is empty
+    to_write.put(None)  # send signal to term loop
+    to_write.join()  # wait until write_thread handles it
+    write_thread.join()  # join the write_thread
+
+    # sort output csvs
+    if not args.no_sort:
+        for level in args.levels:
+            fname = os.path.join(output_dir, level + "_quantiles.csv")
+            print("Sorting output file " + fname, end="... ")
+            df = pd.read_csv(fname)
+            df.sort_values([level, "date", "q"], inplace=True)
+            df.to_csv(fname, index=False)
+            print(" Done")
