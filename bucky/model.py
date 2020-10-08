@@ -158,21 +158,23 @@ class SEIR_covid(object):
             ).astype(float)
             self.init_cum_cases[self.init_cum_cases < 0.0] = 0.0
 
-            case_hist = xp.vstack(
+            # Get case history from graph
+            cum_case_hist = xp.vstack(
                 list(nx.get_node_attributes(G, "case_hist").values())
             ).T
 
-            self.case_hist_cum = case_hist.astype(float)
-            self.case_hist = xp.diff(case_hist, axis=0).astype(
+            self.cum_case_hist = cum_case_hist.astype(float)
+            self.inc_case_hist = xp.diff(cum_case_hist, axis=0).astype(
                 float
-            )  # TODO rename to inc_case_hist
+            )
 
-            death_hist = xp.vstack(
+            # Get death history from graph
+            cum_death_hist = xp.vstack(
                 list(nx.get_node_attributes(G, "death_hist").values())
             ).T
 
-            self.death_hist_cum = death_hist.astype(float)
-            self.death_hist = xp.diff(death_hist, axis=0).astype(float)  # TODO rename
+            self.cum_death_hist = cum_death_hist.astype(float)
+            self.inc_death_hist = xp.diff(cum_death_hist, axis=0).astype(float)
 
             if "IFR" in G.nodes[list(G.nodes.keys())[0]]:
                 logging.info("Using ifr from graph")
@@ -417,8 +419,8 @@ class SEIR_covid(object):
         logging.debug("case init")
         Ti = self.params.Ti
         current_I = (
-            xp.sum(self.case_hist[-int(Ti) :], axis=0)
-            + (Ti % 1) * self.case_hist[-int(Ti + 1)]
+            xp.sum(self.inc_case_hist[-int(Ti) :], axis=0)
+            + (Ti % 1) * self.inc_case_hist[-int(Ti + 1)]
         )
         current_I[xp.isnan(current_I)] = 0.0
         current_I[current_I < 0.0] = 0.0
@@ -539,9 +541,9 @@ class SEIR_covid(object):
         mean_time_window=None,
         min_doubling_t=1.0,
     ):
-        cases = self.case_hist_cum[-days_back:] / self.case_reporting[-days_back:]
+        cases = self.cum_case_hist[-days_back:] / self.case_reporting[-days_back:]
         cases_old = (
-            self.case_hist_cum[
+            self.cum_case_hist[
                 -days_back - doubling_time_window : -doubling_time_window
             ]
             / self.case_reporting[
@@ -613,9 +615,9 @@ class SEIR_covid(object):
         case_lag_int = int(case_lag)
         case_lag_frac = case_lag % 1
         cases_lagged = (
-            self.case_hist_cum[-case_lag_int - days_back : -case_lag_int]
+            self.cum_case_hist[-case_lag_int - days_back : -case_lag_int]
             + case_lag_frac
-            * self.case_hist_cum[-case_lag_int - 1 - days_back : -case_lag_int - 1]
+            * self.cum_case_hist[-case_lag_int - 1 - days_back : -case_lag_int - 1]
         )
 
         # adm0
@@ -624,7 +626,7 @@ class SEIR_covid(object):
         )
         if self.adm0_cfr_reported is None:
             self.adm0_cfr_reported = xp.sum(
-                self.death_hist_cum[-days_back:], axis=1
+                self.cum_death_hist[-days_back:], axis=1
             ) / xp.sum(cases_lagged, axis=1)
         adm0_case_report = adm0_cfr_param / self.adm0_cfr_reported
 
@@ -659,7 +661,7 @@ class SEIR_covid(object):
             xp.scatter_add(
                 self.adm1_deaths_reported,
                 self.adm1_id,
-                self.death_hist_cum[-days_back:].T,
+                self.cum_death_hist[-days_back:].T,
             )
             xp.scatter_add(adm1_lagged_cases, self.adm1_id, cases_lagged.T)
 
@@ -678,11 +680,11 @@ class SEIR_covid(object):
         adm2_cfr_param = xp.sum(cfr * (self.Nij / self.Nj), axis=0)
 
         if self.adm2_cfr_reported is None:
-            self.adm2_cfr_reported = self.death_hist_cum[-days_back:] / cases_lagged
+            self.adm2_cfr_reported = self.cum_death_hist[-days_back:] / cases_lagged
         adm2_case_report = adm2_cfr_param / self.adm2_cfr_reported
 
         valid_adm2_cr = xp.isfinite(adm2_case_report) & (
-            self.death_hist_cum[-days_back:] > min_deaths
+            self.cum_death_hist[-days_back:] > min_deaths
         )
         case_report[valid_adm2_cr] = adm2_case_report[valid_adm2_cr]
 
@@ -855,11 +857,11 @@ class SEIR_covid(object):
         )
         vent = self.params.ICU_VENT_FRAC[:, None, None] * icu
         daily_deaths = xp.diff(
-            out[Di], prepend=self.death_hist_cum[-1][:, None], axis=-1
+            out[Di], prepend=self.cum_death_hist[-1][:, None], axis=-1
         )
 
         init_inc_death_mean = xp.mean(xp.sum(daily_deaths[:, 1:4], axis=0))
-        hist_inc_death_mean = xp.mean(xp.sum(self.death_hist[-7:], axis=-1))
+        hist_inc_death_mean = xp.mean(xp.sum(self.inc_death_hist[-7:], axis=-1))
 
         inc_death_rejection_fac = 2.0  # 1.1
         if (init_inc_death_mean > inc_death_rejection_fac * hist_inc_death_mean) or (
@@ -870,12 +872,12 @@ class SEIR_covid(object):
                 raise SimulationException
 
         daily_cases_reported = xp.diff(
-            out[incC], axis=-1, prepend=self.case_hist_cum[-1][:, None]
+            out[incC], axis=-1, prepend=self.cum_case_hist[-1][:, None]
         )
-        cum_cases_reported = self.case_hist_cum[-1][:, None] + out[incC]
+        cum_cases_reported = self.cum_case_hist[-1][:, None] + out[incC]
 
         init_inc_case_mean = xp.mean(xp.sum(daily_cases_reported[:, 1:4], axis=0))
-        hist_inc_case_mean = xp.mean(xp.sum(self.case_hist[-7:], axis=-1))
+        hist_inc_case_mean = xp.mean(xp.sum(self.inc_case_hist[-7:], axis=-1))
 
         inc_case_rejection_fac = 2.0
         if (init_inc_case_mean > inc_case_rejection_fac * hist_inc_case_mean) or (
