@@ -247,13 +247,13 @@ def read_lex_data(date):
 
     """
     # Check if a preprocessed version already exists
-    cache_file = "data/mobility/preprocessed/county_lex_" + date + ".csv.gz"
+    cache_file = bucky_cfg["data_dir"] + "/mobility/preprocessed/county_lex_" + date + ".csv.gz"
     if os.path.exists(cache_file):
         df_long = pd.read_csv(cache_file)
         logging.info("Using cached lex data for " + str(date))
     else:
         df = pd.read_csv(
-            "data/mobility/COVIDExposureIndices/lex_data/county_lex_"
+            bucky_cfg["data_dir"] + "/mobility/COVIDExposureIndices/lex_data/county_lex_"
             + date
             + ".csv.gz",
             compression="gzip",
@@ -271,10 +271,10 @@ def read_lex_data(date):
         )
 
         # Save processed file
-        if not os.path.exists("data/mobility/preprocessed"):
-            os.makedirs("data/mobility/preprocessed")
+        if not os.path.exists(bucky_cfg["data_dir"] + "/mobility/preprocessed"):
+            os.makedirs(bucky_cfg["data_dir"] + "/mobility/preprocessed")
 
-        df_long.to_csv("data/mobility/preprocessed/county_lex_" + date + ".csv.gz")
+        df_long.to_csv(bucky_cfg["data_dir"] + "/mobility/preprocessed/county_lex_" + date + ".csv.gz")
 
     return df_long
 
@@ -326,13 +326,13 @@ def get_safegraph(last_date, window_size=7):
         try:
             if sg_df is None:
                 sg_df = pd.read_csv(
-                    "data/safegraph_processed/" + date_str + "_county.csv.gz"
+                    bucky_cfg["data_dir"] + "/safegraph_processed/" + date_str + "_county.csv.gz"
                 )
                 sg_df.set_index(["origin", "dest"], inplace=True)
                 sg_df.rename(columns={"count": date_str}, inplace=True)
             else:
                 tmp_df = pd.read_csv(
-                    "data/safegraph_processed/" + date_str + "_county.csv.gz"
+                    bucky_cfg["data_dir"] + "/safegraph_processed/" + date_str + "_county.csv.gz"
                 )
                 tmp_df.set_index(["origin", "dest"], inplace=True)
                 tmp_df.rename(columns={"count": date_str}, inplace=True)
