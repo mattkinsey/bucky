@@ -25,7 +25,6 @@ import pandas as pd
 import scipy.stats
 from tqdm import tqdm
 
-from .util import force_cpu
 from .util.read_config import bucky_cfg
 from .viz.geoid import read_geoid_from_graph, read_lookup
 
@@ -396,7 +395,7 @@ if __name__ == "__main__":
                     )
                     q_df = (
                         pd.DataFrame(
-                            force_cpu(test.T),
+                            xp.to_cpu(test.T),
                             index=tot_df_unstack.index,
                             columns=quantiles,
                         )

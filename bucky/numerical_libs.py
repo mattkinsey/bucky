@@ -11,6 +11,7 @@ import scipy.sparse as sparse
 xp.scatter_add = xp.add.at
 import contextlib
 xp.optimize_kernels = contextlib.nullcontext
+xp.to_cpu = lambda x: None # one arg noop
 
 def use_cupy(optimize=False):
     """ Perform imports for libraries with APIs matching numpy, scipy.integrate.ivp, scipy.sparse
@@ -30,7 +31,7 @@ def use_cupy(optimize=False):
 
     global xp, ivp, sparse
 
-    if xp.__name__ is "cupy":
+    if xp.__name__ == "cupy":
         logging.info("CuPy already loaded, skipping")
         return 0
 
@@ -85,6 +86,8 @@ def use_cupy(optimize=False):
         cp.optimize_kernels = cupyx.optimizing.optimize
     else:
         cp.optimize_kernels = contextlib.nullcontext
+
+    cp.to_cpu = lambda x: x.get() if "cupy" in type(x).__module__ else x
 
     xp = cp
     import cupyx.scipy.sparse as sparse

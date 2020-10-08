@@ -25,7 +25,6 @@ from .util import (
     cache_files,
     date_to_t_int,
     dotdict,
-    force_cpu,
     map_np_array,
 )
 from .util.distributions import mPERT_sample, truncnorm
@@ -94,27 +93,37 @@ class SEIR_covid(object):
         self.s_par = seir_params(args.par_file, args.gpu)
         self.model_struct = self.s_par.generate_params(None)["model_struct"]
 
-        global Si, Ei, Ii, Ici, Iasi, Ri, Rhi, Di, Iai, Hi, Ci, N_compartments, En, Im, Rhn, incH, incC
-        En = self.model_struct["En"]
-        Im = self.model_struct["Im"]
-        Rhn = self.model_struct["Rhn"]
-        Si = 0
-        Ei = xp.array(Si + 1 + xp.arange(En), dtype=int)
-        Ii = xp.array(Ei[-1] + 1 + xp.arange(Im), dtype=int)
-        Ici = xp.array(Ii[-1] + 1 + xp.arange(Im), dtype=int)
-        Iasi = xp.array(Ici[-1] + 1 + xp.arange(Im), dtype=int)
-        Ri = Iasi[-1] + 1
-        Rhi = xp.array(Ri + 1 + xp.arange(Rhn), dtype=int)
-        Di = Rhi[-1] + 1
+        #global Si, Ei, Ii, Ici, Iasi, Ri, Rhi, Di, Iai, Hi, Ci, N_compartments, En, Im, Rhn, incH, incC
+        state_indices = {}
+        state_indices['En'] = self.model_struct["En"]
+        state_indices['Im'] = self.model_struct["Im"]
+        state_indices['Rhn'] = self.model_struct["Rhn"]
+        state_indices['Si'] = 0
+        state_indices['Ei'] = xp.array(state_indices['Si'] + 1 + xp.arange(state_indices['En']), dtype=int)
+        state_indices['Ii'] = xp.array(state_indices['Ei'][-1] + 1 + xp.arange(state_indices['Im']), dtype=int)
+        state_indices['Ici'] = xp.array(state_indices['Ii'][-1] + 1 + xp.arange(state_indices['Im']), dtype=int)
+        state_indices['Iasi'] = xp.array(state_indices['Ici'][-1] + 1 + xp.arange(state_indices['Im']), dtype=int)
+        state_indices['Ri'] = state_indices['Iasi'][-1] + 1
+        state_indices['Rhi'] = xp.array(state_indices['Ri'] + 1 + xp.arange(state_indices['Rhn']), dtype=int)
+        state_indices['Di'] = state_indices['Rhi'][-1] + 1
 
-        Iai = xp.hstack([Ii, Iasi, Ici])  # all I compartmetns
-        Hi = xp.hstack([Rhi, Ici])  # all compartments in hospitalization
-        Ci = xp.hstack([Ii, Ici, Rhi])
+        state_indices['Iai'] = xp.hstack([state_indices['Ii'], state_indices['Iasi'], state_indices['Ici']])  # all I compartments
+        state_indices['Hi'] = xp.hstack([state_indices['Rhi'], state_indices['Ici']])  # all compartments in hospitalization
+        state_indices['Ci'] = xp.hstack([state_indices['Ii'], state_indices['Ici'], state_indices['Rhi']])
 
-        incH = Di + 1
-        incC = incH + 1
+        state_indices['incH'] = state_indices['Di'] + 1
+        state_indices['incC'] = state_indices['incH'] + 1
 
-        N_compartments = force_cpu(incC + 1)
+        state_indices['N_compartments'] = xp.to_cpu(state_indices['incC'] + 1)
+
+        self.state_indices = state_indices
+
+        self.get_state_indices()
+
+    # We really need to refactor things so we don't ahve to do this...
+    def get_state_indices(self):       
+        for k in self.state_indices:
+            globals()[k] = self.state_indices[k]
 
     def reset(self, seed=None, params=None):
 
@@ -183,7 +192,7 @@ class SEIR_covid(object):
                 nx.get_node_attributes(G, G.graph["adm1_key"]).values(), dtype=int
             )
             self.adm1_id = xp.asarray(self.adm1_id, dtype=np.int32)
-            self.adm1_max = force_cpu(self.adm1_id.max())
+            self.adm1_max = xp.to_cpu(self.adm1_id.max())
 
             # Make contact mats sym and normalized
             self.contact_mats = G.graph["contact_mats"]
@@ -355,7 +364,7 @@ class SEIR_covid(object):
             self.params.F = 0.75 * xp.clip(self.params.F, a_min=1.0e-10, a_max=1.0)
             self.params.H = xp.clip(self.params.H, a_min=self.params.F, a_max=1.0)
 
-        case_reporting = force_cpu(
+        case_reporting = xp.to_cpu(
             self.estimate_reporting(cfr=self.params.F, days_back=22)
         )
         self.case_reporting = xp.array(
@@ -832,7 +841,7 @@ class SEIR_covid(object):
 
         n_time_steps = out.shape[-1]
 
-        t_output = force_cpu(sol.t)
+        t_output = xp.to_cpu(sol.t)
         dates = [
             pd.Timestamp(self.first_date + datetime.timedelta(days=np.round(t)))
             for t in t_output
@@ -942,7 +951,7 @@ class SEIR_covid(object):
             if df_data[k].ndim == 2:
                 df_data[k] = xp.sum(df_data[k], axis=0)
 
-            df_data[k] = force_cpu(df_data[k])
+            df_data[k] = xp.to_cpu(df_data[k])
 
         # Append data to the hdf5 file
         output_folder = os.path.join(outdir, self.run_id)

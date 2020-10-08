@@ -96,10 +96,6 @@ def unpack_cache(cache_file):
         with open(new_file, "wb") as f:
             f.write(tmp[fname])
 
-def force_cpu(var):
-    return var.get() if "cupy" in type(var).__module__ else var
-
-
 def _banner():
     print(r" ____             _          ")
     print(r"| __ ) _   _  ___| | ___   _ ")
