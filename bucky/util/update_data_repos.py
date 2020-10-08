@@ -520,24 +520,7 @@ def update_covid_tracking_data():
 
     # Rename FIPS
     df.rename(columns={"fips": "adm1"}, inplace=True)
-
-    # Pull a random county for each state to use as fips proxy
-    # from IPython import embed
-    # embed()
-    csse_df = pd.read_csv("data/cases/csse_hist_timeseries.csv")
-    csse_df = csse_df.assign(adm1=csse_df["adm2"] // 1000)
-    csse_df = csse_df.drop(columns=["date", "Confirmed", "Deaths"])
-    csse_df.drop_duplicates(subset=["adm2"])
-
-    # Drop invalid FIPS
-    csse_df = csse_df.loc[~csse_df["adm1"].isin([0, 80, 88, 90, 99])]
-    sampled_fips = (
-        csse_df.groupby("adm1").apply(lambda x: x.sample(1)).reset_index(drop=True)
-    )
-
-    # Merge
-    df = df.merge(sampled_fips, on="adm1")
-
+    
     # Save
     covid_tracking_name = bucky_cfg["data_dir"] + "/cases/covid_tracking.csv"
     logging.info("Saving COVID Tracking Data as %s" % covid_tracking_name)

@@ -16,4 +16,6 @@ readable_col_names = {
     "ICU": "ICU Beds Usage",
     "N": "Population",
     "NH": "Incident Hospitalizations",
+    "Confirmed_daily" : "Daily Cases",
+    "Deaths_daily" : "Daily Deaths"
 }
