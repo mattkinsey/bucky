@@ -869,23 +869,12 @@ class SEIR_covid(object):
                 logging.info("Inconsistent inc deaths, rejecting run")
                 raise SimulationException
 
-        cum_cases = (
-            xp.sum(
-                self.Nij[..., None] * (1.0 - xp.sum(y[: Ei[-1] + 1], axis=0)), axis=0
-            )
-            * self.params.SYM_FRAC
-        )
-        daily_cases = xp.diff(
-            cum_cases,
-            prepend=0,  # self.case_hist_cum[-1][:, None] / self.params.CASE_REPORT[:, None],
-            axis=-1,
-        )
-        n_daily_cases = xp.diff(
+        daily_cases_reported = xp.diff(
             out[incC], axis=-1, prepend=self.case_hist_cum[-1][:, None]
         )
-        n_cum_cases = self.case_hist_cum[-1][:, None] + out[incC]
+        cum_cases_reported = self.case_hist_cum[-1][:, None] + out[incC]
 
-        init_inc_case_mean = xp.mean(xp.sum(n_daily_cases[:, 1:4], axis=0))
+        init_inc_case_mean = xp.mean(xp.sum(daily_cases_reported[:, 1:4], axis=0))
         hist_inc_case_mean = xp.mean(xp.sum(self.case_hist[-7:], axis=-1))
 
         inc_case_rejection_fac = 2.0
@@ -896,11 +885,10 @@ class SEIR_covid(object):
                 logging.info("Inconsistent inc cases, rejecting run")
                 raise SimulationException
 
-        # cum_cases_reported = cum_cases * self.params["SYM_FRAC"] * self.params.CASE_REPORT[:,None]
-        daily_cases_reported = (
-            daily_cases * self.params.CASE_REPORT[:, None]  # /self.params.SYM_FRAC
+        daily_cases_total = (
+            daily_cases_reported / self.params.CASE_REPORT[:, None]  # /self.params.SYM_FRAC
         )
-        cum_cases_reported = cum_cases * self.params.CASE_REPORT[:, None]
+        cum_cases_total = cum_cases_reported / self.params.CASE_REPORT[:, None]
 
         # if (daily_cases < 0)[..., 1:].any():
         #    logging.error('Negative daily cases')
@@ -922,16 +910,13 @@ class SEIR_covid(object):
             "Rh": out[Rhi],
             "D": out[Di],
             "NH": xp.diff(out[incH], axis=-1, prepend=0.0),
-            "NC": daily_cases.reshape(-1),
+            "NC": daily_cases_total.reshape(-1),
             "NCR": daily_cases_reported.reshape(-1),
             "ND": daily_deaths.reshape(-1),
-            "CC": n_cum_cases.reshape(-1)
-            / self.params.CASE_REPORT[:, None],  # cum_cases.reshape(-1),
-            "CCR": n_cum_cases.reshape(-1),  # cum_cases_reported.reshape(-1),
+            "CC": cum_cases_total.reshape(-1),
+            "CCR": cum_cases_reported.reshape(-1),
             "ICU": xp.sum(icu, axis=0).reshape(-1),
             "VENT": xp.sum(vent, axis=0).reshape(-1),
-            "nNCR": n_daily_cases.reshape(-1),
-            "nCCR": n_cum_cases.reshape(-1),
             "CASE_REPORT": np.broadcast_to(
                 self.params.CASE_REPORT[:, None], adm2_ids.shape
             ).reshape(-1),

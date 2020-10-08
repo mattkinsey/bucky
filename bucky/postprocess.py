@@ -311,8 +311,6 @@ if __name__ == "__main__":
             "CASE_REPORT",
             "Reff",
             "doubling_t",
-            "nCCR",
-            "nNCR",
             "NH",
         ]
 
