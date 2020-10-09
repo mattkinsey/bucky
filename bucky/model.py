@@ -148,16 +148,6 @@ class SEIR_covid(object):
             with open(self.graph_file, "rb") as f:
                 G = pickle.load(f)
 
-            # get initial case data
-
-            self.init_cum_cases = xp.array(
-                list(nx.get_node_attributes(G, "Confirmed").values())
-            ).astype(float)
-            self.init_deaths = xp.array(
-                list(nx.get_node_attributes(G, "Deaths").values())
-            ).astype(float)
-            self.init_cum_cases[self.init_cum_cases < 0.0] = 0.0
-
             # Get case history from graph
             cum_case_hist = xp.vstack(
                 list(nx.get_node_attributes(G, "case_hist").values())
@@ -167,6 +157,7 @@ class SEIR_covid(object):
             self.inc_case_hist = xp.diff(cum_case_hist, axis=0).astype(
                 float
             )
+            self.inc_case_hist[self.inc_case_hist < 0.0] = 0.0
 
             # Get death history from graph
             cum_death_hist = xp.vstack(
@@ -175,6 +166,12 @@ class SEIR_covid(object):
 
             self.cum_death_hist = cum_death_hist.astype(float)
             self.inc_death_hist = xp.diff(cum_death_hist, axis=0).astype(float)
+            self.inc_death_hist[self.inc_death_hist < 0.0] = 0.0
+
+            # TODO we should just remove these variables
+            self.init_cum_cases = self.cum_case_hist[-1]
+            self.init_cum_cases[self.init_cum_cases < 0.0] = 0.0
+            self.init_deaths = self.cum_death_hist[-1]
 
             if "IFR" in G.nodes[list(G.nodes.keys())[0]]:
                 logging.info("Using ifr from graph")
@@ -377,7 +374,7 @@ class SEIR_covid(object):
                 gamma=500.0,
             )
         )
-        # self.case_reporting = self.estimate_reporting(cfr=self.params.F, days_back=22)
+        #self.case_reporting = self.estimate_reporting(cfr=self.params.F, days_back=22)
 
         self.doubling_t = self.estimate_doubling_time(mean_time_window=7)
 
@@ -512,6 +509,9 @@ class SEIR_covid(object):
         y[Ri] = R_init
         y[Si] -= D_init
         y[Di] = D_init
+
+        # init the bin we're using to track incident cases (it's filled with cumulatives until we diff it later)
+        y[incC] = self.cum_case_hist[-1][None, :] / self.Nij / self.n_age_grps
 
         self.y = y
 
@@ -724,7 +724,7 @@ class SEIR_covid(object):
 
         Cij = npi["contact_weights"][int(t)] * contact_mats
         Cij = xp.sum(Cij, axis=1)
-        Cij /= xp.sum(Cij, axis=2)[..., None]
+        Cij /= xp.sum(Cij, axis=2, keepdims=True)
 
         Aij_eff = npi["mobility_reduct"][int(t)][..., None] * Aij
 
