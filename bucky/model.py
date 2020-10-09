@@ -46,8 +46,8 @@ from .numerical_libs import xp, ivp, sparse # isort:skip
 #
 # Params TODO move all this to arg_parser or elsewhere
 #
-OUTPUT = True
-REJECT_RUNS = True
+OUTPUT = True # TODO is this really even used anymore?
+REJECT_RUNS = True # TODO this shoudl come from arg parse
 
 # TODO move to param file
 RR_VAR = 0.12  # variance to use for MC of params with no CI
@@ -856,8 +856,11 @@ class SEIR_covid(object):
             * xp.sum(y[Hi], axis=0)
         )
         vent = self.params.ICU_VENT_FRAC[:, None, None] * icu
+
+        # prepend the min cumulative cases over the last 2 days in case in the decreased
+        prepend_deaths = xp.minimum(self.cum_death_hist[-2], self.cum_death_hist[-1])
         daily_deaths = xp.diff(
-            out[Di], prepend=self.cum_death_hist[-1][:, None], axis=-1
+            out[Di], prepend=prepend_deaths[:, None], axis=-1
         )
 
         init_inc_death_mean = xp.mean(xp.sum(daily_deaths[:, 1:4], axis=0))
@@ -871,8 +874,10 @@ class SEIR_covid(object):
                 logging.info("Inconsistent inc deaths, rejecting run")
                 raise SimulationException
 
+        # prepend the min cumulative cases over the last 2 days in case in the decreased
+        prepend_cases = xp.minimum(self.cum_case_hist[-2], self.cum_case_hist[-1])
         daily_cases_reported = xp.diff(
-            out[incC], axis=-1, prepend=self.cum_case_hist[-1][:, None]
+            out[incC], axis=-1, prepend=prepend_cases[:, None]
         )
         cum_cases_reported = self.cum_case_hist[-1][:, None] + out[incC]
 
@@ -892,6 +897,8 @@ class SEIR_covid(object):
         )
         cum_cases_total = cum_cases_reported / self.params.CASE_REPORT[:, None]
 
+        out[incH,:,0] = out[incH,:,1] 
+        daily_hosp = xp.diff(out[incH], axis=-1, prepend=out[incH,:,0][...,None])
         # if (daily_cases < 0)[..., 1:].any():
         #    logging.error('Negative daily cases')
         #    raise SimulationException
@@ -911,7 +918,7 @@ class SEIR_covid(object):
             "R": out[Ri],
             "Rh": out[Rhi],
             "D": out[Di],
-            "NH": xp.diff(out[incH], axis=-1, prepend=0.0),
+            "NH": daily_hosp.reshape(-1),
             "NC": daily_cases_total.reshape(-1),
             "NCR": daily_cases_reported.reshape(-1),
             "ND": daily_deaths.reshape(-1),
@@ -934,11 +941,21 @@ class SEIR_covid(object):
         }
 
         # Collapse the gamma-distributed compartments and move everything to cpu
+        negative_values = False
         for k in df_data:
             if df_data[k].ndim == 2:
                 df_data[k] = xp.sum(df_data[k], axis=0)
 
             df_data[k] = xp.to_cpu(df_data[k])
+
+            if k != 'date':
+                if np.any(np.around(df_data[k],2) < 0.):
+                    logging.info('Negative values present in ' + k)
+                    negative_values = True
+
+        if negative_values:
+            logging.info('Rejecting run b/c of negative values in output')
+            raise SimulationException
 
         # Append data to the hdf5 file
         output_folder = os.path.join(outdir, self.run_id)
