@@ -1,7 +1,6 @@
-# Spatial SEIR Models Overview
-Running the spatial SEIR model is effectively a two-step process. First, a graph is generated with input data, which includes population data, case data, and mobility information. This graph is then used as input to the model. 
-
 # Constructing the Graph
+The Bucky model does not do any data manipulation, smoothing, or correcting to the data it receives from the graph (by design). If data needs to be manipulated or corrected, it should be done before it is placed on the graph.
+
 The graph is created using admin2-level data. If data can not be found at the admin2-level, admin2-level information can be extrapolated using admin2 population and national or state level data (this is expanded upon in the *Population Data* section).
 
 The following data sources are used to create the graph:
@@ -18,13 +17,14 @@ All data is placed into a single dataframe, joined by the admin2-level key (e.g.
 ## Graph-Level Attributes
 Administrative information is placed on the top graph-level. For example:
 ```
-'adm1_key' : 'STATEFIPS',
-'adm2_key' : 'FIPS',
-'adm1_to_str' : {1 : 'Alabama'},
+'adm1_key' : 'adm1',
+'adm2_key' : 'adm2',
+'adm1_to_str' : {1 : 'Alabama'}, ...,
 'adm0_name': 'US',
 'start_date' : '2020-09-25'
-'adm1_to_str' is a dict with key-value pairs indicating the adm1 names for each adm1 value appear in the graph. 
 ```
+NOTE: `adm1_to_str` is a dict with key-value pairs indicating the adm1 names for each adm1 value appearing in the graph. 
+
 Contact matrices are also on this level under the key `'contact_mats'`.
 
 ## Sample Node
@@ -32,7 +32,7 @@ The following is an example node on the graph for the United States. The rest of
 
 ```python
 (0,
- {'STATEFIPS': 1,
+ {'adm1': 1,
   'Confirmed': 1757.0,
   'Deaths': 25.0,
   'adm2_name': 'Autauga County',
@@ -65,7 +65,7 @@ The following is an example node on the graph for the United States. The rest of
          24.54591406, 24.        , 24.        , 24.        , 24.        ,
          24.        , 24.        , 25.        , 25.        , 25.        ,
          25.        ]),
-  'FIPS': 1001.0})
+  'adm2': 1001.0})
 ```
 
 ## Population Data
@@ -90,19 +90,15 @@ Population data should be at a admin2 level and stratified in 16 5-year age bins
 
 If population data for an admin2 area is known (i.e. number of total people per admin2), but it is not age-stratified, this data can be extrapolated assuming age-stratified population data exists at some level. For example, assume a country has age-stratified data provided at the national-level. To get the admin2-level age data, the data is separated into the 16 bins (as a 1-dimensional array of length 16). These bins are then normalized by dividing by the sum. Then, the fraction of people living in the admin2 is calculated by dividing admin2 population by the total national population. For each district, this fraction is multiplied by the age vector to produce a admin2-level age vector. This vector is placed on the node under the key *N_age_init*.
 
-The total population for a admin2 is placed on the node under the key *Population*.
+The total population for an admin2 is placed on the node under the key *Population*.
 
 ## Case Data
 Case data should be at the admin2-level and include cumulative data as of the start date of the simulation and historical data for the 45-day period preceding the start date:
 
-* Confirmed: Cumulative number of cases per admin2 region as of the start date of the simulation
-* Deaths: Cumulative number of deaths per admin2 region as of the start date of the simulation
-* case_hist: Historical case data (i.e. "Confirmed") data
-* death_hist : Historical death data (i.e. "Deaths") data
+* case_hist:  **Cumulative** historical case data
+* death_hist :  **Cumulative** historical death data
 
-Historical data is the most important of these to have as it is used to initialize infections.
-
-*Confirmed* and *Deaths* are placed on the node with their respective keys. Historical data is structured as numerical vectors on the node with the keys *case_hist*, *death_hist*. If historical data is not available for the requested date range, the array is filled with zeros. If there are gaps in the historical data, they are replaced using pandas' *bfill* function, which uses the next valid data point to fill the gap.
+Historical data is structured as numerical vectors on the node with the keys *case_hist*, *death_hist*. Historical data for every node must have data points for the 45 days preceding the simulation. If there are known errors in the historical data, they must be corrected before being placed on the graph.
 
 ## Contact Matrices
 Currently, contact matrix data is downloaded from [here](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1005697), which has contact matrices for 152 countries. If a country does not appear in this dataset, a country culturally close can be substituted (for example, Pakistan's contact rates were used for Afghanistan), or another dataset can be used. If another dataset is used, the contact matrix must be formatted such that it has the same shape as the number of age demographic bins (i.e. if there are 16 bins, the matrix must be of size 16 x 16).
