@@ -13,11 +13,14 @@ import scipy.stats
 from tqdm import tqdm
 
 from ..util.read_config import bucky_cfg
+from ..util.get_historical_data import get_historical_data
 from ..util.readable_col_names import readable_col_names
 from .geoid import read_geoid_from_graph, read_lookup
 
 plt.style.use("ggplot")
 
+
+# TODO: Consolidate plt and hist columns
 # Historical data locations
 DEFAULT_HIST_FILE = os.path.join(
     bucky_cfg["data_dir"], "cases/csse_hist_timeseries.csv"
@@ -71,21 +74,13 @@ parser.add_argument(
 
 # Columns for plot, historical data
 default_plot_cols = ["daily_cases_reported", "daily_deaths"]
-default_hist_cols = ["Confirmed_daily", "Deaths_daily"]
+
 parser.add_argument(
     "--plot_columns",
     default=default_plot_cols,
     nargs="+",
     type=str,
     help="Columns to plot",
-)
-
-parser.add_argument(
-    "--hist_columns",
-    default=default_hist_cols,
-    nargs="+",
-    type=str,
-    help="Historical columns to plot",
 )
 
 # Can pass in a lookup table to use in place of graph
@@ -99,13 +94,6 @@ parser.add_argument(
     default=None,
     type=str,
     help="Start date of historical data. If not passed in, will align with start date of simulation",
-)
-
-parser.add_argument(
-    "--hist_file",
-    default=None,
-    type=str,
-    help="File to use for historical data if not using US CSSE data",
 )
 
 # Optional flags
@@ -149,56 +137,6 @@ parser.add_argument(
     help="Size of window (in days) to apply to historical data",
 )
 
-
-def add_daily_history(history_data, window_size=None):
-    """Applies a window to cumulative historical data to get daily data.
-    
-    Parameters
-    ----------
-    history_data : Pandas DataFrame
-        Cumulative case and death data
-    window_size : int or None
-        Size of window in days
-
-    Returns
-    -------
-    history_data : Pandas DataFrame
-        Historical data with added columns for daily case and death data
-    """
-    # TODO: Correct territory data by distributing
-    # history_data['adm2'].replace(66, 66010, inplace=True)
-    # history_data['adm2'].replace(69, 69110, inplace=True)
-
-    history_data = history_data.set_index(["adm2", "date"])
-    history_data.sort_index(inplace=True)
-
-    # Remove string columns if they exist
-    str_cols = list(history_data.select_dtypes(include=["object"]).columns)
-    history_data = history_data.drop(columns=str_cols)
-
-    daily_data = history_data.groupby(level=0).diff()
-    daily_data.columns = [str(col) + "_daily" for col in daily_data.columns]
-
-    if window_size is not None:
-
-        daily_data = (
-            daily_data.reset_index(level=0)
-            .groupby("adm2")
-            .rolling(window_size, min_periods=window_size // 2)
-            .mean()
-            .drop(columns=["adm2"])
-        )
-
-        # daily_data.reset_index().set_index('adm2', inplace=True)
-        # daily_data = daily_data.rolling(7, center=True, on='date').mean()
-        # daily_data = hdaily_data.set_index(['adm2', 'date'])
-
-    history_data = history_data.merge(daily_data, left_index=True, right_index=True)
-    history_data.reset_index(inplace=True)
-
-    return history_data
-
-
 def interval(mean, sem, conf, N):
     z = scipy.stats.t.ppf((1 + conf) / 2.0, N - 1)
     return (mean - sem * z).clip(lower=0.0), mean + sem * z
@@ -211,7 +149,6 @@ def plot(
     sim_data,
     hist_data,
     plot_columns,
-    hist_columns,
     quantiles,
 ):
     """Given a dataframe and a key, creates plots with requested columns.
@@ -237,9 +174,7 @@ def plot(
     hist_data : Pandas DataFrame
         Historical data to add to plot
     plot_columns : list of strings
-        Simulation columns to plot
-    hist_columns : list of strings
-        Historical data columns to plot
+        Columns to plot
     quantiles : list of floats (or None)
         List of quantiles to plot. If None, will plot all available 
         quantiles in data.
@@ -340,23 +275,24 @@ def plot(
             area_data.reset_index(inplace=True)
 
             # Plot historical data which is already at the correct level
-            if hist_data is not None and i <= (len(hist_columns) - 1):
+            if hist_data is not None and i <= (len(plot_columns) - 1):
 
                 actuals = hist_data.loc[hist_data[key] == area]
-
-                if not actuals.empty:
+                if not actuals.empty and plot_columns[i] in hist_data.columns:
 
                     actuals = actuals.assign(date=pd.to_datetime(actuals["date"]))
                     # actuals.set_index('date', inplace=True)
                     actuals.plot.scatter(
-                        x="date", y=hist_columns[i], ax=axs[i], color="r"
+                        x="date", y=plot_columns[i], ax=axs[i], color="r"
                     )
 
                     # Set xlim
                     axs[i].set_xlim(actuals["date"].min(), dates.max())
                     # axs[i].scatter(actual_dates[ind:], actual_vals[ind:], label='Historical data', color='b')
                 else:
-                    print("Historical data missing for: " + name)
+                    
+                    print(plot_columns[i])
+                    logging.warning("Historical data missing for area: " + name)
 
             axs[i].grid(True)
             axs[i].legend()
@@ -379,13 +315,11 @@ def make_plots(
     lookup,
     plot_hist,
     plot_columns,
-    hist_columns,
     quantiles,
     window_size,
     end_date,
     admin1=None,
-    hist_start=None,
-    hist_file=None,
+    hist_start=None
 ):
     """Wrapper function around plot. Creates plots, aggregating data 
     if necessary.
@@ -403,9 +337,7 @@ def make_plots(
     plot_hist : boolean
         If true, will plot historical data
     plot_columns : list of strings
-        List of columns to plot from simulation data
-    hist_columns : list of strings
-        List of columns to plot from historical data
+        List of columns to plot from data
     quantiles : list of floats (or None)
         List of quantiles to plot. If None, will plot all available 
         quantiles in data.
@@ -420,9 +352,6 @@ def make_plots(
     hist_start : string, formatted as YYYY-MM-DD
         Plot historical data from this point. If None, aligns with
         simulation start date
-    hist_file : string or None
-        File to use for historical data. If None, uses default defined at
-        top of file.
     """
 
     # Loop over requested levels
@@ -463,74 +392,42 @@ def make_plots(
             data = data.loc[data["adm2"].isin(admin2_vals)]
 
         # Read historical data if needed
-        level_hist_data = None
+        hist_data = None
         if plot_hist:
 
-            # Read historical data
-            if hist_file is not None:
-                hist_data = pd.read_csv(hist_file)
+            # Get historical data for requested columns
+            hist_data = get_historical_data(plot_columns, level, lookup_df, window_size)
+            
+            # Check if historical data was not successfully fetched
+            if hist_data is None:
+                logging.warning("No historical data could be found for: " + str(hist_columns))
+                
             else:
-                hist_data = pd.read_csv(DEFAULT_HIST_FILE)
+                hist_data.reset_index(inplace=True)
 
-            # If admin2 key is FIPS, rename
-            if "FIPS" in hist_data.columns:
-                hist_data.rename(columns={"FIPS": "adm2"}, inplace=True)
-
-            # Add daily data
-            hist_data = add_daily_history(hist_data, window_size)
-
-            # Aggregate if necessary
-            if level == "adm1":
-
-                # Historical data is at the admin2-level, so aggregate
-                lookup_df.set_index("adm2", inplace=True)
-                level_dict = lookup_df["adm1"].to_dict()
-
-                # Map historical data to values in lookup
-                # in multiple steps to drop counties that don't appear in lookup
-                hist_data["adm1"] = hist_data["adm2"].map(level_dict)
-                hist_data = hist_data.dropna(subset=["adm1"])
-
-                # Groupby admin1 and date and sum
-                level_hist_data = (
-                    hist_data.groupby(["date", "adm1"]).sum().reset_index()
+                # Drop data not within requested time range
+                hist_data = hist_data.assign(
+                    date=pd.to_datetime(hist_data["date"])
                 )
 
-            if level == "adm0":
-                # No need for mapping, all data is in this country
-                # Groupby date and date and sum
-                level_hist_data = hist_data.groupby("date").sum().reset_index()
-                level_hist_data = level_hist_data.assign(adm0="US")
-
-            if level == "adm2":
-
-                # No aggregation required
-                level_hist_data = hist_data
-
-            # Drop data not within requested time range
-            level_hist_data = level_hist_data.assign(
-                date=pd.to_datetime(level_hist_data["date"])
-            )
-
-            if hist_start is not None:
-                level_hist_data = level_hist_data.loc[
-                    (level_hist_data["date"] < end_date)
-                    & (level_hist_data["date"] > hist_start)
-                ]
-            else:
-                level_hist_data = level_hist_data.loc[
-                    (level_hist_data["date"] < end_date)
-                    & (level_hist_data["date"] > start_date)
-                ]
+                if hist_start is not None:
+                    hist_data = hist_data.loc[
+                        (hist_data["date"] < end_date)
+                        & (hist_data["date"] > hist_start)
+                    ]
+                else:
+                    hist_data = hist_data.loc[
+                        (hist_data["date"] < end_date)
+                        & (hist_data["date"] > start_date)
+                    ]
 
         plot(
             output_dir=plot_dir,
             lookup_df=lookup_df,
             key=level,
             sim_data=data,
-            hist_data=level_hist_data,
+            hist_data=hist_data,
             plot_columns=plot_columns,
-            hist_columns=hist_columns,
             quantiles=quantiles,
         )
 
@@ -565,7 +462,6 @@ if __name__ == "__main__":
 
     # Columns for plotting
     plot_cols = args.plot_columns
-    hist_cols = args.hist_columns
 
     if args.lookup is not None:
         lookup_df = read_lookup(args.lookup)
@@ -574,7 +470,6 @@ if __name__ == "__main__":
 
     # Historical data start
     hist_start = args.hist_start
-    hist_file = args.hist_file
 
     # Parse optional flags
     window = args.window_size
@@ -591,11 +486,9 @@ if __name__ == "__main__":
         lookup_df,
         plot_historical,
         plot_cols,
-        hist_cols,
         quantiles,
         window,
         end_date,
         args.adm1_name,
-        hist_start,
-        hist_file,
+        hist_start
     )
