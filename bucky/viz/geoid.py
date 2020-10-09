@@ -70,12 +70,17 @@ def read_geoid_from_graph(graph_file=None):
     df["adm0"] = admin0_name
     df["adm0_name"] = admin0_name
 
+    # If all adm1 names are nan, use adm1 numeric as value
+    if df["adm1_name"].isna().sum() == df["adm1_name"].size:
+        df["adm1_name"] = df["adm1"].values.astype(str)
+
     df.set_index("adm2", inplace=True)
 
-    # Deal with special case: DC
-    df.loc[11001.0, "adm1_name"] = "District of Columbia"
+    # Deal with DC if in US
+    if admin0_name == "US":
+        df.loc[11001.0, "adm1_name"] = "District of Columbia"
+    
     df.reset_index(inplace=True)
-
     return df
 
 

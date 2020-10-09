@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from read_config import bucky_cfg
+from .read_config import bucky_cfg
 
 covid_tracking = os.path.join(bucky_cfg["data_dir"],"cases/covid_tracking.csv")
 csse = os.path.join(bucky_cfg["data_dir"],"cases/csse_hist_timeseries.csv")
