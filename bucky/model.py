@@ -952,8 +952,9 @@ class SEIR_covid(object):
                     negative_values = True
 
         if negative_values:
-            logging.info('Rejecting run b/c of negative values in output')
-            raise SimulationException
+            if REJECT_RUNS:
+                logging.info('Rejecting run b/c of negative values in output')
+                raise SimulationException
 
         # Append data to the hdf5 file
         output_folder = os.path.join(outdir, self.run_id)
