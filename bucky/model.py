@@ -39,7 +39,7 @@ from .numerical_libs import use_cupy
 if __name__ == "__main__":
     args = parser.parse_args()
     if args.gpu:
-        use_cupy(optimize=True)
+        use_cupy(optimize=args.opt)
 
 from .numerical_libs import xp, ivp, sparse # isort:skip
 

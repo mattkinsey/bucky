@@ -77,6 +77,7 @@ parser.add_argument(
     action="store_true",
     help="Just do one run with the mean param values",
 )  # TODO rename to --mean or something
+# TODO this doesnt do anything
 parser.add_argument(
     "-gpu",
     "--gpu",
@@ -84,6 +85,14 @@ parser.add_argument(
     default=cupy_found,
     help="Use cupy instead of numpy",
 )
+
+parser.add_argument(
+    "-opt",
+    "--opt",
+    action="store_true",
+    help="Enable cupy kernel optimizations. Do this for large runs using the gpu (n > 100).",
+)
+
 parser.add_argument(
     "-o",
     "--output_dir",
