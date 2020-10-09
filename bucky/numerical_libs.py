@@ -11,7 +11,7 @@ import scipy.sparse as sparse
 xp.scatter_add = xp.add.at
 import contextlib
 xp.optimize_kernels = contextlib.nullcontext
-xp.to_cpu = lambda x: None # one arg noop
+xp.to_cpu = lambda x: x # one arg noop
 
 def use_cupy(optimize=False):
     """ Perform imports for libraries with APIs matching numpy, scipy.integrate.ivp, scipy.sparse
