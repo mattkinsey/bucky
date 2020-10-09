@@ -717,10 +717,13 @@ class SEIR_covid(object):
         BETA_eff = npi["r0_reduct"][int(t)] * par["BETA"]
         F_eff = par["F_eff"]
         H = par["H"]
-        THETA = par["THETA"]
-        GAMMA = par["GAMMA"]
-        GAMMA_H = par["GAMMA_H"]
-        SIGMA = par["SIGMA"]
+        THETA = Rhn * par["THETA"]
+        GAMMA = Im * par["GAMMA"]
+        GAMMA_H = Im * par["GAMMA_H"]
+        SIGMA = En * par["SIGMA"]
+        SYM_FRAC = par["SYM_FRAC"]
+        #ASYM_FRAC = par["ASYM_FRAC"]
+        CASE_REPORT = par["CASE_REPORT"]
 
         Cij = npi["contact_weights"][int(t)] * contact_mats
         Cij = xp.sum(Cij, axis=1)
@@ -748,46 +751,41 @@ class SEIR_covid(object):
         # dS/dt
         dG[Si] = -BETA_eff * (beta_mat)
         # dE/dt
-        dG[Ei[0]] = BETA_eff * (beta_mat) - En * SIGMA * s[Ei[0]]
-        for i in Ei[1:]:
-            dG[i] = En * SIGMA * s[i - 1] - En * SIGMA * s[i]
+        dG[Ei[0]] = BETA_eff * (beta_mat) - SIGMA * s[Ei[0]]
+        dG[Ei[1:]] = SIGMA * (s[Ei[:-1]] - s[Ei[1:]])
 
         # dI/dt
         dG[Iasi[0]] = (
-            par["ASYM_FRAC"] * En * SIGMA * s[Ei[-1]] - Im * GAMMA * s[Iasi[0]]
+            (1. - SYM_FRAC) * SIGMA * s[Ei[-1]] - GAMMA * s[Iasi[0]]
         )
-        for i in Iasi[1:]:
-            dG[i] = Im * GAMMA * s[i - 1] - Im * GAMMA * s[i]
+        dG[Iasi[1:]] = GAMMA * (s[Iasi[:-1]] - s[Iasi[1:]])
 
         dG[Ii[0]] = (
-            par["SYM_FRAC"] * (1.0 - H) * En * SIGMA * s[Ei[-1]] - Im * GAMMA * s[Ii[0]]
+            SYM_FRAC * (1.0 - H) * SIGMA * s[Ei[-1]] - GAMMA * s[Ii[0]]
         )
-        for i in Ii[1:]:
-            dG[i] = Im * GAMMA * s[i - 1] - Im * GAMMA * s[i]
+        dG[Ii[1:]] = GAMMA * (s[Ii[:-1]] - s[Ii[1:]])
 
         # dIc/dt
         dG[Ici[0]] = (
-            par["SYM_FRAC"] * H * En * SIGMA * s[Ei[-1]] - Im * GAMMA_H * s[Ici[0]]
+            SYM_FRAC * H * SIGMA * s[Ei[-1]] - GAMMA_H * s[Ici[0]]
         )
-        for i in Ici[1:]:
-            dG[i] = Im * GAMMA_H * s[i - 1] - Im * GAMMA_H * s[i]
+        dG[Ici[1:]] = GAMMA_H * (s[Ici[:-1]] - s[Ici[1:]])
 
         # dRhi/dt
-        dG[Rhi[0]] = Im * GAMMA_H * s[Ici[-1]] - (Rhn * THETA) * s[Rhi[0]]
-        for i in Rhi[1:]:
-            dG[i] = Rhn * THETA * s[i - 1] - (Rhn * THETA) * s[i]
+        dG[Rhi[0]] = GAMMA_H * s[Ici[-1]] - THETA * s[Rhi[0]]
+        dG[Rhi[1:]] = THETA * (s[Rhi[:-1]] - s[Rhi[1:]])
 
         # dR/dt
         dG[Ri] = (
-            Im * GAMMA * (s[Ii[-1]] + s[Iasi[-1]])
-            + (1.0 - F_eff) * Rhn * THETA * s[Rhi[-1]]
+            GAMMA * (s[Ii[-1]] + s[Iasi[-1]])
+            + (1.0 - F_eff) * THETA * s[Rhi[-1]]
         )
 
         # dD/dt
-        dG[Di] += F_eff * (THETA) * Rhn * s[Rhi[-1]]
+        dG[Di] = F_eff * THETA * s[Rhi[-1]]
 
-        dG[incH] = par["SYM_FRAC"] * H * En * SIGMA * s[Ei[-1]]
-        dG[incC] = par["SYM_FRAC"] * par["CASE_REPORT"] * En * SIGMA * s[Ei[-1]]
+        dG[incH] = SYM_FRAC * CASE_REPORT * H * SIGMA * s[Ei[-1]]
+        dG[incC] = SYM_FRAC * CASE_REPORT * SIGMA * s[Ei[-1]]
 
         # bring back to 1d for the ODE api
         dG = dG.reshape(-1)
