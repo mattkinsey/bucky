@@ -378,7 +378,6 @@ if __name__ == "__main__":
             tot_df[level] = (
                 tot_df[admin2_key].map(level_dict).map(level_inv_map).astype(int)
             )
-
             # Compute quantiles
             # TODO why is this in the for loop? pretty sure we can move it but check for deps
             def quantiles_group(tot_df):
@@ -416,8 +415,17 @@ if __name__ == "__main__":
             q_df = divide_by_pop(q_df, pop_mean_cols)
 
             # Column management
-            if level != admin2_key:
-                del q_df[admin2_key]
+            #if level != admin2_key:
+            del q_df[admin2_key]
+
+            if 'adm2' in q_df.columns and level != 'adm2':
+                del q_df['adm2']
+
+            if 'adm1' in q_df.columns and level != 'adm1':
+                del q_df['adm1']
+
+            if 'adm0' in q_df.columns and level != 'adm0':
+                del q_df['adm0']
 
             if verbose:
                 logging.info("\nQuantiles dataframe:")
