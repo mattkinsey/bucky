@@ -380,7 +380,7 @@ class SEIR_covid(object):
         )
         #self.case_reporting = self.estimate_reporting(cfr=self.params.F, days_back=22)
 
-        self.doubling_t = self.estimate_doubling_time(mean_time_window=7)
+        self.doubling_t = self.estimate_doubling_time_WHO(mean_time_window=7)
 
         if xp.any(~xp.isfinite(self.doubling_t)):
             logging.info("non finite doubling times, is there enough case data?")
@@ -537,6 +537,17 @@ class SEIR_covid(object):
         new_R0_fracij = xp.clip(new_R0_fracij, 1e-6, None)
         A = self.baseline_A * new_R0_fracij
         self.A = A / xp.sum(A, axis=0)
+
+    # TODO this needs to be cleaned up
+    def estimate_doubling_time_WHO(self, days_back=14, doubling_time_window=7, mean_time_window=None, min_doubling_t=1.0):
+
+        cases = xp.array(self.G.graph['data_WHO']['#affected+infected+confirmed+total'])[-days_back:]
+        cases_old = xp.array(self.G.graph['data_WHO']['#affected+infected+confirmed+total'])[-days_back - doubling_time_window : -doubling_time_window]
+        adm0_doubling_t = doubling_time_window* xp.log(2.0)/ xp.log(cases / cases_old)
+        doubling_t = xp.repeat(adm0_doubling_t[:, None], self.cum_case_hist.shape[-1], axis=1)
+        if mean_time_window is not None:
+            hist_doubling_t = xp.nanmean(doubling_t[-mean_time_window:], axis=0)
+        return hist_doubling_t
 
     def estimate_doubling_time(
         self,
