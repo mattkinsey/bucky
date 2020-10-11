@@ -4,7 +4,7 @@ import logging
 import numpy as np
 import pandas as pd
 
-from .util import date_to_t_int
+from .util import date_to_t_int, remove_chars
 
 
 def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
@@ -26,7 +26,7 @@ def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
     # 1st dimension is date, 2nd is admin2 code
     for name, group in df.sort_values(by=["date"]).groupby("date"):
         # convert adm2 id to int
-        group["admin2"] = group.adm2.astype(int)
+        group["admin2"] = group.adm2.apply(remove_chars).astype(int)
         date_group = group.set_index("adm2").reindex(adm2_map)
         r0_reduction = np.array(date_group[["r0_reduction"]])
         mobility_reduction = np.array(date_group[["mobility_reduction"]])

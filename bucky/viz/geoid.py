@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from ..util.read_config import bucky_cfg
-
+from ..util import remove_chars
 
 def read_geoid_from_graph(graph_file=None):
     """Creates a dataframe relating geographic administration levels, 
@@ -47,12 +47,12 @@ def read_geoid_from_graph(graph_file=None):
 
     # Get admin1 values
     admin1_vals = np.fromiter(
-        nx.get_node_attributes(G, G.graph["adm1_key"]).values(), dtype=int
+        [remove_chars(x) for x in nx.get_node_attributes(G, G.graph["adm1_key"]).values()], dtype=int
     )
 
     # Get admin2 values
     admin2_vals = np.fromiter(
-        nx.get_node_attributes(G, G.graph["adm2_key"]).values(), dtype=int
+        [remove_chars(x) for x in nx.get_node_attributes(G, G.graph["adm2_key"]).values()], dtype=int
     )
     admin2_names = list(nx.get_node_attributes(G, "adm2_name").values())
 

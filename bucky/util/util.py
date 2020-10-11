@@ -43,6 +43,13 @@ class dotdict(dict):
         return dotdict({key: copy.deepcopy(value) for key, value in self.items()})
 
 
+def remove_chars(seq):
+    seq_type= type(seq)
+    if seq_type is int:
+        return seq
+    else:
+        return seq_type().join(filter(seq_type.isdigit, seq))
+
 def map_np_array(a, d):
     n = np.ndarray(a.shape)
     for k in d:

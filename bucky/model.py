@@ -26,6 +26,7 @@ from .util import (
     date_to_t_int,
     dotdict,
     map_np_array,
+    remove_chars,
 )
 from .util.distributions import mPERT_sample, truncnorm
 
@@ -183,12 +184,12 @@ class SEIR_covid(object):
 
             # grab the geo id's for later
             self.adm2_id = np.fromiter(
-                nx.get_node_attributes(G, G.graph["adm2_key"]).values(), dtype=int
+                [remove_chars(x) for x in nx.get_node_attributes(G, G.graph["adm2_key"]).values()], dtype=int
             )
 
             # Mapping from index to adm1
             self.adm1_id = np.fromiter(
-                nx.get_node_attributes(G, G.graph["adm1_key"]).values(), dtype=int
+                [remove_chars(x) for x in nx.get_node_attributes(G, G.graph["adm1_key"]).values()], dtype=int
             )
             self.adm1_id = xp.asarray(self.adm1_id, dtype=np.int32)
             self.adm1_max = xp.to_cpu(self.adm1_id.max())
