@@ -734,6 +734,8 @@ class SEIR_covid(object):
         Cij /= xp.sum(Cij, axis=2, keepdims=True)
 
         Aij_eff = npi["mobility_reduct"][int(t)][..., None] * Aij
+        Aij_eff[xp.diag_indices(Aij_eff.shape[0])] = xp.diag(Aij)
+        Aij_eff = Aij_eff / xp.sum(Aij_eff, axis=0)
 
         # perturb Aij
         # new_R0_fracij = truncnorm(xp, 1.0, .1, size=Aij.shape, a_min=1e-6)
@@ -934,7 +936,7 @@ class SEIR_covid(object):
             "Reff": (
                 self.npi_params["r0_reduct"].T
                 * np.broadcast_to(
-                    (self.params.R0 * (np.diag(self.A)))[:, None], adm2_ids.shape
+                    self.params.R0[:, None], adm2_ids.shape
                 )
             ).reshape(-1),
             "doubling_t": np.broadcast_to(
