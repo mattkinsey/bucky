@@ -205,6 +205,9 @@ class SEIR_covid(object):
             if "all_locations" in self.contact_mats:
                 del self.contact_mats["all_locations"]
 
+            # TMP, elderly_shielding isn't implemented yet
+            if 'elderly_shielding' in self.contact_mats: del self.contact_mats['elderly_shielding']
+
             self.Cij = xp.vstack(
                 [self.contact_mats[k][None, ...] for k in sorted(self.contact_mats)]
             )
