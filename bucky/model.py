@@ -218,6 +218,14 @@ class SEIR_covid(object):
             self.Nj = xp.asarray(np.sum(self.Nij, axis=0))
             self.n_age_grps = self.Nij.shape[0]
 
+            self.use_vuln = False
+            if "vulnerable_frac" in G.nodes[0]:
+                self.vulnerability_factor = 1.5
+                self.use_vuln = True
+                self.vulnerability_frac = xp.array(list(nx.get_node_attributes(G, "vulnerable_frac").values()))[:, None].T
+            else:
+                self.vulnerability_frac = xp.full(self.adm2_id.shape, 0.)
+
             self.G = G
             n_nodes = len(self.G.nodes())
 
@@ -287,8 +295,20 @@ class SEIR_covid(object):
                 self.adm1_current_hosp[hosp_data_adm1] = hosp_data_count
                 logging.debug("Current hosp: " + pformat(self.adm1_current_hosp))
                 df = G.graph["covid_tracking_data"]
+            else:
+                self.rescale_chr = False
+
+            if True:
+                # Hack the graph data together to get it in the same format as the covid_tracking data
+                death_df = pd.DataFrame(self.inc_death_hist, columns=self.adm1_id.get()).stack().groupby(level=[0,1]).sum().reset_index()
+                death_df.columns = ['date', 'adm1', 'deathIncrease']
+                case_df = pd.DataFrame(self.inc_case_hist, columns=self.adm1_id.get()).stack().groupby(level=[0,1]).sum().reset_index()
+                case_df.columns = ['date', 'adm1', 'positiveIncrease']
+
+                df = death_df.set_index(['date','adm1']).merge(case_df.set_index(['date','adm1']), left_index=True, right_index=True).reset_index()
+
                 self.adm1_current_cfr = xp.zeros((self.adm1_max + 1,), dtype=float)
-                cfr_delay = 12
+                cfr_delay = 20
 
                 for adm1, g in df.groupby("adm1"):
                     g_df = (
@@ -308,9 +328,6 @@ class SEIR_covid(object):
                     cfr = np.nanmean(hist_cfr[-7:])
                     self.adm1_current_cfr[adm1] = cfr
                 logging.debug("Current CFR: " + pformat(self.adm1_current_cfr))
-
-            else:
-                self.rescale_chr = False
 
         # make sure we always reset to baseline
         self.A = self.baseline_A
@@ -332,18 +349,25 @@ class SEIR_covid(object):
             if type(self.params[k]).__module__ == np.__name__:
                 self.params[k] = xp.asarray(self.params[k])
 
-        self.params.H = xp.broadcast_to(self.params.H[:, None], self.Nij.shape)
-        self.params.F = xp.broadcast_to(self.params.F[:, None], self.Nij.shape)
+        if self.use_vuln:
+            self.params.H = self.params.H[:, None] * (1 - self.vulnerability_frac) + \
+                        self.vulnerability_factor * self.params.H[:, None] * self.vulnerability_frac
 
-        if self.use_G_ifr:
-            self.ifr[xp.isnan(self.ifr)] = 0.0
-            self.params.F = self.ifr / self.params["SYM_FRAC"]
-            adm0_ifr = xp.sum(self.ifr * self.Nij) / xp.sum(self.Nj)
-            ifr_scale = (
-                0.0065 / adm0_ifr
-            )  # TODO this should be in par file (its from planning scenario5)
-            self.params.F = xp.clip(self.params.F * ifr_scale, 0.0, 1.0)
-            self.params.F_old = self.params.F.copy()
+            self.params.F = self.params.F[:, None] * (1 - self.vulnerability_frac) + \
+                        self.vulnerability_factor * self.params.F[:, None] * self.vulnerability_frac
+        else:
+            self.params.H = xp.broadcast_to(self.params.H[:, None], self.Nij.shape)
+            self.params.F = xp.broadcast_to(self.params.F[:, None], self.Nij.shape)
+
+        if True:
+            #self.ifr[xp.isnan(self.ifr)] = 0.0
+            #self.params.F = self.ifr / self.params["SYM_FRAC"]
+            #adm0_ifr = xp.sum(self.ifr * self.Nij) / xp.sum(self.Nj)
+            #ifr_scale = (
+            #    0.0065 / adm0_ifr
+            #)  # TODO this should be in par file (its from planning scenario5)
+            #self.params.F = xp.clip(self.params.F * ifr_scale, 0.0, 1.0)
+            #self.params.F_old = self.params.F.copy()
 
             # TODO this needs to be cleaned up BAD
             # should add a util function to do the rollups to adm1 (it shows up in case_reporting/doubling t calc too)
@@ -364,7 +388,7 @@ class SEIR_covid(object):
             )  # prevent extreme values
             logging.debug("adm1 cfr rescaling factor: " + pformat(adm1_F_fac))
             self.params.F = self.params.F * adm1_F_fac[self.adm1_id]
-            self.params.F = 0.75 * xp.clip(self.params.F, a_min=1.0e-10, a_max=1.0)
+            self.params.F = xp.clip(self.params.F, a_min=1.0e-10, a_max=1.0)
             self.params.H = xp.clip(self.params.H, a_min=self.params.F, a_max=1.0)
 
         case_reporting = xp.to_cpu(
