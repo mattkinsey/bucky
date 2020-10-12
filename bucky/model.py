@@ -1042,5 +1042,6 @@ if __name__ == "__main__":
         write_thread.join()
     finally:
         to_write.put(None)
+        write_thread.join()
         pbar.close()
         logging.info(f"Total runtime: {datetime.datetime.now() - total_start}")
