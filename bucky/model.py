@@ -990,7 +990,7 @@ if __name__ == "__main__":
 
     import threading, queue
 
-    to_write = queue.Queue()
+    to_write = queue.Queue(max_size=100)
 
     def writer():
         # Call to_write.get() until it returns None
