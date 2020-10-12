@@ -1040,10 +1040,10 @@ if __name__ == "__main__":
 
     def writer():
         # Call to_write.get() until it returns None
-        stream = xp.cuda.Stream()
+        #stream = xp.cuda.Stream()
         for base_fname, df_data in iter(to_write.get, None):
-            cpu_data = {k: xp.to_cpu(v, stream=stream) for k,v in df_data.items()}
-            stream.synchronize()
+            cpu_data = {k: xp.to_cpu(v) for k,v in df_data.items()}
+            #stream.synchronize()
             df = pd.DataFrame(cpu_data)
             for date, date_df in df.groupby("date", as_index=False):
                 fname = base_fname + "_" + str(date.date()) + ".feather"
