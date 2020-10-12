@@ -964,34 +964,8 @@ class SEIR_covid(object):
         # Append data to the hdf5 file
         output_folder = os.path.join(outdir, self.run_id)
         os.makedirs(output_folder, exist_ok=True)
-        out_df = pd.DataFrame(data=df_data)
 
-        # round off any FP error we picked up along the way
-        out_df.set_index(["ADM2_ID", "date", "rid"], inplace=True)
-        out_df = out_df.apply(np.around, args=(3,))
-        out_df.reset_index(inplace=True)
-
-        if output:
-            # out_df.to_feather(os.path.join(output_folder, str(seed) + ".feather"))
-            for date, date_df in out_df.groupby("date"):
-                if output_queue is None:
-                    date_df.reset_index().to_feather(
-                        os.path.join(
-                            output_folder,
-                            str(seed) + "_" + str(date.date()) + ".feather",
-                        )
-                    )
-                else:
-                    output_queue.put(
-                        (
-                            os.path.join(
-                                output_folder,
-                                str(seed) + "_" + str(date.date()) + ".feather",
-                            ),
-                            date_df,
-                        )
-                    )
-
+        output_queue.put((os.path.join(output_folder, str(seed)), df_data))
         # TODO we should output the per monte carlo param rolls, this got lost when we switched from hdf5
 
 
@@ -1020,8 +994,11 @@ if __name__ == "__main__":
 
     def writer():
         # Call to_write.get() until it returns None
-        for fname, df in iter(to_write.get, None):
-            df.reset_index().to_feather(fname)
+        for base_fname, df_data in iter(to_write.get, None):
+            df = pd.DataFrame(df_data)
+            for date, date_df in df.groupby("date", as_index=False):
+                fname = base_fname + "_" + str(date.date()) + ".feather"
+                date_df.reset_index().to_feather(fname)
 
     write_thread = threading.Thread(target=writer)
     write_thread.start()
