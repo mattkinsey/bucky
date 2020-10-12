@@ -283,12 +283,14 @@ if __name__ == "__main__":
 
         # For cases, don't include asymptomatic
         infected_columns = ["I", "Ic"]  # , 'Ia']
-        cases_active = tot_df[infected_columns].sum(axis=1)
+        #cases_active = tot_df[infected_columns].sum(axis=1)
         # Calculate hospitalization
         hospitalizations = tot_df[["Rh", "Ic"]].sum(axis=1)
 
         tot_df = tot_df.assign(
-            N=N, cases_active=cases_active, hospitalizations=hospitalizations
+            N=N, 
+            #cases_active=cases_active, 
+            hospitalizations=hospitalizations
         )
 
         # Drop columns other than these
@@ -304,7 +306,7 @@ if __name__ == "__main__":
             "Ia",
             "ICU",
             "VENT",
-            "cases_active",
+            #"cases_active",
             admin2_key,
             "date",
             "rid",
@@ -327,9 +329,12 @@ if __name__ == "__main__":
                 "Ia": "cases_asymptomatic_active",
                 "NCR": "daily_cases_reported",
                 "CCR": "cumulative_cases_reported",
+                "NH": "daily_hospitalizations",
             },
             inplace=True,
         )
+
+        per_capita_cols = ['cumulative_cases_reported', 'cumulative_deaths', 'hospitalizations']
 
         # Multiply column by N, then at end divide by aggregated N
         pop_mean_cols = ["CASE_REPORT", "Reff", "doubling_t"]
@@ -409,9 +414,11 @@ if __name__ == "__main__":
 
             q_df[level] = q_df[level].round().astype(int).map(level_map)
             q_df.set_index([level, "date", "q"], inplace=True)
-            q_df = q_df.assign(
-                cases_per_100k=(q_df["cases_active"] / q_df["N"]) * 100000.0
-            )
+
+            per_cap_dict = {}
+            for col in per_capita_cols:
+                per_cap_dict[col+"_per_100k"] = (q_df[col] / q_df["N"]) * 100000.0
+            q_df = q_df.assign(**per_cap_dict)
             q_df = divide_by_pop(q_df, pop_mean_cols)
 
             # Column management
