@@ -87,7 +87,12 @@ def use_cupy(optimize=False):
     else:
         cp.optimize_kernels = contextlib.nullcontext
 
-    cp.to_cpu = lambda x: x.get() if "cupy" in type(x).__module__ else x
+    def cp_to_cpu(x, stream=None, out=None):
+        if "cupy" in type(x).__module__:
+            return x.get(stream=stream, out=out)
+        else:
+            return x
+    cp.to_cpu = cp_to_cpu #lambda x, **kwargs: x.get(**kwargs) if "cupy" in type(x).__module__ else x
 
     xp = cp
     import cupyx.scipy.sparse as sparse
