@@ -276,19 +276,21 @@ if __name__ == "__main__":
         # Some lookups only contain a subset of counties, drop extras if necessary
         unique_adm2 = lookup_df.index
         tot_df = tot_df.loc[tot_df[admin2_key].isin(unique_adm2)]
-
+        '''
         # Start reading data
         seird_cols = ["S", "E", "I", "Ic", "Ia", "R", "Rh", "D"]
         N = tot_df[seird_cols].sum(axis=1)
 
         # For cases, don't include asymptomatic
         infected_columns = ["I", "Ic"]  # , 'Ia']
-        cases_active = tot_df[infected_columns].sum(axis=1)
+        #cases_active = tot_df[infected_columns].sum(axis=1)
         # Calculate hospitalization
         hospitalizations = tot_df[["Rh", "Ic"]].sum(axis=1)
 
         tot_df = tot_df.assign(
-            N=N, cases_active=cases_active, hospitalizations=hospitalizations
+            N=N, 
+            #cases_active=cases_active, 
+            hospitalizations=hospitalizations
         )
 
         # Drop columns other than these
@@ -304,7 +306,7 @@ if __name__ == "__main__":
             "Ia",
             "ICU",
             "VENT",
-            "cases_active",
+            #"cases_active",
             admin2_key,
             "date",
             "rid",
@@ -327,9 +329,12 @@ if __name__ == "__main__":
                 "Ia": "cases_asymptomatic_active",
                 "NCR": "daily_cases_reported",
                 "CCR": "cumulative_cases_reported",
+                "NH": "daily_hospitalizations",
             },
             inplace=True,
         )
+        '''
+        per_capita_cols = ['cumulative_cases_reported', 'cumulative_deaths', 'hospitalizations']
 
         # Multiply column by N, then at end divide by aggregated N
         pop_mean_cols = ["CASE_REPORT", "Reff", "doubling_t"]
@@ -378,7 +383,6 @@ if __name__ == "__main__":
             tot_df[level] = (
                 tot_df[admin2_key].map(level_dict).map(level_inv_map).astype(int)
             )
-
             # Compute quantiles
             # TODO why is this in the for loop? pretty sure we can move it but check for deps
             def quantiles_group(tot_df):
@@ -410,14 +414,25 @@ if __name__ == "__main__":
 
             q_df[level] = q_df[level].round().astype(int).map(level_map)
             q_df.set_index([level, "date", "q"], inplace=True)
-            q_df = q_df.assign(
-                cases_per_100k=(q_df["cases_active"] / q_df["N"]) * 100000.0
-            )
+
+            per_cap_dict = {}
+            for col in per_capita_cols:
+                per_cap_dict[col+"_per_100k"] = (q_df[col] / q_df["N"]) * 100000.0
+            q_df = q_df.assign(**per_cap_dict)
             q_df = divide_by_pop(q_df, pop_mean_cols)
 
             # Column management
-            if level != admin2_key:
-                del q_df[admin2_key]
+            #if level != admin2_key:
+            del q_df[admin2_key]
+
+            if 'adm2' in q_df.columns and level != 'adm2':
+                del q_df['adm2']
+
+            if 'adm1' in q_df.columns and level != 'adm1':
+                del q_df['adm1']
+
+            if 'adm0' in q_df.columns and level != 'adm0':
+                del q_df['adm0']
 
             if verbose:
                 logging.info("\nQuantiles dataframe:")

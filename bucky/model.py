@@ -81,6 +81,8 @@ class SEIR_covid(object):
         self.G = None
         self.graph_file = args.graph_file
 
+        self.output_dates = None
+
         # save files to cache
         if args.cache:
             logging.warn(
@@ -560,7 +562,7 @@ class SEIR_covid(object):
         new_R0_fracij = truncnorm(xp, 1.0, var, size=self.A.shape, a_min=1e-6)
         new_R0_fracij = xp.clip(new_R0_fracij, 1e-6, None)
         A = self.baseline_A * new_R0_fracij
-        self.A = A / xp.sum(A, axis=0)
+        self.A = A / xp.sum(A, axis=0) / 2. + xp.identity(self.A.shape[-1])/2.
 
     # TODO this needs to be cleaned up
     def estimate_doubling_time_WHO(self, days_back=14, doubling_time_window=7, mean_time_window=None, min_doubling_t=1.0):
@@ -882,12 +884,15 @@ class SEIR_covid(object):
 
         n_time_steps = out.shape[-1]
 
-        t_output = xp.to_cpu(sol.t)
-        dates = [
-            pd.Timestamp(self.first_date + datetime.timedelta(days=np.round(t)))
-            for t in t_output
-        ]
-        dates = np.broadcast_to(dates, out.shape[1:])
+        if self.output_dates is None:
+            t_output = xp.to_cpu(sol.t)
+            dates = [
+                pd.Timestamp(self.first_date + datetime.timedelta(days=np.round(t)))
+                for t in t_output
+            ]
+            self.output_dates = np.broadcast_to(dates, out.shape[1:])
+        
+        dates = self.output_dates
 
         icu = (
             self.Nij[..., None]
@@ -941,6 +946,9 @@ class SEIR_covid(object):
         # if (daily_cases < 0)[..., 1:].any():
         #    logging.error('Negative daily cases')
         #    raise SimulationException
+        N = xp.broadcast_to(self.Nj[...,None], out.shape[1:])
+
+        hosps = xp.sum(out[Ici], axis=0) + xp.sum(out[Rhi],axis=0)
 
         out = out.reshape(y.shape[0], -1)
 
@@ -949,20 +957,22 @@ class SEIR_covid(object):
             "ADM2_ID": adm2_ids.reshape(-1),
             "date": dates.reshape(-1),
             "rid": np.broadcast_to(seed, out.shape[-1]).reshape(-1),
-            "S": out[Si],
-            "E": out[Ei],
-            "I": out[Ii],
-            "Ic": out[Ici],
-            "Ia": out[Iasi],
-            "R": out[Ri],
-            "Rh": out[Rhi],
-            "D": out[Di],
-            "NH": daily_hosp.reshape(-1),
-            "NC": daily_cases_total.reshape(-1),
-            "NCR": daily_cases_reported.reshape(-1),
-            "ND": daily_deaths.reshape(-1),
-            "CC": cum_cases_total.reshape(-1),
-            "CCR": cum_cases_reported.reshape(-1),
+            "N": N.reshape(-1),
+            "hospitalizations": hosps.reshape(-1),
+            #"S": out[Si],
+            #"E": out[Ei],
+            #"I": out[Ii],
+            #"Ic": out[Ici],
+            "cases_asymptomatic_active": out[Iasi], # TODO remove?
+            #"R": out[Ri],
+            #"Rh": out[Rhi],
+            "cumulative_deaths": out[Di],
+            "daily_hospitalizations": daily_hosp.reshape(-1),
+            "daily_cases": daily_cases_total.reshape(-1),
+            "daily_cases_reported": daily_cases_reported.reshape(-1),
+            "daily_deaths": daily_deaths.reshape(-1),
+            "cumulative_cases": cum_cases_total.reshape(-1),
+            "cumulative_cases_reported": cum_cases_reported.reshape(-1),
             "ICU": xp.sum(icu, axis=0).reshape(-1),
             "VENT": xp.sum(vent, axis=0).reshape(-1),
             "CASE_REPORT": np.broadcast_to(
@@ -985,10 +995,10 @@ class SEIR_covid(object):
             if df_data[k].ndim == 2:
                 df_data[k] = xp.sum(df_data[k], axis=0)
 
-            df_data[k] = xp.to_cpu(df_data[k])
+            #df_data[k] = xp.to_cpu(df_data[k])
 
             if k != 'date':
-                if np.any(np.around(df_data[k],2) < 0.):
+                if xp.any(xp.around(df_data[k],2) < 0.):
                     logging.info('Negative values present in ' + k)
                     negative_values = True
 
@@ -1000,34 +1010,8 @@ class SEIR_covid(object):
         # Append data to the hdf5 file
         output_folder = os.path.join(outdir, self.run_id)
         os.makedirs(output_folder, exist_ok=True)
-        out_df = pd.DataFrame(data=df_data)
 
-        # round off any FP error we picked up along the way
-        out_df.set_index(["ADM2_ID", "date", "rid"], inplace=True)
-        out_df = out_df.apply(np.around, args=(3,))
-        out_df.reset_index(inplace=True)
-
-        if output:
-            # out_df.to_feather(os.path.join(output_folder, str(seed) + ".feather"))
-            for date, date_df in out_df.groupby("date"):
-                if output_queue is None:
-                    date_df.reset_index().to_feather(
-                        os.path.join(
-                            output_folder,
-                            str(seed) + "_" + str(date.date()) + ".feather",
-                        )
-                    )
-                else:
-                    output_queue.put(
-                        (
-                            os.path.join(
-                                output_folder,
-                                str(seed) + "_" + str(date.date()) + ".feather",
-                            ),
-                            date_df,
-                        )
-                    )
-
+        output_queue.put((os.path.join(output_folder, str(seed)), df_data))
         # TODO we should output the per monte carlo param rolls, this got lost when we switched from hdf5
 
 
@@ -1052,14 +1036,20 @@ if __name__ == "__main__":
 
     import threading, queue
 
-    to_write = queue.Queue()
+    to_write = queue.Queue(maxsize=100)
 
     def writer():
         # Call to_write.get() until it returns None
-        for fname, df in iter(to_write.get, None):
-            df.reset_index().to_feather(fname)
+        stream = xp.cuda.Stream()
+        for base_fname, df_data in iter(to_write.get, None):
+            cpu_data = {k: xp.to_cpu(v, stream=stream) for k,v in df_data.items()}
+            stream.synchronize()
+            df = pd.DataFrame(cpu_data)
+            for date, date_df in df.groupby("date", as_index=False):
+                fname = base_fname + "_" + str(date.date()) + ".feather"
+                date_df.reset_index().to_feather(fname)
 
-    write_thread = threading.Thread(target=writer)
+    write_thread = threading.Thread(target=writer, daemon=True)
     write_thread.start()
 
     if args.gpu:
@@ -1101,5 +1091,6 @@ if __name__ == "__main__":
         write_thread.join()
     finally:
         to_write.put(None)
+        write_thread.join()
         pbar.close()
         logging.info(f"Total runtime: {datetime.datetime.now() - total_start}")

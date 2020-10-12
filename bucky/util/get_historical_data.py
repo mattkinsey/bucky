@@ -18,7 +18,7 @@ data_locations = {
     "daily_deaths": {"file": csse, "column": "Deaths_daily"},
     "VENT": {"file": covid_tracking, "column": "onVentilatorCurrently"},
     "ICU": {"file": covid_tracking, "column": "inIcuCurrently"},
-    "NH": {"file": covid_tracking, "column": "hospitalizedIncrease"},
+    "daily_hospitalizations": {"file": covid_tracking, "column": "hospitalizedIncrease"},
 }
 
 def add_daily_history(history_data, window_size=None):
