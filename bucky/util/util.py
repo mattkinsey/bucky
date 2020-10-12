@@ -45,7 +45,7 @@ class dotdict(dict):
 
 def remove_chars(seq):
     seq_type= type(seq)
-    if seq_type is int:
+    if seq_type != str:
         return seq
     else:
         return seq_type().join(filter(seq_type.isdigit, seq))
