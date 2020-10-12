@@ -80,6 +80,8 @@ class SEIR_covid(object):
         self.G = None
         self.graph_file = args.graph_file
 
+        self.output_dates = None
+
         # save files to cache
         if args.cache:
             logging.warn(
@@ -841,12 +843,15 @@ class SEIR_covid(object):
 
         n_time_steps = out.shape[-1]
 
-        t_output = xp.to_cpu(sol.t)
-        dates = [
-            pd.Timestamp(self.first_date + datetime.timedelta(days=np.round(t)))
-            for t in t_output
-        ]
-        dates = np.broadcast_to(dates, out.shape[1:])
+        if self.output_dates is None:
+            t_output = xp.to_cpu(sol.t)
+            dates = [
+                pd.Timestamp(self.first_date + datetime.timedelta(days=np.round(t)))
+                for t in t_output
+            ]
+            self.output_dates = np.broadcast_to(dates, out.shape[1:])
+        
+        dates = self.output_dates
 
         icu = (
             self.Nij[..., None]
