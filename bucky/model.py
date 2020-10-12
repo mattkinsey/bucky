@@ -990,7 +990,7 @@ if __name__ == "__main__":
 
     import threading, queue
 
-    to_write = queue.Queue(max_size=100)
+    to_write = queue.Queue(maxsize=100)
 
     def writer():
         # Call to_write.get() until it returns None
@@ -1000,7 +1000,7 @@ if __name__ == "__main__":
                 fname = base_fname + "_" + str(date.date()) + ".feather"
                 date_df.reset_index().to_feather(fname)
 
-    write_thread = threading.Thread(target=writer)
+    write_thread = threading.Thread(target=writer, daemon=True)
     write_thread.start()
 
     if args.gpu:
