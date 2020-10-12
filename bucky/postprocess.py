@@ -276,7 +276,7 @@ if __name__ == "__main__":
         # Some lookups only contain a subset of counties, drop extras if necessary
         unique_adm2 = lookup_df.index
         tot_df = tot_df.loc[tot_df[admin2_key].isin(unique_adm2)]
-
+        '''
         # Start reading data
         seird_cols = ["S", "E", "I", "Ic", "Ia", "R", "Rh", "D"]
         N = tot_df[seird_cols].sum(axis=1)
@@ -333,7 +333,7 @@ if __name__ == "__main__":
             },
             inplace=True,
         )
-
+        '''
         per_capita_cols = ['cumulative_cases_reported', 'cumulative_deaths', 'hospitalizations']
 
         # Multiply column by N, then at end divide by aggregated N

@@ -905,6 +905,9 @@ class SEIR_covid(object):
         # if (daily_cases < 0)[..., 1:].any():
         #    logging.error('Negative daily cases')
         #    raise SimulationException
+        N = xp.broadcast_to(self.Nj[...,None], out.shape[1:])
+
+        hosps = xp.sum(out[Ici], axis=0) + xp.sum(out[Rhi],axis=0)
 
         out = out.reshape(y.shape[0], -1)
 
@@ -913,20 +916,22 @@ class SEIR_covid(object):
             "ADM2_ID": adm2_ids.reshape(-1),
             "date": dates.reshape(-1),
             "rid": np.broadcast_to(seed, out.shape[-1]).reshape(-1),
-            "S": out[Si],
-            "E": out[Ei],
-            "I": out[Ii],
-            "Ic": out[Ici],
-            "Ia": out[Iasi],
-            "R": out[Ri],
-            "Rh": out[Rhi],
-            "D": out[Di],
-            "NH": daily_hosp.reshape(-1),
-            "NC": daily_cases_total.reshape(-1),
-            "NCR": daily_cases_reported.reshape(-1),
-            "ND": daily_deaths.reshape(-1),
-            "CC": cum_cases_total.reshape(-1),
-            "CCR": cum_cases_reported.reshape(-1),
+            "N": N.reshape(-1),
+            "hospitalizations": hosps.reshape(-1),
+            #"S": out[Si],
+            #"E": out[Ei],
+            #"I": out[Ii],
+            #"Ic": out[Ici],
+            "cases_asymptomatic_active": out[Iasi], # TODO remove?
+            #"R": out[Ri],
+            #"Rh": out[Rhi],
+            "cumulative_deaths": out[Di],
+            "daily_hospitalizations": daily_hosp.reshape(-1),
+            "daily_cases": daily_cases_total.reshape(-1),
+            "daily_cases_reported": daily_cases_reported.reshape(-1),
+            "daily_deaths": daily_deaths.reshape(-1),
+            "cumulative_cases": cum_cases_total.reshape(-1),
+            "cumulative_cases_reported": cum_cases_reported.reshape(-1),
             "ICU": xp.sum(icu, axis=0).reshape(-1),
             "VENT": xp.sum(vent, axis=0).reshape(-1),
             "CASE_REPORT": np.broadcast_to(
