@@ -302,9 +302,9 @@ class SEIR_covid(object):
 
             if True:
                 # Hack the graph data together to get it in the same format as the covid_tracking data
-                death_df = pd.DataFrame(self.inc_death_hist, columns=self.adm1_id.get()).stack().groupby(level=[0,1]).sum().reset_index()
+                death_df = pd.DataFrame(self.inc_death_hist, columns=xp.to_cpu(self.adm1_id)).stack().groupby(level=[0,1]).sum().reset_index()
                 death_df.columns = ['date', 'adm1', 'deathIncrease']
-                case_df = pd.DataFrame(self.inc_case_hist, columns=self.adm1_id.get()).stack().groupby(level=[0,1]).sum().reset_index()
+                case_df = pd.DataFrame(self.inc_case_hist, columns=xp.to_cpu(self.adm1_id)).stack().groupby(level=[0,1]).sum().reset_index()
                 case_df.columns = ['date', 'adm1', 'positiveIncrease']
 
                 df = death_df.set_index(['date','adm1']).merge(case_df.set_index(['date','adm1']), left_index=True, right_index=True).reset_index()
