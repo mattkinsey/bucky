@@ -378,7 +378,7 @@ class SEIR_covid(object):
         )
         #self.case_reporting = self.estimate_reporting(cfr=self.params.F, days_back=22)
 
-        self.doubling_t = self.estimate_doubling_time(mean_time_window=7)
+        self.doubling_t = self.estimate_doubling_time(mean_time_window=3)
 
         if xp.any(~xp.isfinite(self.doubling_t)):
             logging.info("non finite doubling times, is there enough case data?")
@@ -534,7 +534,7 @@ class SEIR_covid(object):
         new_R0_fracij = truncnorm(xp, 1.0, var, size=self.A.shape, a_min=1e-6)
         new_R0_fracij = xp.clip(new_R0_fracij, 1e-6, None)
         A = self.baseline_A * new_R0_fracij
-        self.A = A / xp.sum(A, axis=0)
+        self.A = A / xp.sum(A, axis=0) / 2. + xp.identity(self.A.shape[-1])/2.
 
     def estimate_doubling_time(
         self,
