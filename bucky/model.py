@@ -949,10 +949,10 @@ class SEIR_covid(object):
             if df_data[k].ndim == 2:
                 df_data[k] = xp.sum(df_data[k], axis=0)
 
-            df_data[k] = xp.to_cpu(df_data[k])
+            #df_data[k] = xp.to_cpu(df_data[k])
 
             if k != 'date':
-                if np.any(np.around(df_data[k],2) < 0.):
+                if xp.any(xp.around(df_data[k],2) < 0.):
                     logging.info('Negative values present in ' + k)
                     negative_values = True
 
@@ -994,8 +994,11 @@ if __name__ == "__main__":
 
     def writer():
         # Call to_write.get() until it returns None
+        stream = xp.cuda.Stream()
         for base_fname, df_data in iter(to_write.get, None):
-            df = pd.DataFrame(df_data)
+            cpu_data = {k: xp.to_cpu(v, stream=stream) for k,v in df_data.items()}
+            stream.synchronize()
+            df = pd.DataFrame(cpu_data)
             for date, date_df in df.groupby("date", as_index=False):
                 fname = base_fname + "_" + str(date.date()) + ".feather"
                 date_df.reset_index().to_feather(fname)
