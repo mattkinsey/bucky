@@ -48,7 +48,7 @@ from .numerical_libs import xp, ivp, sparse # isort:skip
 # Params TODO move all this to arg_parser or elsewhere
 #
 OUTPUT = True # TODO is this really even used anymore?
-REJECT_RUNS = True # TODO this shoudl come from arg parse
+REJECT_RUNS = False #True # TODO this shoudl come from arg parse
 
 # TODO move to param file
 RR_VAR = 0.12  # variance to use for MC of params with no CI
