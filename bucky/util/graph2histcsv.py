@@ -6,7 +6,7 @@ import pickle
 
 parser = argparse.ArgumentParser(description='Create CSSE style case/death history file from the data on a pickled Bucky graph')
 parser.add_argument('graph', type=str, help='graph to read from')
-parser.add_argument('output_file', type=str, 'output file (it will be a csv)')
+parser.add_argument('output_file', type=str, help='output file (it will be a csv)')
 
 args = parser.parse_args()
 
@@ -32,5 +32,7 @@ df['adm2'] = df.adm2.map(adm2)
 
 dates = pd.date_range(end=end_date, periods=df.date.nunique(), freq='1d')
 df['date'] = df.date.map({i:v for i,v in enumerate(dates)})
+
+df.to_csv(args.output_file, index=False)
 
 print(df.groupby('date').sum().diff().tail())
