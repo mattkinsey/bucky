@@ -5,7 +5,10 @@ import os
 import pickle
 import sys
 
-import matplotlib.pyplot as plt
+import matplotlib # isort:skip
+matplotlib.rc("axes.formatter", useoffset=False) # isort:skip
+import matplotlib.pyplot as plt # isort:skip
+from matplotlib.ticker import StrMethodFormatter # isort:skip
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -18,16 +21,6 @@ from ..util.readable_col_names import readable_col_names
 from .geoid import read_geoid_from_graph, read_lookup
 
 plt.style.use("ggplot")
-
-
-# TODO: Consolidate plt and hist columns
-# Historical data locations
-DEFAULT_HIST_FILE = os.path.join(
-    bucky_cfg["data_dir"], "cases/csse_hist_timeseries.csv"
-)
-WINDOWED_FILE = os.path.join(
-    bucky_cfg["data_dir"], "cases/csse_windowed_timeseries.csv"
-)
 
 parser = argparse.ArgumentParser(description="Bucky model plotting tools")
 
@@ -88,6 +81,13 @@ parser.add_argument(
     "--lookup", default=None, type=str, help="Lookup table for geographic mapping info",
 )
 
+# Pass in the minimum number of historical data points to plot
+parser.add_argument(
+    "--min_hist",
+    default=0,
+    type=int,
+    help="Minimum number of historical data points to plot.")
+
 # Pass in a specific historical start date and historical file
 parser.add_argument(
     "--hist_start",
@@ -117,6 +117,13 @@ parser.add_argument(
     "--hist",
     action="store_true",
     help="Plot historical data in addition to simulation data",
+)
+
+parser.add_argument(
+    "--hist_file",
+    type=str,
+    default=None,
+    help="Path to historical data file. If None, uses either CSSE or Covid Tracking data depending on columns requested.",
 )
 
 parser.add_argument(
@@ -282,8 +289,9 @@ def plot(
 
                     actuals = actuals.assign(date=pd.to_datetime(actuals["date"]))
                     # actuals.set_index('date', inplace=True)
-                    actuals.plot.scatter(
-                        x="date", y=plot_columns[i], ax=axs[i], color="r"
+                    hist_label = "Historical " + readable_col_names[plot_columns[i]]
+                    actuals.plot(
+                        x="date", y=plot_columns[i], ax=axs[i], color="r", marker="o", ls="", label=hist_label
                     )
 
                     # Set xlim
@@ -297,6 +305,7 @@ def plot(
             axs[i].grid(True)
             axs[i].legend()
             axs[i].set_ylabel("Count")
+            #axs[i].yaxis.set_major_formatter(StrMethodFormatter('{x:,.0f}'))
 
         plot_filename = os.path.join(
             output_dir, readable_col_names[plot_columns[0]] + "_" + name + ".png"
@@ -318,8 +327,10 @@ def make_plots(
     quantiles,
     window_size,
     end_date,
+    hist_file,
+    min_hist_points,
     admin1=None,
-    hist_start=None
+    hist_start=None,
 ):
     """Wrapper function around plot. Creates plots, aggregating data 
     if necessary.
@@ -345,6 +356,11 @@ def make_plots(
         Size of window (in days) to apply to historical data
     end_date : string, formatted as YYYY-MM-DD
         Plot data until this date
+    hist_file : string
+        Path to historical data file. If None, uses either CSSE or
+        Covid Tracking data depending on columns requested.
+    min_hist_points : int
+        Minimum number of historical data points to plot.
     admin1 : list of strings, or None
         List of admin1 values to make plots for. If None, a plot will be
         created for every unique admin1 values. Otherwise, plots are only
@@ -396,7 +412,7 @@ def make_plots(
         if plot_hist:
 
             # Get historical data for requested columns
-            hist_data = get_historical_data(plot_columns, level, lookup_df, window_size)
+            hist_data = get_historical_data(plot_columns, level, lookup_df, window_size, hist_file)
             
             # Check if historical data was not successfully fetched
             if hist_data is None:
@@ -411,16 +427,20 @@ def make_plots(
                 )
 
                 if hist_start is not None:
-                    hist_data = hist_data.loc[
-                        (hist_data["date"] < end_date)
-                        & (hist_data["date"] > hist_start)
-                    ]
-                else:
-                    hist_data = hist_data.loc[
-                        (hist_data["date"] < end_date)
-                        & (hist_data["date"] > start_date)
-                    ]
+                    start_date = hist_start
 
+                # Check that there are the minimum number of points
+                last_hist_date = hist_data["date"].max()
+                num_points = (last_hist_date - pd.to_datetime(start_date)).days
+
+                # Shift start date if necessary
+                if num_points < min_hist_points:
+                    start_date = last_hist_date - pd.Timedelta(str(min_hist_points) + ' days')
+
+                hist_data = hist_data.loc[
+                    (hist_data["date"] < end_date)
+                    & (hist_data["date"] > start_date)
+                ]
         plot(
             output_dir=plot_dir,
             lookup_df=lookup_df,
@@ -477,6 +497,12 @@ if __name__ == "__main__":
     verbose = args.verbose
     end_date = args.end_date
     quantiles = args.quantiles
+    hist_file = args.hist_file
+    min_hist = args.min_hist
+
+    # If a historical file was passed in, make sure hist is also true
+    if hist_file is not None:
+        plot_historical = True
 
     # Plot
     make_plots(
@@ -489,6 +515,8 @@ if __name__ == "__main__":
         quantiles,
         window,
         end_date,
+        hist_file,
+        min_hist,
         args.adm1_name,
         hist_start
     )

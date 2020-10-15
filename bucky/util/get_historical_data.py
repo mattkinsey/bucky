@@ -11,6 +11,7 @@ csse = os.path.join(bucky_cfg["data_dir"],"cases/csse_hist_timeseries.csv")
 # Specify file and column name
 data_locations = {
     "cumulative_cases": {"file": csse , "column": "Confirmed"},
+    "cumulative_cases_reported": {"file": csse , "column": "Confirmed"},
     "cumulative_deaths": {"file": csse, "column": "Deaths"},
     "hospitalizations": {"file": covid_tracking, "column": "hospitalizedCurrently"},
     "daily_cases_reported": {"file": csse, "column": "Confirmed_daily"},
@@ -36,9 +37,6 @@ def add_daily_history(history_data, window_size=None):
     history_data : Pandas DataFrame
         Historical data with added columns for daily case and death data
     """
-    # TODO: Correct territory data by distributing
-    # history_data['adm2'].replace(66, 66010, inplace=True)
-    # history_data['adm2'].replace(69, 69110, inplace=True)
 
     history_data = history_data.set_index(["adm2", "date"])
     history_data.sort_index(inplace=True)
@@ -71,7 +69,7 @@ def add_daily_history(history_data, window_size=None):
 
     return history_data
 
-def get_historical_data(columns, level, lookup_df, window_size):
+def get_historical_data(columns, level, lookup_df, window_size, hist_file):
     """Gets historical data for the columns requested. 
     
     Parameters
@@ -85,6 +83,8 @@ def get_historical_data(columns, level, lookup_df, window_size):
         levels
     window_size : int
         Size of window in days
+    hist_file : string or None
+        Historical data file to use if not using defaults.
 
     Returns
     -------
@@ -95,14 +95,19 @@ def get_historical_data(columns, level, lookup_df, window_size):
     df = None
 
     for requested_col in columns:
+
         
-        # Get file and column name
-        file = data_locations[requested_col]["file"]
-        column_name = data_locations[requested_col]["column"]
+        if hist_file is None:
+            # Get file and column name
+            file = data_locations[requested_col]["file"]
+            column_name = data_locations[requested_col]["column"]
+        else:
+            file = hist_file
+            column_name = requested_col
 
         # Read file
         data = pd.read_csv(file, na_values=0.)
-        
+
         # Add daily history if requested daily deaths or daily cases
         daily_cols = ["daily_cases", "daily_cases_reported", "daily_deaths"]
         if requested_col in daily_cols:
@@ -129,6 +134,7 @@ def get_historical_data(columns, level, lookup_df, window_size):
             # Aggregate on geographic level
             agg_data = data.groupby(["date", level]).sum()
             agg_data = agg_data.rename(columns={column_name : requested_col})
+            agg_data = agg_data.round(3)
 
             # If first column, initialize dataframe
             if df is None:
@@ -145,12 +151,14 @@ def get_historical_data(columns, level, lookup_df, window_size):
 if __name__ == "__main__":
 
     from bucky.viz.geoid import read_geoid_from_graph
-    look = read_geoid_from_graph('data/input_graphs/usa--2020-10-06__16_25_10.p') 
-    #look.set_index("adm2", inplace=True)
+    graph_file = max(
+            glob.glob(os.path.join(bucky_cfg["data_dir"], "input_graphs/*.p")),
+            key=os.path.getctime,
+        )
+
+    look = read_geoid_from_graph(graph_file) 
     levels = ['adm0']
-
     cols = ["VENT", "daily_cases"]
-
     for level in levels:
 
         df = get_historical_data(cols, level, look, 7)
