@@ -923,7 +923,7 @@ class SEIR_covid(object):
         daily_cases_reported = xp.diff(
             out[incC], axis=-1, prepend=prepend_cases[:, None]
         )
-        cum_cases_reported = self.cum_case_hist[-1][:, None] + out[incC]
+        cum_cases_reported = out[incC]
 
         init_inc_case_mean = xp.mean(xp.sum(daily_cases_reported[:, 1:4], axis=0))
         hist_inc_case_mean = xp.mean(xp.sum(self.inc_case_hist[-7:], axis=-1))
