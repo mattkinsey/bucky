@@ -9,7 +9,8 @@ NPI_DIR='./data/npi'
 GRAPH_DIR='./un_graphs'
 
 export CUDA_VISIBLE_DEVICES=0
-export CUPY_ACCELERATORS=cub,cutensor
+# Uncomment the following line if you have cub and cutensor installed (it will speed up some things in cupy)
+#export CUPY_ACCELERATORS=cub,cutensor
 
 mkdir -p $NPI_DIR
 
