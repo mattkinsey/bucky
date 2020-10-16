@@ -343,6 +343,7 @@ class SEIR_covid(object):
             self.params.F = xp.clip(self.params.F * ifr_scale, 0.0, 1.0)
             self.params.F_old = self.params.F.copy()
 
+        if self.rescale_chr:
             # TODO this needs to be cleaned up BAD
             # should add a util function to do the rollups to adm1 (it shows up in case_reporting/doubling t calc too)
             adm1_Fi = xp.zeros((self.adm1_max + 1, self.n_age_grps))
