@@ -1,4 +1,4 @@
-# -> Bucky Model <-
+# Bucky Model 
 [![Documentation Status](https://readthedocs.org/projects/docs/badge/?version=latest)](https://bucky.readthedocs.io/en/latest/)
 
 **[Documentation](https://bucky.readthedocs.io/en/latest/)** 
@@ -47,7 +47,7 @@ After creating the graph, run the model with 100 iterations and 20 days:
 
 This will create a folder in the `raw_output` directory with the unique run ID. The script `postprocess` processes and aggregates the Monte Carlo runs. This script by default postprocesses the most recent data in the `raw_output` directory and aggregates at the national, state, and county level.
 
-```consle
+```console
 ./bmodel postprocess
 ```
 
