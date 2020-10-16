@@ -19,7 +19,6 @@ ADD_AMERICAN_SAMOA = False
 # CSSE UIDs for Michigan prison information
 MI_PRISON_UIDS = [84070004, 84070005]
 
-
 def get_timeseries_data(col_name, filename, fips_key="FIPS", is_csse=True):
     """Takes a historical data file and reduces it to a dataframe with FIPs, 
     date, and case or death data.
@@ -675,7 +674,7 @@ def git_pull(abs_path):
     
     Parameters
     ----------
-    rel_path : string
+    abs_path : string
         Abs path location of repository to update
     """
 

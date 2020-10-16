@@ -8,6 +8,27 @@ from .util import date_to_t_int
 
 
 def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
+    """
+    
+    Parameters
+    ----------
+    fname : string 
+        Filename of NPI file
+    start_date : string 
+        Start date to use
+    end_t : int
+        Number of days after start date
+    adm2_map : NumPy array
+        Array of adm2 IDs
+    disable_npi : bool (default: False)
+        Bool indicating whether NPIs should be disabled
+    Returns
+    -------
+    npi_params : dict
+        TODO
+    """
+    from IPython import embed
+    embed()
 
     # filter by overlap with simulation date range
     df = pd.read_csv(fname)
