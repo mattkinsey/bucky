@@ -232,7 +232,7 @@ if __name__ == "__main__":
 
     to_write = JoinableQueue()
 
-    def writer(q):
+    def _writer(q):
         # Call to_write.get() until it returns None
         has_header_dict = {}
         for fname, df in iter(q.get, None):
@@ -244,11 +244,11 @@ if __name__ == "__main__":
             q.task_done()
         q.task_done()
 
-    write_thread = Process(target=writer, args=(to_write,))
+    write_thread = Process(target=_writer, args=(to_write,))
     write_thread.deamon = True
     write_thread.start()
 
-    def process_date(date, write_header=False, write_queue=to_write):
+    def _process_date(date, write_header=False, write_queue=to_write):
         date_files = glob.glob(args.file + "/*_" + str(date) + ".feather")  # [:NFILES]
 
         # Read feather files
@@ -442,7 +442,7 @@ if __name__ == "__main__":
             write_queue.put((os.path.join(output_dir, level + "_quantiles.csv"), q_df))
 
     pool = Pool(processes=args.nprocs)
-    for _ in tqdm(pool.imap_unordered(process_date, dates), total=len(dates)):
+    for _ in tqdm(pool.imap_unordered(_process_date, dates), total=len(dates)):
         pass
     pool.close()
     pool.join()  # wait until everything is done

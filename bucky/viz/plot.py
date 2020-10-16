@@ -355,7 +355,7 @@ def make_plots(
     window_size : int
         Size of window (in days) to apply to historical data
     end_date : string, formatted as YYYY-MM-DD
-        Plot data until this date
+        Plot data until this date. If None, uses last date in simulation
     hist_file : string
         Path to historical data file. If None, uses either CSSE or
         Covid Tracking data depending on columns requested.
