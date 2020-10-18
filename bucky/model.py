@@ -600,9 +600,11 @@ class SEIR_covid(object):
 
         # Take mean of most recent values
         if mean_time_window is not None:
-            hist_doubling_t = xp.nanmean(doubling_t[-mean_time_window:], axis=0)
+            ret = xp.nanmean(doubling_t[-mean_time_window:], axis=0)
+        else:
+            ret = doubling_t
 
-        return hist_doubling_t
+        return ret
 
     def estimate_reporting(self, cfr, days_back=14, case_lag=None, min_deaths=100.0):
 
