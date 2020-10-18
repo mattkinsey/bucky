@@ -379,7 +379,7 @@ class SEIR_covid(object):
         )
         #self.case_reporting = self.estimate_reporting(cfr=self.params.F, days_back=22)
 
-        self.doubling_t = self.estimate_doubling_time(mean_time_window=3)
+        self.doubling_t = self.estimate_doubling_time(mean_time_window=7)
 
         if xp.any(~xp.isfinite(self.doubling_t)):
             logging.info("non finite doubling times, is there enough case data?")
@@ -539,7 +539,7 @@ class SEIR_covid(object):
 
     def estimate_doubling_time(
         self,
-        days_back=14,
+        days_back=7,
         doubling_time_window=7,
         mean_time_window=None,
         min_doubling_t=1.0,
@@ -556,9 +556,8 @@ class SEIR_covid(object):
 
         # adm0
         adm0_doubling_t = (
-            doubling_time_window
-            * xp.log(2.0)
-            / xp.log(xp.nansum(cases, axis=1) / xp.nansum(cases_old, axis=1))
+            doubling_time_window 
+            / xp.log2(xp.nansum(cases, axis=1) / xp.nansum(cases_old, axis=1))
         )
 
         logging.debug("Adm0 doubling time: " + str(adm0_doubling_t))
@@ -577,7 +576,7 @@ class SEIR_covid(object):
         xp.scatter_add(cases_old_adm1, self.adm1_id, cases_old.T)
 
         adm1_doubling_t = (
-            doubling_time_window * xp.log(2.0) / xp.log(cases_adm1 / cases_old_adm1)
+            doubling_time_window / xp.log2(cases_adm1 / cases_old_adm1)
         )
 
         tmp_doubling_t = adm1_doubling_t[self.adm1_id].T
@@ -586,7 +585,7 @@ class SEIR_covid(object):
         doubling_t[valid_mask] = tmp_doubling_t[valid_mask]
 
         # adm2
-        adm2_doubling_t = doubling_time_window * xp.log(2.0) / xp.log(cases / cases_old)
+        adm2_doubling_t = doubling_time_window / xp.log2(cases / cases_old)
 
         valid_adm2_dt = xp.isfinite(adm2_doubling_t) & (
             adm2_doubling_t > min_doubling_t
