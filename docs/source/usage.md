@@ -114,6 +114,13 @@ Mobility data is used to construct the edges of the graph. Mobility data, or a p
 The baseline mobility data shows up as an edge attributed called *weight*. *R0_frac* is a factor that is multiplied with the baseline mobility value to model the effect of NPIs, etc., on mobility. For example, given baseline mobility data from February 2020, *R0_frac* would be computed by dividing recent mobility data values with the February 2020 baseline. *R0_frac* exists to provide a knob to tune during the simulation to model NPIs.
 
 ## Creating NPI files
+While optional, the Bucky model can include Non-Pharmeutical Interventions (NPI) in its simulations. If the user desires these to be included, a .csv-file should be provided that includes the effects of the NPIs.
+It should include the columns `admin2,date,elderly_shielding,home,mobility_reduction,other_locations,r0_reduction,school, and work`. 
+Each row contains an unique `admin2`-`date` combination. For each other column the value indicates the effect of current NPI's, where values equal to 1 have no effect on the transmission for the given column name. Values smaller than 1 indicate that the NPI's lower the transmission in this domain, while values larger than 1 indicate an increased transmission. 
+The columns `home, work, school, other_locations, elderly_shielding` correspond with the columns in the contact matrix. The contact matrix is multiplied with the values of these columns in the NPI file. 
+The value in `mobility_reduction` influences the mobility between regions. And the `r0_reduction` applies to the overall community transmission. 
+
+The OCHA repository https://github.com/OCHA-DAP/pa-COVID-model-parameterization implements a method to convert written NPI measures to these numbers. 
 
 ## Model
 `model.py` takes the following arguments (all are optional as they are either flags or have defined defaults):
