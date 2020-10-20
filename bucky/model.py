@@ -331,6 +331,9 @@ class SEIR_covid(object):
                     self.adm1_current_cfr[adm1] = cfr
                 logging.debug("Current CFR: " + pformat(self.adm1_current_cfr))
 
+            else:
+                self.rescale_chr = False
+
         # make sure we always reset to baseline
         self.A = self.baseline_A
 
@@ -454,7 +457,7 @@ class SEIR_covid(object):
         current_I *= 1.0 / (self.params["CASE_REPORT"])
 
         R_fac = xp.array(mPERT_sample(mu=0.5, a=0.25, b=0.75, gamma=50.0))
-        E_fac = xp.array(mPERT_sample(mu=1.6, a=1.35, b=1.85, gamma=50.0))
+        E_fac = xp.array(mPERT_sample(mu=1.4, a=1.15, b=1.65, gamma=50.0))
         H_fac = xp.array(mPERT_sample(mu=1.0, a=0.9, b=1.1, gamma=100.0))
 
         I_init = current_I[None, :] / self.Nij / self.n_age_grps
@@ -594,9 +597,8 @@ class SEIR_covid(object):
 
         # adm0
         adm0_doubling_t = (
-            doubling_time_window
-            * xp.log(2.0)
-            / xp.log(xp.nansum(cases, axis=1) / xp.nansum(cases_old, axis=1))
+            doubling_time_window 
+            / xp.log2(xp.nansum(cases, axis=1) / xp.nansum(cases_old, axis=1))
         )
 
         logging.debug("Adm0 doubling time: " + str(adm0_doubling_t))
@@ -615,7 +617,7 @@ class SEIR_covid(object):
         xp.scatter_add(cases_old_adm1, self.adm1_id, cases_old.T)
 
         adm1_doubling_t = (
-            doubling_time_window * xp.log(2.0) / xp.log(cases_adm1 / cases_old_adm1)
+            doubling_time_window / xp.log2(cases_adm1 / cases_old_adm1)
         )
 
         tmp_doubling_t = adm1_doubling_t[self.adm1_id].T
@@ -624,7 +626,7 @@ class SEIR_covid(object):
         doubling_t[valid_mask] = tmp_doubling_t[valid_mask]
 
         # adm2
-        adm2_doubling_t = doubling_time_window * xp.log(2.0) / xp.log(cases / cases_old)
+        adm2_doubling_t = doubling_time_window / xp.log2(cases / cases_old)
 
         valid_adm2_dt = xp.isfinite(adm2_doubling_t) & (
             adm2_doubling_t > min_doubling_t
@@ -638,9 +640,11 @@ class SEIR_covid(object):
 
         # Take mean of most recent values
         if mean_time_window is not None:
-            hist_doubling_t = xp.nanmean(doubling_t[-mean_time_window:], axis=0)
+            ret = xp.nanmean(doubling_t[-mean_time_window:], axis=0)
+        else:
+            ret = doubling_t
 
-        return hist_doubling_t
+        return ret
 
     def estimate_reporting(self, cfr, days_back=14, case_lag=None, min_deaths=100.0):
 
@@ -771,8 +775,6 @@ class SEIR_covid(object):
         Cij /= xp.sum(Cij, axis=2, keepdims=True)
 
         Aij_eff = npi["mobility_reduct"][int(t)][..., None] * Aij
-        Aij_eff[xp.diag_indices(Aij_eff.shape[0])] = xp.diag(Aij)
-        Aij_eff = Aij_eff / xp.sum(Aij_eff, axis=0)
 
         # perturb Aij
         # new_R0_fracij = truncnorm(xp, 1.0, .1, size=Aij.shape, a_min=1e-6)
@@ -981,7 +983,7 @@ class SEIR_covid(object):
             "Reff": (
                 self.npi_params["r0_reduct"].T
                 * np.broadcast_to(
-                    self.params.R0[:, None], adm2_ids.shape
+                    (self.params.R0 * (np.diag(self.A)))[:, None], adm2_ids.shape
                 )
             ).reshape(-1),
             "doubling_t": np.broadcast_to(
