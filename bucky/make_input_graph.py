@@ -237,7 +237,7 @@ def read_lex_data(date):
     
     Parameters
     ----------
-    last_date : string
+    date : string
         Fetches data for requested date
     
     Returns
@@ -280,6 +280,21 @@ def read_lex_data(date):
 
 
 def get_lex(last_date, window_size=7):
+    """Reads county-level location exposure indices from PlaceIQ 
+    location data and applies a window.
+    
+    Parameters
+    ----------
+    last_date : last_date
+        Fetches data for requested date
+    window_size : int (default: 7)
+        Size of window, in days, to apply to data
+    Returns
+    -------
+    frac_df : Pandas DataFrame
+        TODO
+
+    """
     lex_df = None
     success = 0
     d = 0
@@ -315,6 +330,20 @@ def get_lex(last_date, window_size=7):
 
 
 def get_safegraph(last_date, window_size=7):
+    """Reads SafeGraph mobility data and applies a window.
+    
+    Parameters
+    ----------
+    last_date : last_date
+        Fetches data for requested date
+    window_size : int (default: 7)
+        Size of window, in days, to apply to data
+    Returns
+    -------
+    frac_df : Pandas DataFrame
+        TODO
+
+    """
     sg_df = None
     success = 0
     d = 0
