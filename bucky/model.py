@@ -363,7 +363,7 @@ class SEIR_covid(object):
             )  # prevent extreme values
             logging.debug("adm1 cfr rescaling factor: " + pformat(adm1_F_fac))
             self.params.F = self.params.F * adm1_F_fac[self.adm1_id]
-            self.params.F = 0.75 * xp.clip(self.params.F, a_min=1.0e-10, a_max=1.0)
+            self.params.F = 1. * xp.clip(self.params.F, a_min=1.0e-10, a_max=1.0)
             self.params.H = xp.clip(self.params.H, a_min=self.params.F, a_max=1.0)
 
         case_reporting = xp.to_cpu(
@@ -391,7 +391,7 @@ class SEIR_covid(object):
             self.doubling_t *= truncnorm(
                 xp, 1.0, RR_VAR, size=self.doubling_t.shape, a_min=1e-6
             )
-            self.doubling_t = xp.clip(self.doubling_t, 1.0, None)
+            self.doubling_t = xp.clip(self.doubling_t, 1.0, None)/2.
 
         self.params = self.s_par.rescale_doubling_rate(
             self.doubling_t, self.params, xp, self.A
@@ -427,7 +427,7 @@ class SEIR_covid(object):
         current_I *= 1.0 / (self.params["CASE_REPORT"])
 
         R_fac = xp.array(mPERT_sample(mu=0.5, a=0.25, b=0.75, gamma=50.0))
-        E_fac = xp.array(mPERT_sample(mu=1.6, a=1.35, b=1.85, gamma=50.0))
+        E_fac = xp.array(mPERT_sample(mu=1.4, a=1.15, b=1.65, gamma=50.0))
         H_fac = xp.array(mPERT_sample(mu=1.0, a=0.9, b=1.1, gamma=100.0))
 
         I_init = current_I[None, :] / self.Nij / self.n_age_grps
@@ -485,7 +485,7 @@ class SEIR_covid(object):
             )
 
             self.params["F_eff"] = xp.clip(
-                self.params["F"] / self.params["H"], 0.0, 1.0
+                .85* self.params["F"] / self.params["H"], 0.0, 1.0
             )
 
             y[Ii] = (1.0 - self.params.H) * I_init / len(Ii)
@@ -499,6 +499,7 @@ class SEIR_covid(object):
                 * self.params.GAMMA_H
                 / self.params.THETA
                 / Rhn
+                * .85
             )
 
         y[Si] -= xp.sum(y[Ii], axis=0) + xp.sum(y[Ici], axis=0) + xp.sum(y[Rhi], axis=0)
@@ -535,7 +536,7 @@ class SEIR_covid(object):
         new_R0_fracij = truncnorm(xp, 1.0, var, size=self.A.shape, a_min=1e-6)
         new_R0_fracij = xp.clip(new_R0_fracij, 1e-6, None)
         A = self.baseline_A * new_R0_fracij
-        self.A = A / xp.sum(A, axis=0) / 2. + xp.identity(self.A.shape[-1])/2.
+        self.A = A / xp.sum(A, axis=0) #/ 2. + xp.identity(self.A.shape[-1])/2.
 
     def estimate_doubling_time(
         self,
