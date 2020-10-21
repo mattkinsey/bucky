@@ -49,7 +49,7 @@ def divide_by_pop(dataframe, cols):
 
     """
     for col in cols:
-        dataframe[col] = dataframe[col] / dataframe["N"]
+        dataframe[col] = dataframe[col] / dataframe["total_population"]
 
     return dataframe
 
@@ -220,7 +220,7 @@ if __name__ == "__main__":
 
     lookup_df.set_index("adm2", inplace=True)
 
-    admin2_key = "ADM2_ID"
+    admin2_key = "adm2_id"
 
     write_header = True
     all_files = glob.glob(args.file + "/*.feather")
@@ -274,72 +274,17 @@ if __name__ == "__main__":
             tot_df = tot_df.loc[(tot_df["date"] <= end_date)]
 
         # Some lookups only contain a subset of counties, drop extras if necessary
+        # TODO this replaced with a left join now that the keys are consistant (if its faster)
         unique_adm2 = lookup_df.index
         tot_df = tot_df.loc[tot_df[admin2_key].isin(unique_adm2)]
-        '''
-        # Start reading data
-        seird_cols = ["S", "E", "I", "Ic", "Ia", "R", "Rh", "D"]
-        N = tot_df[seird_cols].sum(axis=1)
 
-        # For cases, don't include asymptomatic
-        infected_columns = ["I", "Ic"]  # , 'Ia']
-        #cases_active = tot_df[infected_columns].sum(axis=1)
-        # Calculate hospitalization
-        hospitalizations = tot_df[["Rh", "Ic"]].sum(axis=1)
-
-        tot_df = tot_df.assign(
-            N=N, 
-            #cases_active=cases_active, 
-            hospitalizations=hospitalizations
-        )
-
-        # Drop columns other than these
-        keep_cols = [
-            "N",
-            "hospitalizations",
-            "NCR",
-            "CCR",
-            "NC",
-            "CC",
-            "ND",
-            "D",
-            "Ia",
-            "ICU",
-            "VENT",
-            #"cases_active",
-            admin2_key,
-            "date",
-            "rid",
-            "CASE_REPORT",
-            "Reff",
-            "doubling_t",
-            "NH",
-        ]
-
-        tot_df = tot_df[keep_cols]
-        gc.collect()
-
-        # Rename
-        tot_df.rename(
-            columns={
-                "D": "cumulative_deaths",
-                "NC": "daily_cases",
-                "ND": "daily_deaths",
-                "CC": "cumulative_cases",
-                "Ia": "cases_asymptomatic_active",
-                "NCR": "daily_cases_reported",
-                "CCR": "cumulative_cases_reported",
-                "NH": "daily_hospitalizations",
-            },
-            inplace=True,
-        )
-        '''
-        per_capita_cols = ['cumulative_cases_reported', 'cumulative_deaths', 'hospitalizations']
+        # List of columns that will be output per 100k population as well
+        per_capita_cols = ['cumulative_reported_cases', 'cumulative_deaths', 'current_hospitalizations']
 
         # Multiply column by N, then at end divide by aggregated N
-        pop_mean_cols = ["CASE_REPORT", "Reff", "doubling_t"]
+        pop_mean_cols = ["case_reporting_rate", "R_eff", "doubling_t"]
         for col in pop_mean_cols:
-            tot_df[col] = tot_df[col] * tot_df["N"]
+            tot_df[col] = tot_df[col] * tot_df["total_population"]
 
         # No columns should contain negatives or NaNs
         nan_vals = tot_df.isna().sum()
@@ -404,7 +349,7 @@ if __name__ == "__main__":
                         .unstack()
                         .stack(level=0)
                         .reset_index()
-                        .rename(columns={"level_2": "q"})
+                        .rename(columns={"level_2": "quantile"})
                     )
                 return q_df
 
@@ -413,11 +358,11 @@ if __name__ == "__main__":
             q_df = g.apply(quantiles_group)
 
             q_df[level] = q_df[level].round().astype(int).map(level_map)
-            q_df.set_index([level, "date", "q"], inplace=True)
+            q_df.set_index([level, "date", "quantile"], inplace=True)
 
             per_cap_dict = {}
             for col in per_capita_cols:
-                per_cap_dict[col+"_per_100k"] = (q_df[col] / q_df["N"]) * 100000.0
+                per_cap_dict[col+"_per_100k"] = (q_df[col] / q_df["total_population"]) * 100000.0
             q_df = q_df.assign(**per_cap_dict)
             q_df = divide_by_pop(q_df, pop_mean_cols)
 
@@ -458,6 +403,14 @@ if __name__ == "__main__":
             fname = os.path.join(output_dir, level + "_quantiles.csv")
             print("Sorting output file " + fname, end="... ")
             df = pd.read_csv(fname)
-            df.sort_values([level, "date", "q"], inplace=True)
-            df.to_csv(fname, index=False)
+
+            #TODO we can avoid having to set index here once readable_column names is complete 
+            df.set_index([level, "date", "quantile"], inplace=True)
+            # sort rows by index
+            df.sort_index(inplace=True)
+            # sort columns alphabetically
+            df = df.reindex(sorted(df.columns), axis=1)
+            # write out sorted csv
+            df.drop(columns='index', inplace=True) # TODO where did we pick this up?
+            df.to_csv(fname, index=True)
             print(" Done")
