@@ -1,6 +1,8 @@
 # Usage
 
 ## Creating Input Graphs
+**Note: this section will be updated, but first awaiting updates by APL**
+
 This section outlines the required structure of the input graph. The Bucky model does not do any data manipulation, smoothing, or correcting to the data it receives from the graph (by design). If data needs to be manipulated or corrected, it should be done before it is placed on the graph.
 
 An example script for creating the input graph for the US is provided in `make_input_graph.py`
@@ -122,9 +124,11 @@ A value of 1 indicates the NPIs having no effect on the transmission for the giv
 The columns `home, work, school, other_locations, ` correspond with the columns in the contact matrix. The contact matrix is multiplied with the values of these columns in the NPI file. 
 The value in `mobility_reduction` influences the mobility between regions, each weight in the mobility matrix that has as start or endpoint the given admin2, will be multiplied by that `mobility_reduction` value. Lastly, the effective reproduction rate is multiplied with the `r0_reduction` to come to the new effective reproduction rate given the NPIs.  
 
-An example file is given in *included_data/npi/AFG_NPIs_20201014.csv*. The [OCHA model parametrization repository](https://github.com/OCHA-DAP/pa-COVID-model-parameterization) implements a method to convert written NPI measures to the required Bucky format.  
+An example file is given in *included_data/npi/AFG_NPIs_20201014.csv*. The [OCHA model parametrization repository](https://github.com/OCHA-DAP/pa-COVID-model-parameterization) implements a method to convert written NPI measures to the required Bucky format.  This script also generates an `elderly_shielding` column, but this NPI is currently not implemented in the model and thus not required.
 
 ## Model
+*Note: this section will be updated, but first awaiting updates by APL*
+
 `model.py` takes the following arguments (all are optional as they are either flags or have defined defaults):
 
 * `--graph`, `-g`: Graph file to use. *Default*: Most recently created graph.
@@ -163,36 +167,10 @@ Arguments:
 * `--no_quantiles`: Skips computing quantiles and computes only mean and standard deviation.
 * `--lookup`: Pass in an explicit lookup table for geographic mapping info. See below caveat.
 
-#### Lookup Tables
-By default, postprocessing uses geographic information on the graph to aggregate geographic areas. For special cases, a lookup table may be passed in via the `--lookup` command. This is intended to be used for splitting states into non-FIPS divisions. When a lookup table is passed in, the output directory will be prepended with a string to distinguish it from output created from the same simulation using the graph file.
-
-
 ### Visualization
 The Bucky model has the capability to create two types of visualization: plots and maps. Both are contained within the `viz/` directory. 
 
 All visualizations are placed in subfolders in the same directory as the aggregated directory. Plots are placed in `plots/` and maps are placed in `maps/`. These folders can be renamed with command-line arguments, but will still be placed within the aggregated data folder.
-
-Example:
-```
-2020-07-28__15_21_52/
-├── adm0_mean_std.csv
-├── adm0_quantiles.csv
-├── adm1_mean_std.csv
-├── adm1_quantiles.csv
-├── adm2_mean_std.csv
-├── adm2_quantiles.csv
-├── maps
-│   └── ADM1
-│       ├── adm1_AlabamaDailyReportedCases2020-07-26.png
-│       ├── adm1_AlabamaDailyReportedCases2020-08-02.png
-│       ├── ...
-└── plots
-    ├── ADM1
-    │   ├── Alabama.png
-    │   ├── ...
-    ├── US.csv
-    └── US.png
-```
 
 #### Plots
 
@@ -200,7 +178,7 @@ Plots can be created at any of the three admin levels. Each plot contains two su
 ```console
 python3 viz/plot.py -i output/2020-06-10__14_13_04/ --hist 
 ```
-*NOTE*: By default, `plot.py` makes admin0 and admin1 plots. In order to create admin2-level plots, a user must also pass in an admin1 name. For example, to create county-level plots for Arizona, `--adm1_name Arizona` must be passed in as an argument.
+*NOTE*: By default, `plot.py` makes admin0 and admin1 plots. In order to create admin2-level plots, a user must also pass in an admin1 name. For example, to create admin2-level plots for Kabul, `--adm1_name Kabul` must be passed in as an argument.
 
 Arguments and flags:
 * `--input_dir`, `-i`: Directory location of aggregated data. *Default*: Most recently created subdirectory in the default directory for processed data (`output/`)
@@ -226,11 +204,11 @@ By default, confidence intervals are plotted using quantiles. Optionally, the st
 The plotting utility expects historical data to be at the adm2-level.
 
 #### Maps
-Maps are created at the adm0 or adm1 level. In order to create maps, shapefiles must be provided one level down from the requested map (e.g. adm2-level shapefile must be provided for adm1-level maps). Maps can be created for specific dates or distributed throughout the length of the simulation with a requested frequency.
+Maps are created at the adm0 or adm1 level. In order to create maps, shapefiles must be provided one level down from the requested map (e.g. adm2-level shapefile must be provided for adm1-level maps). Maps can be created for specific dates or distributed throughout the length of the simulation with a requested frequency. Currently the admin column names of the shapefile are assumed to be `adm0`,`adm1` and `adm2`. 
 
 Example usage: 
 ```console
-python3 viz/map.py -i output/2020-06-10__14_13_04/  --all_adm1--adm2_shape data/shapefiles/tl_2019_us_county.shp --dates 2020-06-01
+python3 viz/map.py -i output/2020-06-10__14_13_04/  --all_adm1--adm2_shape data/shapefiles/afg_2019.shp --dates 2020-06-01
 ```
 
 Arguments and flags:
