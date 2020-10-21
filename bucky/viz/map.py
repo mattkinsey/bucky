@@ -222,7 +222,7 @@ def get_map_data(data_dir, adm_level, use_mean=False):
         df = pd.read_csv(filename)
 
         # Keep median
-        df = df.loc[df["q"] == 0.5]
+        df = df.loc[df["quantile"] == 0.5]
 
     return df
 
