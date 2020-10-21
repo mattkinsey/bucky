@@ -1,13 +1,13 @@
 Getting Started
 +++++++++++++++
 
-This should work on Linux or OSX.
+The following steps have been tested on Linux and OSX.
 
-Clone repo
+Clone the repo
 
 .. code-block:: bash
 
-  git clone git@github.com:OCHA-DAP/pa-ocha-bucky.git
+  git clone https://github.com/OCHA-DAP/pa-ocha-bucky.git
 
 Create Anaconda env (use GPU is you have an nvidia gpu that you want to use)
 
@@ -30,21 +30,33 @@ Create a .csv file with the historical data from the graph
 
     ./bmodel util.graph2histcsv included_data/graphs/AFG_graph_20201014.p included_data/graphs/AFG_hist_20201014.csv
 
-If including NPI's in the simulation, add a csv with the currently inplace NPI's. An example file for Afghanistan is given in *included_data/npi/AFG_NPIs_20201014.csv*
 
 Run the model with 100 iterations and 20 days:
 
 .. code-block:: bash
 
+  ./bmodel model -n 100 -d 20 -g included_data/graphs/AFG_graph_20201014.p
+
+In the above example, no Non-Pharmeutical Interventions (NPIs) are defined and thus the model bases its values on historical data without explicitly taking into account any NPIs nor explicitly lifting them.
+If it is desirable to either model the NPIs or explicitly lift them, a csv with the currently inplace NPIs should be added. An example NPI file for Afghanistan is given in *included_data/npi/AFG_NPIs_20201014.csv*. The simulation with NPIs can be run by
+
+.. code-block:: bash
+
   ./bmodel model -n 100 -d 20 -g included_data/graphs/AFG_graph_20201014.p --npi_file included_data/npi/AFG_NPIs_20201014.csv
 
-Postprocess and aggregate the monte carlo runs to admin 0 and admin 1 level
+Lastly, there is the option to explicitly lift the NPIs. This can be done by adding the ``--disable-npi`` argument, i.e.
+
+.. code-block:: bash
+
+  ./bmodel model -n 100 -d 20 -g included_data/graphs/AFG_graph_20201014.p --npi_file included_data/npi/AFG_NPIs_20201014.csv --disable-npi
+
+Once the simulations are run, the data can be postprocessed and the monte carlo runs can be aggregated to admin 0 and admin 1 level. By defaults it takes the most recently created folder in the `raw_output_dir` as data to be processed, but this can be changed with the ``--file`` argument.
 
 .. code-block:: bash
 
   ./bmodel postprocess -l adm0 adm1 -g included_data/graphs/AFG_graph_20201014.p
 
-Create output plots with the projected values of all iterations (they will be in output/<run_id>/plots)
+After postprocessing, output plots with the projected values of all iterations can be created (they will be in output/<run_id>/plots)
 
 .. code-block:: bash
 
