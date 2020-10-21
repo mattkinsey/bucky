@@ -94,6 +94,14 @@ parser.add_argument(
     help="Enable cupy kernel optimizations. Do this for large runs using the gpu (n > 100).",
 )
 
+# TODO this should be able to take in the rejection factor thats hardcoded
+parser.add_argument(
+    "-r",
+    "--reject_runs",
+    action="store_true",
+    help="Reject Monte Carlo runs with incidence rates that don't align with historical data",
+)
+
 parser.add_argument(
     "-o",
     "--output_dir",
