@@ -206,6 +206,11 @@ class SEIR_covid(object):
             if "all_locations" in self.contact_mats:
                 del self.contact_mats["all_locations"]
 
+            # TODO tmp to remove unused contact mats in como comparison graph
+            #print(self.contact_mats.keys())
+            valid_contact_mats = ['home','work','other_locations','school']
+            self.contact_mats = {k: v for k, v in self.contact_mats.items() if k in valid_contact_mats}
+
             self.Cij = xp.vstack(
                 [self.contact_mats[k][None, ...] for k in sorted(self.contact_mats)]
             )
