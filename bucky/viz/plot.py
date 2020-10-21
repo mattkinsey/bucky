@@ -312,9 +312,12 @@ def plot(
         )
         plot_filename = plot_filename.replace(" : ", "_")
         plot_filename = plot_filename.replace(" ", "")
-        area_data.to_csv(plot_filename.replace(".png", ".csv"))
         plt.savefig(plot_filename)
         plt.close()
+
+        # Save CSV
+        csv_filename = os.path.join(output_dir, name + ".csv")
+        area_data.to_csv(csv_filename)
 
 
 def make_plots(

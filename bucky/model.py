@@ -48,7 +48,6 @@ from .numerical_libs import xp, ivp, sparse # isort:skip
 # Params TODO move all this to arg_parser or elsewhere
 #
 OUTPUT = True # TODO is this really even used anymore?
-REJECT_RUNS = False #True # TODO this shoudl come from arg parse
 
 # TODO move to param file
 RR_VAR = 0.12  # variance to use for MC of params with no CI
@@ -207,8 +206,10 @@ class SEIR_covid(object):
             if "all_locations" in self.contact_mats:
                 del self.contact_mats["all_locations"]
 
-            # TMP, elderly_shielding isn't implemented yet
-            if 'elderly_shielding' in self.contact_mats: del self.contact_mats['elderly_shielding']
+            # TODO tmp to remove unused contact mats in como comparison graph
+            #print(self.contact_mats.keys())
+            valid_contact_mats = ['home','work','other_locations','school']
+            self.contact_mats = {k: v for k, v in self.contact_mats.items() if k in valid_contact_mats}
 
             self.Cij = xp.vstack(
                 [self.contact_mats[k][None, ...] for k in sorted(self.contact_mats)]
@@ -916,7 +917,7 @@ class SEIR_covid(object):
         if (init_inc_death_mean > inc_death_rejection_fac * hist_inc_death_mean) or (
             inc_death_rejection_fac * init_inc_death_mean < hist_inc_death_mean
         ):
-            if REJECT_RUNS:
+            if args.reject_runs:
                 logging.info("Inconsistent inc deaths, rejecting run")
                 raise SimulationException
 
@@ -934,7 +935,7 @@ class SEIR_covid(object):
         if (init_inc_case_mean > inc_case_rejection_fac * hist_inc_case_mean) or (
             inc_case_rejection_fac * init_inc_case_mean < hist_inc_case_mean
         ):
-            if REJECT_RUNS:
+            if args.reject_runs:
                 logging.info("Inconsistent inc cases, rejecting run")
                 raise SimulationException
 
@@ -1005,7 +1006,7 @@ class SEIR_covid(object):
                     negative_values = True
 
         if negative_values:
-            if REJECT_RUNS:
+            if args.reject_runs:
                 logging.info('Rejecting run b/c of negative values in output')
                 raise SimulationException
 
@@ -1042,10 +1043,11 @@ if __name__ == "__main__":
 
     def writer():
         # Call to_write.get() until it returns None
-        #stream = xp.cuda.Stream()
+        stream = xp.cuda.Stream() if args.gpu else None
         for base_fname, df_data in iter(to_write.get, None):
-            cpu_data = {k: xp.to_cpu(v) for k,v in df_data.items()}
-            #stream.synchronize()
+            cpu_data = {k: xp.to_cpu(v, stream=stream) for k,v in df_data.items()}
+            if stream is not None:
+                stream.synchronize()
             df = pd.DataFrame(cpu_data)
             for date, date_df in df.groupby("date", as_index=False):
                 fname = base_fname + "_" + str(date.date()) + ".feather"
