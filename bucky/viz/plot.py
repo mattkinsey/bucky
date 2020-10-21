@@ -66,7 +66,7 @@ parser.add_argument(
 )
 
 # Columns for plot, historical data
-default_plot_cols = ["daily_cases_reported", "daily_deaths"]
+default_plot_cols = ["daily_reported_cases", "daily_deaths"]
 
 parser.add_argument(
     "--plot_columns",
@@ -189,7 +189,7 @@ def plot(
 
     # If quantiles were not specified, get all quantiles present in data
     if quantiles is None:
-        quantiles = sim_data["q"].unique()
+        quantiles = sim_data["quantile"].unique()
 
     # Get number of quantiles
     num_intervals = len(quantiles)
@@ -240,7 +240,7 @@ def plot(
         for i, col in enumerate(plot_columns):
 
             # Set index
-            area_data.set_index(["date", "q"], inplace=True)
+            area_data.set_index(["date", "quantile"], inplace=True)
 
             # Middle is median
             median_data = area_data.xs(quantiles[int(num_intervals / 2)], level=1)[col]

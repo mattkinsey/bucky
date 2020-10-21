@@ -12,6 +12,7 @@ from matplotlib.ticker import LogFormatter, ScalarFormatter
 from tqdm import tqdm
 
 from ..util.read_config import bucky_cfg
+from ..util.util import remove_chars
 from ..util.readable_col_names import readable_col_names
 from .geoid import read_geoid_from_graph, read_lookup
 
@@ -113,6 +114,21 @@ parser.add_argument(
     default=os.path.join(bucky_cfg["data_dir"], "shapefiles/tl_2019_us_county.shp"),
     type=str,
     help="Location of admin2 shapefile",
+)
+
+# Shape file information
+parser.add_argument(
+    "--adm1_col",
+    default="STATEFP",
+    type=str,
+    help="Shapefile adm1 column name",
+)
+
+parser.add_argument(
+    "--adm2_col",
+    default="GEOID",
+    type=str,
+    help="Shapefile adm2 column name",
 )
 
 # Can pass in a lookup table to use in place of graph
@@ -222,7 +238,7 @@ def get_map_data(data_dir, adm_level, use_mean=False):
         df = pd.read_csv(filename)
 
         # Keep median
-        df = df.loc[df["q"] == 0.5]
+        df = df.loc[df["quantile"] == 0.5]
 
     return df
 
@@ -442,7 +458,7 @@ def make_adm1_maps(
         adm1_list = lookup_df["adm1_name"].unique()
 
     # Iterate over list and make a map for each
-    for admin_area in tqdm(adm1_list, total=len(cols) * len(adm1_list)):
+    for admin_area in tqdm(adm1_list, total=len(adm1_list)):
 
         # Find admin 2 values in this admin1
         admin1_code = lookup_df.loc[lookup_df["adm1_name"] == admin_area][
@@ -451,8 +467,9 @@ def make_adm1_maps(
         admin2_vals = lookup_df.loc[lookup_df["adm1_name"] == admin_area][
             "adm2"
         ].unique()
+
         area_data = df.loc[df["adm2"].isin(admin2_vals)]
-        area_data = area_data.assign(adm1=df["adm2"] // 1000)
+        area_data = area_data.assign(adm1=admin1_code)
 
         # Only keep shape data that matches
         # area_shape = shape_df.loc[shape_df['adm1'] == admin1_code ]
@@ -522,6 +539,8 @@ if __name__ == "__main__":
     use_mean = args.mean
     dates = args.dates
     use_log = False if args.linear else True
+    adm1_col_name = args.adm1_col
+    adm2_col_name = args.adm2_col
 
     # Create maps
     if args.adm0:
@@ -537,10 +556,11 @@ if __name__ == "__main__":
         shape_data = gpd.read_file(args.adm1_shape)
 
         # Rename join column
-        shape_data = shape_data.rename(columns={"STATEFP": "adm1"})
+        if adm1_col_name != "adm1":
+            shape_data = shape_data.rename(columns={adm1_col_name : "adm1"})
 
-        # Cast to int
-        shape_data["adm1"] = shape_data["adm1"].astype(int)
+        # Column management - adm1/2 vals should be integers only
+        shape_data["adm1"] = shape_data["adm1"].apply(remove_chars).astype(int)
 
         # Send to map
         make_map(
@@ -575,22 +595,24 @@ if __name__ == "__main__":
         adm2_shape_data = gpd.read_file(args.adm2_shape)
 
         # Rename join column
-        adm2_shape_data = adm2_shape_data.rename(columns={"STATEFP": "adm1"})
+        if adm1_col_name != "adm1":
+            adm2_shape_data = adm2_shape_data.rename(columns={adm1_col_name: "adm1"})
 
         # Cast to int
-        adm2_shape_data["adm1"] = adm2_shape_data["adm1"].astype(int)
+        adm2_shape_data["adm1"] = adm2_shape_data["adm1"].apply(remove_chars).astype(int)
         adm2_shape_data = adm2_shape_data.assign(
-            adm2=adm2_shape_data["GEOID"].astype(int)
+            adm2=adm2_shape_data[adm2_col_name].apply(remove_chars).astype(int)
         )
 
         # use adm1 shape data as well
         adm1_shape_data = gpd.read_file(args.adm1_shape)
 
         # Rename join column
-        adm1_shape_data = adm1_shape_data.rename(columns={"STATEFP": "adm1"})
+        if adm1_col_name != "adm1":
+            adm1_shape_data = adm1_shape_data.rename(columns={adm1_col_name : "adm1"})
 
         # Cast to int
-        adm1_shape_data["adm1"] = adm1_shape_data["adm1"].astype(int)
+        adm1_shape_data["adm1"] = adm1_shape_data["adm1"].apply(remove_chars).astype(int)
 
         make_adm1_maps(
             adm2_shape_df=adm2_shape_data,

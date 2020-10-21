@@ -957,31 +957,31 @@ class SEIR_covid(object):
 
         # Grab pretty much everything interesting
         df_data = {
-            "ADM2_ID": adm2_ids.reshape(-1),
+            "adm2_id": adm2_ids.reshape(-1),
             "date": dates.reshape(-1),
             "rid": np.broadcast_to(seed, out.shape[-1]).reshape(-1),
-            "N": N.reshape(-1),
-            "hospitalizations": hosps.reshape(-1),
+            "total_population": N.reshape(-1),
+            "current_hospitalizations": hosps.reshape(-1),
             #"S": out[Si],
             #"E": out[Ei],
             #"I": out[Ii],
             #"Ic": out[Ici],
-            "cases_asymptomatic_active": out[Iasi], # TODO remove?
+            "active_asymptomatic_cases": out[Iasi], # TODO remove?
             #"R": out[Ri],
             #"Rh": out[Rhi],
             "cumulative_deaths": out[Di],
             "daily_hospitalizations": daily_hosp.reshape(-1),
             "daily_cases": daily_cases_total.reshape(-1),
-            "daily_cases_reported": daily_cases_reported.reshape(-1),
+            "daily_reported_cases": daily_cases_reported.reshape(-1),
             "daily_deaths": daily_deaths.reshape(-1),
             "cumulative_cases": cum_cases_total.reshape(-1),
-            "cumulative_cases_reported": cum_cases_reported.reshape(-1),
-            "ICU": xp.sum(icu, axis=0).reshape(-1),
-            "VENT": xp.sum(vent, axis=0).reshape(-1),
-            "CASE_REPORT": np.broadcast_to(
+            "cumulative_reported_cases": cum_cases_reported.reshape(-1),
+            "current_icu_usage": xp.sum(icu, axis=0).reshape(-1),
+            "current_vent_usage": xp.sum(vent, axis=0).reshape(-1),
+            "case_reporting_rate": np.broadcast_to(
                 self.params.CASE_REPORT[:, None], adm2_ids.shape
             ).reshape(-1),
-            "Reff": (
+            "R_eff": (
                 self.npi_params["r0_reduct"].T
                 * np.broadcast_to(
                     (self.params.R0 * (np.diag(self.A)))[:, None], adm2_ids.shape
