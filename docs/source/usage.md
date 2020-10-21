@@ -4,7 +4,7 @@
 This section outlines the required structure of the input graph. The Bucky model does not do any data manipulation, smoothing, or correcting to the data it receives from the graph (by design). If data needs to be manipulated or corrected, it should be done before it is placed on the graph.
 
 An example script for creating the input graph for the US is provided in `make_input_graph.py`
-Moreover, the OCHA repository https://github.com/OCHA-DAP/pa-COVID-model-parameterization generates input graphs for Afghanistan, the Democratic Republic of Congo, Iraq, Somalia, Sudan and South Sudan.
+Moreover, the [OCHA model parametrization repository](https://github.com/OCHA-DAP/pa-COVID-model-parameterization) generates input graphs for Afghanistan, the Democratic Republic of Congo, Iraq, Somalia, Sudan and South Sudan.
 
 The graph is created using admin2-level data. If data can not be found at the admin2-level, admin2-level information can be extrapolated using admin2 population and national or state level data (this is expanded upon in the *Population Data* section).
 
@@ -115,14 +115,14 @@ The baseline mobility data shows up as an edge attributed called *weight*. *R0_f
 
 ## Creating NPI files
 While optional, the Bucky model can include the effects of Non-Pharmeutical Interventions (NPIs) in its simulations. To do so, a .csv-file has to be given as input that includes the effects of the NPIs on different aspects.
-The file has to consist of the columns `admin2,date,home,school, work, other_locations, elderly_shielding, mobility_reduction,r0_reduction,`. 
-Each row contains an unique `admin2`-`date` combination. The other columns indicate the effect of the current NPIs on the given column. The columns `home, work, school, other_locations, elderly_shielding` correspond with the columns in the contact matrix. The contact matrix is multiplied with the values of these columns in the NPI file. 
-The value in `mobility_reduction` influences the mobility between regions. And the `r0_reduction` applies to the overall community transmission.  
-
+The file has to consist of the columns `admin2, date, home, school, work, other_locations, mobility_reduction,r0_reduction`. 
+Each row contains an unique `admin2`-`date` combination. The other columns indicate the effect of the current NPIs on the given column. 
 A value of 1 indicates the NPIs having no effect on the transmission for the given column name. A value smaller than 1 indicates that the NPI's lower the transmission in this domain, while values larger than 1 indicate an increased transmission. 
 
+The columns `home, work, school, other_locations, ` correspond with the columns in the contact matrix. The contact matrix is multiplied with the values of these columns in the NPI file. 
+The value in `mobility_reduction` influences the mobility between regions, each weight in the mobility matrix that has as start or endpoint the given admin2, will be multiplied by that `mobility_reduction` value. Lastly, the effective reproduction rate is multiplied with the `r0_reduction` to come to the new effective reproduction rate given the NPIs.  
 
-The OCHA repository https://github.com/OCHA-DAP/pa-COVID-model-parameterization implements a method to convert written NPI measures to these numbers. 
+An example file is given in *included_data/npi/AFG_NPIs_20201014.csv*. The [OCHA model parametrization repository](https://github.com/OCHA-DAP/pa-COVID-model-parameterization) implements a method to convert written NPI measures to the required Bucky format.  
 
 ## Model
 `model.py` takes the following arguments (all are optional as they are either flags or have defined defaults):
