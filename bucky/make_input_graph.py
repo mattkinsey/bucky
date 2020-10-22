@@ -18,8 +18,6 @@ from .util import estimate_IFR
 from .util.read_config import bucky_cfg
 from .util.update_data_repos import update_repos
 
-# from IPython import embed
-
 # TODO all these paths should be combined properly rather than just with str cat
 
 DAYS_OF_HIST = 45
@@ -89,7 +87,7 @@ def get_case_history(historical_data, end_date, num_days=DAYS_OF_HIST):
 
         # Get block of data
         block = group.loc[(group["date"] >= start_date) & (group["date"] <= end_date)]
-        block = block[["Confirmed", "Deaths", "date"]]
+        block = block[["cumulative_reported_cases", "cumulative_deaths", "date"]]
 
         # If no data, fill with zeros
         if block.empty:
@@ -99,8 +97,8 @@ def get_case_history(historical_data, end_date, num_days=DAYS_OF_HIST):
             block = block.set_index("date").sort_index()
 
             # Get array of values
-            confirmed = block["Confirmed"].to_numpy()
-            deaths = block["Deaths"].to_numpy()
+            confirmed = block["cumulative_reported_cases"].to_numpy()
+            deaths = block["cumulative_deaths"].to_numpy()
 
             # TODO this needs a refactor
             # If there are less than the requested values, fill in missing values
@@ -115,7 +113,7 @@ def get_case_history(historical_data, end_date, num_days=DAYS_OF_HIST):
                 block = nan_frame.merge(
                     block, left_index=True, right_index=True, how="left"
                 ).bfill()
-                confirmed = block["Confirmed"].to_numpy()
+                confirmed = block["cumulative_reported_cases"].to_numpy()
             if len(deaths) < (num_days + 1):
 
                 # Create nan frame to fill missing values with nans
@@ -127,7 +125,7 @@ def get_case_history(historical_data, end_date, num_days=DAYS_OF_HIST):
                 block = nan_frame.merge(
                     block, left_index=True, right_index=True, how="left"
                 ).bfill()
-                deaths = block["Deaths"].to_numpy()
+                deaths = block["cumulative_deaths"].to_numpy()
 
             hist[fips] = np.vstack([confirmed, deaths])
 
@@ -616,11 +614,11 @@ if __name__ == "__main__":
 
     data = counties.merge(data, on="adm2", sort=True, how="left")
 
-    for col in ["Confirmed", "Deaths"]:
+    for col in ["cumulative_reported_cases", "cumulative_deaths"]:
         data[col] = data[col].fillna(0.0)
 
     data = data[
-        ["adm2", "adm1", "Confirmed", "Deaths", "pop_dens", "geometry", "NAMELSAD"]
+        ["adm2", "adm1", "cumulative_reported_cases", "cumulative_deaths", "pop_dens", "geometry", "NAMELSAD"]
     ]
     data = data.rename(columns={"NAMELSAD": "adm2_name"})
 

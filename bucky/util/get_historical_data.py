@@ -10,13 +10,13 @@ csse = os.path.join(bucky_cfg["data_dir"],"cases/csse_hist_timeseries.csv")
 
 # Specify file and column name
 data_locations = {
-    "cumulative_cases": {"file": csse , "column": "Confirmed"},
-    "cumulative_reported_cases": {"file": csse , "column": "Confirmed"},
-    "cumulative_deaths": {"file": csse, "column": "Deaths"},
+    "cumulative_cases": {"file": csse , "column": "cumulative_reported_cases"},
+    "cumulative_reported_cases": {"file": csse , "column": "cumulative_reported_cases"},
+    "cumulative_deaths": {"file": csse, "column": "cumulative_deaths"},
     "current_hospitalizations": {"file": covid_tracking, "column": "hospitalizedCurrently"},
-    "daily_reported_cases": {"file": csse, "column": "Confirmed_daily"},
-    "daily_cases": {"file": csse, "column": "Confirmed_daily"},
-    "daily_deaths": {"file": csse, "column": "Deaths_daily"},
+    "daily_reported_cases": {"file": csse, "column": "daily_reported_cases"},
+    "daily_cases": {"file": csse, "column": "daily_reported_cases"},
+    "daily_deaths": {"file": csse, "column": "daily_deaths"},
     "current_vent_usage": {"file": covid_tracking, "column": "onVentilatorCurrently"},
     "current_icu_usage": {"file": covid_tracking, "column": "inIcuCurrently"},
     "daily_hospitalizations": {"file": covid_tracking, "column": "hospitalizedIncrease"},
@@ -46,7 +46,7 @@ def add_daily_history(history_data, window_size=None):
     history_data = history_data.drop(columns=str_cols)
 
     daily_data = history_data.groupby(level=0).diff()
-    daily_data.columns = [str(col) + "_daily" for col in daily_data.columns]
+    daily_data.columns = [str(col).replace('cumulative','daily') for col in daily_data.columns]
 
     if window_size is not None:
 
@@ -103,7 +103,7 @@ def get_historical_data(columns, level, lookup_df, window_size, hist_file):
             column_name = data_locations[requested_col]["column"]
         else:
             file = hist_file
-            column_name = requested_col
+            column_name = data_locations[requested_col]["column"]
 
         # Read file
         data = pd.read_csv(file, na_values=0.)
@@ -158,15 +158,8 @@ if __name__ == "__main__":
 
     look = read_geoid_from_graph(graph_file) 
     levels = ['adm0']
-    cols = ["VENT", "daily_cases"]
+    cols = ["current_vent_usage", "daily_reported_cases"]
     for level in levels:
 
         df = get_historical_data(cols, level, look, 7)
-
-
-
-
-
-
-
 
