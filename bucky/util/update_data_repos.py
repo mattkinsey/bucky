@@ -459,6 +459,10 @@ def process_csse_data():
     confirmed = get_timeseries_data("Confirmed", confirmed_file)
     deaths = get_timeseries_data("Deaths", deaths_file)
 
+    # rename columns
+    confirmed.rename('cumulative_reported_cases', inplace=True)
+    deaths.rename('cumulative_deaths', inplace=True)
+
     # Merge datasets
     data = pd.merge(confirmed, deaths, on=["FIPS", "date"], how="left").fillna(0)
 
