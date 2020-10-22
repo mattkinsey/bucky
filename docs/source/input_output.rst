@@ -45,7 +45,7 @@ Index name  Description
 ==========  ===========
 adm*        The adm ID corresponding to the geographic level (i.e. adm2 ID)
 date        The date
-q           Quantile value     
+quantile    Quantile value     
 ==========  ===========
 
 
