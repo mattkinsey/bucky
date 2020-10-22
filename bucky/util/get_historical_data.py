@@ -14,9 +14,9 @@ data_locations = {
     "cumulative_reported_cases": {"file": csse , "column": "cumulative_reported_cases"},
     "cumulative_deaths": {"file": csse, "column": "cumulative_deaths"},
     "current_hospitalizations": {"file": covid_tracking, "column": "hospitalizedCurrently"},
-    "daily_reported_cases": {"file": csse, "column": "cumulative_reported_cases_daily"},
-    "daily_cases": {"file": csse, "column": "cumulative_reported_cases_daily"},
-    "daily_deaths": {"file": csse, "column": "cumulative_deaths_daily"},
+    "daily_reported_cases": {"file": csse, "column": "daily_reported_cases"},
+    "daily_cases": {"file": csse, "column": "daily_reported_cases"},
+    "daily_deaths": {"file": csse, "column": "daily_deaths"},
     "current_vent_usage": {"file": covid_tracking, "column": "onVentilatorCurrently"},
     "current_icu_usage": {"file": covid_tracking, "column": "inIcuCurrently"},
     "daily_hospitalizations": {"file": covid_tracking, "column": "hospitalizedIncrease"},
@@ -46,9 +46,7 @@ def add_daily_history(history_data, window_size=None):
     history_data = history_data.drop(columns=str_cols)
 
     daily_data = history_data.groupby(level=0).diff()
-    #TODO we want to rework this b/c its making for some weird column names
-    #maybe we should jsut add the daily data in update_data_repos/graph2histcsv?
-    daily_data.columns = [str(col) + "_daily" for col in daily_data.columns]
+    daily_data.columns = [str(col).replace('cumulative','daily') for col in daily_data.columns]
 
     if window_size is not None:
 

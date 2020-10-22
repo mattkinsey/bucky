@@ -16,7 +16,4 @@ readable_col_names = {
     "current_icu_usage": "ICU Beds Usage",
     "total_population": "Population",
     "daily_hospitalizations": "Incident Hospitalizations",
-    # From historical CSSE formated file:
-    "cumulative_reported_cases_daily" : "Daily Cases",
-    "cumulative_deaths_daily" : "Daily Deaths"
 }
