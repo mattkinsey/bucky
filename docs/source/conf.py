@@ -18,11 +18,11 @@ sys.path.insert(0, os.path.abspath('../..'))
 import recommonmark
 from recommonmark.transform import AutoStructify
 
-repo_root_url = 'http://gitlab.com/kinsemc/bucky/'
+repo_root_url = 'https://github.com/OCHA-DAP/pa-ocha-bucky'
 
 # -- Project information -----------------------------------------------------
 
-project = 'Bucky'
+project = 'OCHA-Bucky'
 copyright = '2020, The Johns Hopkins University Applied Physics Laboratory LLC'
 author = 'Matt Kinsey, Kate Tallaksen, Freddy Obrecht'
 
