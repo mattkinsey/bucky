@@ -17,6 +17,6 @@ readable_col_names = {
     "total_population": "Population",
     "daily_hospitalizations": "Incident Hospitalizations",
     # From historical CSSE formated file:
-    "Confirmed_daily" : "Daily Cases",
-    "Deaths_daily" : "Daily Deaths"
+    "cumulative_reported_cases_daily" : "Daily Cases",
+    "cumulative_deaths_daily" : "Daily Deaths"
 }

@@ -10,7 +10,7 @@ csse = os.path.join(bucky_cfg["data_dir"],"cases/csse_hist_timeseries.csv")
 
 # Specify file and column name
 data_locations = {
-    "cumulative_cases": {"file": csse , "column": "Confirmed"},
+    "cumulative_cases": {"file": csse , "column": "cumulative_reported_cases"},
     "cumulative_reported_cases": {"file": csse , "column": "cumulative_reported_cases"},
     "cumulative_deaths": {"file": csse, "column": "cumulative_deaths"},
     "current_hospitalizations": {"file": covid_tracking, "column": "hospitalizedCurrently"},

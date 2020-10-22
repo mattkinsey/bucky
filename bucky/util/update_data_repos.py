@@ -161,10 +161,10 @@ def distribute_unallocated_csse(confirmed_file, deaths_file, hist_df):
         # Get historical data
         state_df = hist_df.loc[hist_df["state_fips"] == state_fips]
         state_df = state_df.reset_index()
-        state_confirmed = state_df[["FIPS", "date", "Confirmed"]]
+        state_confirmed = state_df[["FIPS", "date", "cumulative_reported_cases"]]
 
         state_confirmed = state_confirmed.pivot(
-            index="FIPS", columns="date", values="Confirmed"
+            index="FIPS", columns="date", values="cumulative_reported_cases"
         )
         frac_df = state_confirmed / state_confirmed.sum()
         frac_df = frac_df.replace(np.nan, 0)
@@ -175,8 +175,8 @@ def distribute_unallocated_csse(confirmed_file, deaths_file, hist_df):
 
         # Index historical data
         state_df = state_df.set_index(["date", "FIPS"])
-        tmp = dist_deaths.to_frame(name="Deaths")
-        tmp["Confirmed"] = dist_cases
+        tmp = dist_deaths.to_frame(name="cumulative_deaths")
+        tmp["cumulative_reported_cases"] = dist_cases
         state_df += tmp
 
         hist_df.loc[state_df.index] = state_df.values
@@ -217,16 +217,16 @@ def distribute_data_by_population(total_df, dist_vect, data_to_dist, replace):
 
     # Use population fraction to scale
     if replace:
-        tmp = tmp.assign(Confirmed=tmp["pop_fraction"] * tmp["Confirmed_y"])
-        tmp = tmp.assign(Deaths=tmp["pop_fraction"] * tmp["Deaths_y"])
+        tmp = tmp.assign(cumulative_reported_cases=tmp["pop_fraction"] * tmp["cumulative_reported_cases_y"])
+        tmp = tmp.assign(cumulative_deaths=tmp["pop_fraction"] * tmp["cumulative_deaths_y"])
     else:
         tmp = tmp.assign(
-            Confirmed=tmp["Confirmed_x"] + tmp["pop_fraction"] * tmp["Confirmed_y"]
+            cumulative_reported_cases=tmp["cumulative_reported_cases_x"] + tmp["pop_fraction"] * tmp["cumulative_reported_cases_y"]
         )
-        tmp = tmp.assign(Deaths=tmp["Deaths_x"] + tmp["pop_fraction"] * tmp["Deaths_y"])
+        tmp = tmp.assign(cumulative_deaths=tmp["cumulative_deaths_x"] + tmp["pop_fraction"] * tmp["cumulative_deaths_y"])
 
     # Discard merge columns
-    tmp = tmp[["FIPS", "date", "Confirmed", "Deaths"]]
+    tmp = tmp[["FIPS", "date", "cumulative_reported_cases", "cumulative_deaths"]]
     tmp.set_index(["FIPS", "date"], inplace=True)
     total_df.loc[tmp.index] = tmp.values
 
@@ -396,8 +396,8 @@ def distribute_territory_data(df, add_american_samoa):
         {
             "FIPS": fips_col,
             "date": date_col,
-            "Confirmed": [np.nan for d in date_col],
-            "Deaths": [np.nan for d in date_col],
+            "cumulative_reported_cases": [np.nan for d in date_col],
+            "cumulative_deaths": [np.nan for d in date_col],
         }
     )
     tframe.set_index(["FIPS", "date"], inplace=True)
@@ -421,8 +421,8 @@ def distribute_territory_data(df, add_american_samoa):
             {
                 "FIPS": [60050 for d in dates],
                 "date": dates,
-                "Confirmed": [1.0 for d in dates],
-                "Deaths": [0.0 for d in dates],
+                "cumulative_reported_cases": [1.0 for d in dates],
+                "cumulative_deaths": [0.0 for d in dates],
             }
         )
         as_frame.set_index(["FIPS", "date"], inplace=True)
@@ -460,8 +460,8 @@ def process_csse_data():
     deaths = get_timeseries_data("Deaths", deaths_file)
 
     # rename columns
-    confirmed.rename('cumulative_reported_cases', inplace=True)
-    deaths.rename('cumulative_deaths', inplace=True)
+    confirmed.rename(columns={'Confirmed':'cumulative_reported_cases'}, inplace=True)
+    deaths.rename(columns={'Deaths':'cumulative_deaths'}, inplace=True)
 
     # Merge datasets
     data = pd.merge(confirmed, deaths, on=["FIPS", "date"], how="left").fillna(0)
