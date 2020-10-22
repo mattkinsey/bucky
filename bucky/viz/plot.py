@@ -298,9 +298,7 @@ def plot(
                     axs[i].set_xlim(actuals["date"].min(), dates.max())
                     # axs[i].scatter(actual_dates[ind:], actual_vals[ind:], label='Historical data', color='b')
                 else:
-                    
-                    print(plot_columns[i])
-                    logging.warning("Historical data missing for area: " + name)
+                    logging.warning("Historical data missing for area: " + name + ", column=" + plot_columns[i])
 
             axs[i].grid(True)
             axs[i].legend()
