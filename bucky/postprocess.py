@@ -401,7 +401,7 @@ if __name__ == "__main__":
     if not args.no_sort:
         for level in args.levels:
             fname = os.path.join(output_dir, level + "_quantiles.csv")
-            print("Sorting output file " + fname, end="... ")
+            logging.info("Sorting output file " + fname + "...")
             df = pd.read_csv(fname)
 
             #TODO we can avoid having to set index here once readable_column names is complete 
@@ -413,4 +413,4 @@ if __name__ == "__main__":
             # write out sorted csv
             df.drop(columns='index', inplace=True) # TODO where did we pick this up?
             df.to_csv(fname, index=True)
-            print(" Done")
+            logging.info("Done sort")

@@ -459,7 +459,7 @@ if __name__ == "__main__":
 
     # Logging
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.WARNING,
         stream=sys.stdout,
         format="%(asctime)s - %(levelname)s - %(filename)s:%(funcName)s:%(lineno)d - %(message)s",
     )
