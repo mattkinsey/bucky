@@ -13,7 +13,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import scipy.stats
-from tqdm import tqdm
+import tqdm
 
 from ..util.read_config import bucky_cfg
 from ..util.get_historical_data import get_historical_data
@@ -212,7 +212,7 @@ def plot(
     else:
         unique_areas = unique_lookup_areas
 
-    for area in tqdm(unique_areas, total=len(unique_areas)):
+    for area in tqdm.tqdm(unique_areas, total=len(unique_areas), desc="Plotting " + key, dynamic_ncols=True):
 
         # Get name
         name = lookup_df.loc[lookup_df[key] == area][key + "_name"].values[0]

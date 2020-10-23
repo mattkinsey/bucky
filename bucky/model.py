@@ -14,7 +14,7 @@ from pprint import pformat  # TODO set some defaults for width/etc with partial?
 import networkx as nx
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
+import tqdm
 
 from .arg_parser_model import parser
 from .npi import read_npi_file
@@ -1034,10 +1034,12 @@ if __name__ == "__main__":
     seed = 0
     success = 0
     times = []
-    pbar = tqdm(total=n_mc, dynamic_ncols=True)
+    pbar = tqdm.tqdm(total=n_mc, desc='Performing Monte Carlos', dynamic_ncols=True)
     try:
         while success < n_mc:
             start = datetime.datetime.now()
+            pbar.set_postfix({'seed' : seed})
+            pbar.refresh()
             try:
                 with xp.optimize_kernels():
                     env.run_once(
