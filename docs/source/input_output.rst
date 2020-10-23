@@ -6,6 +6,19 @@ Input
 =====
 The Bucky model uses two main sources of input: the input graph and CDC-recommended parameters. The input graph contains data regarding demographics, geographic information, and historical case information.
 
+Additionally, the OCHA-Bucky model can include the effects of Non-Pharmeutical Interventions (NPIs) in its simulations. To do so, a .csv-file has to be given as input that includes the effects of the NPIs on different aspects.
+
+Creating NPI files
+----------------------
+The NPI file has to consist of the columns `admin2, date, home, school, work, other_locations, mobility_reduction,r0_reduction`.
+Each row contains an unique `admin2`-`date` combination. The other columns indicate the effect of the current NPIs on the given column.
+A value of 1 indicates the NPIs having no effect on the transmission for the given column name. A value smaller than 1 indicates that the NPI's lower the transmission in this domain, while values larger than 1 indicate an increased transmission.
+
+The columns `home, work, school, other_locations, ` correspond with the columns in the contact matrix. The contact matrix is multiplied with the values of these columns in the NPI file.
+The value in `mobility_reduction` influences the mobility between regions, each weight in the mobility matrix that has as start or endpoint the given admin2, will be multiplied by that `mobility_reduction` value. Lastly, the effective reproduction rate is multiplied with the `r0_reduction` to come to the new effective reproduction rate given the NPIs.
+
+An example file is given in *included_data/npi/AFG_NPIs_20201014.csv*. The [OCHA model parametrization repository](https://github.com/OCHA-DAP/pa-COVID-model-parameterization) implements a method to convert written NPI measures to the required Bucky format.  This script also generates an `elderly_shielding` column, but this NPI is currently not implemented in the model and thus not required.
+
 CDC-Recommended Parameters
 --------------------------
 The Centers for Disease Control and Prevention (CDC) has published pandemic planning scenarios [7] which contain recommended parameters describing biological and epidemiological parameters. Of these five planning scenarios, OCHA-Bucky utilizes scenario 5, which contains the CDC’s current best estimates for disease severity and transmission. These parameters are described in detail, based on information available from the CDC, and summarized in Table 2.
