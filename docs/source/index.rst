@@ -12,8 +12,10 @@ Welcome to OCHA-Bucky's documentation!
 
    getting_started
    install
-   usage
    compartment_model
+   input_output
+   graph_info
+   usage
    cli
    modules
    references
