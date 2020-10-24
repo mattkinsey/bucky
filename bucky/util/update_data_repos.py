@@ -426,7 +426,6 @@ def distribute_territory_data(df, add_american_samoa):
             }
         )
         as_frame.set_index(["FIPS", "date"], inplace=True)
-        print(as_frame)
         df = df.append(as_frame)
 
     return df
