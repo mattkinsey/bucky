@@ -626,9 +626,7 @@ if __name__ == "__main__":
     # Create edges
     logging.info("Creating edges...")
     edges = []
-    for index, row in tqdm.tqdm(
-        data.iterrows(), total=len(data), desc="Creating neighboring edges", dynamic_ncols=True
-    ):
+    for _, row in tqdm.tqdm(data.iterrows(), total=len(data), desc="Creating neighboring edges", dynamic_ncols=True):
 
         # Determine which counties touch
         neighbors = data[data.geometry.touches(row["geometry"])].adm2.to_numpy()

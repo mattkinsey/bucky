@@ -26,6 +26,9 @@ repos:
           flake8-print,
           flake8-simplify,
           #flake8-spellcheck,
+          flake8-rst-docstrings,
+          flake8-bugbear,
+          #flake8-eradicate,
           pandas-vet,
         ]
         #language_version: python3.8
