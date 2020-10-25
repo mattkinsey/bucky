@@ -1,8 +1,7 @@
 # Bucky Model 
 [![Documentation Status](https://readthedocs.org/projects/docs/badge/?version=latest)](https://bucky.readthedocs.io/en/latest/)
-![Black Lint](https://github.com/mattkinsey/bucky/workflows/Black%20Lint/badge.svg?branch=master)
-![isort](https://github.com/mattkinsey/bucky/workflows/isort/badge.svg?branch=master)
-
+![Lint Passing (master)](https://github.com/mattkinsey/bucky/workflows/test-pre-commit-hooks/badge.svg?branch=master)
+![Lint Passing (devel)](https://github.com/mattkinsey/bucky/workflows/test-pre-commit-hooks/badge.svg?branch=devel)
 
 **[Documentation](https://bucky.readthedocs.io/en/latest/)** 
 
