@@ -1,18 +1,17 @@
-# fmt: on/off
 # pylint: skip-file
 # I'd recommend not linting this file, we're really abusing the import system and variable scoping
 # here and linters don't like it...
+
+import contextlib
 
 import numpy as xp
 
 # Default imports for cpu code
 # This will be overwritten with a call to .numerical_libs.use_cupy()
-import scipy.integrate._ivp.ivp as ivp
-import scipy.sparse as sparse
+import scipy.integrate._ivp.ivp as ivp  # noqa: F401
+import scipy.sparse as sparse  # noqa: F401
 
 xp.scatter_add = xp.add.at
-import contextlib
-
 xp.optimize_kernels = contextlib.nullcontext
 xp.to_cpu = lambda x, **kwargs: x  # one arg noop
 
@@ -20,9 +19,11 @@ xp.to_cpu = lambda x, **kwargs: x  # one arg noop
 def use_cupy(optimize=False):
     """Perform imports for libraries with APIs matching numpy, scipy.integrate.ivp, scipy.sparse
 
-    These imports will use a monkey-patched version of these modules that has had all it's numpy references replaced with CuPy
+    These imports will use a monkey-patched version of these modules
+    that has had all it's numpy references replaced with CuPy.
 
-    if optimize is True, place the kernel optimization context in xp.optimize_kernels otherwise make it a nullcontext (noop)
+    if optimize is True, place the kernel optimization context in xp.optimize_kernels,
+    otherwise make it a nullcontext (noop)
 
     returns nothing but imports a version of 'xp', 'ivp', and 'sparse' to the global scope of this module
     """
