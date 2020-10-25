@@ -16,7 +16,7 @@ repos:
     rev: 3.8.4
     hooks:
       - id: flake8
-        args: ['--config=tox.ini']
+        args: ['--config=tox.ini --exit-zero']
         additional_dependencies: [
           flake8-docstrings,
           flake8-builtins, 
