@@ -2,7 +2,6 @@ import argparse
 import pickle
 
 import networkx as nx
-import numpy as np
 import pandas as pd
 
 parser = argparse.ArgumentParser(

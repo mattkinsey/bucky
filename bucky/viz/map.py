@@ -9,7 +9,8 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from matplotlib.ticker import LogFormatter, ScalarFormatter
+
+# from matplotlib.ticker import LogFormatter, ScalarFormatter
 from tqdm import tqdm
 
 from ..util.read_config import bucky_cfg
@@ -294,7 +295,7 @@ def make_map(
 
     # If log, use a different colormap and scale columns
     if log_scale:
-        formatter = LogFormatter(10, labelOnlyBase=False)
+        # formatter = LogFormatter(10, labelOnlyBase=False)
 
         # Log scale columns and save
         for col in cols:
@@ -306,7 +307,7 @@ def make_map(
             data_ranges.append([df[col_name].min(), df[col_name].max()])
 
     else:
-        formatter = ScalarFormatter()
+        # formatter = ScalarFormatter()
 
         for col in cols:
             data_ranges.append([df[col].min(), df[col].max()])

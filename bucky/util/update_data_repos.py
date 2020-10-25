@@ -1,4 +1,3 @@
-import glob
 import logging
 import os
 import ssl
@@ -280,6 +279,8 @@ def distribute_nyc_data(df):
     df : Pandas DataFrame
         DataFrame containing historical data indexed by FIPS and date
 
+    TODO add deprecation warning b/c csse has fixed this
+
     Returns
     -------
     df : Pandas DataFrame
@@ -288,7 +289,7 @@ def distribute_nyc_data(df):
 
     """
     # Get population for counties
-    nyc_counties = [36005, 36081, 36047, 36085, 36061]
+    # nyc_counties = [36005, 36081, 36047, 36085, 36061]
 
     # CSSE has incorrect population data
     county_populations = {
