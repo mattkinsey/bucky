@@ -5,10 +5,8 @@ import logging
 import os
 import pickle
 import random
-import sys
 import warnings
-from collections import defaultdict, deque
-from functools import lru_cache, partial
+from functools import lru_cache
 from pprint import pformat  # TODO set some defaults for width/etc with partial?
 
 import networkx as nx
@@ -18,8 +16,9 @@ import tqdm
 
 from .arg_parser_model import parser
 from .npi import read_npi_file
+from .numerical_libs import use_cupy
 from .parameters import buckyParams
-from .util import TqdmLoggingHandler, _banner, cache_files, date_to_t_int, dotdict, map_np_array
+from .util import TqdmLoggingHandler, _banner, cache_files
 from .util.distributions import mPERT_sample, truncnorm
 
 # supress pandas warning caused by pyarrow
@@ -27,14 +26,12 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 # TODO we do alot of allowing div by 0 and then checking for nans later, we should probably refactor that
 warnings.simplefilter(action="ignore", category=RuntimeWarning)
 
-from .numerical_libs import use_cupy
-
 if __name__ == "__main__":
     args = parser.parse_args()
     if args.gpu:
         use_cupy(optimize=args.opt)
 
-from .numerical_libs import xp, ivp, sparse  # isort:skip
+from .numerical_libs import xp, ivp, sparse  # noqa: E402 isort:skip
 
 
 class SimulationException(Exception):
@@ -57,7 +54,6 @@ class SEIR_covid(object):
         self.dt = 1.0  # time step for model output (the internal step is adaptive...)
         self.t_max = args.days
         self.done = False
-        start = datetime.datetime.now()
         self.run_id = get_runid()
         logging.info(f"Run ID: {self.run_id}")
 
@@ -252,7 +248,9 @@ class SEIR_covid(object):
                 df = G.graph["covid_tracking_data"]
                 self.adm1_current_cfr = xp.zeros((self.adm1_max + 1,), dtype=float)
                 cfr_delay = 12  # TODO this should be calced from D_REPORT_TIME*Nij
-                # TODO make a function that will take a 'floating point index' and return the fractional part of the non int (we do this multiple other places while reading over historical data, e.g. case_hist[-Ti:] during init)
+                # TODO make a function that will take a 'floating point index' and return
+                # the fractional part of the non int (we do this multiple other places while
+                # reading over historical data, e.g. case_hist[-Ti:] during init)
 
                 for adm1, g in df.groupby("adm1"):
                     g_df = g.set_index("date").sort_index().rolling(7).mean().dropna(how="all")
@@ -390,8 +388,8 @@ class SEIR_covid(object):
 
         self.params.H = self.params.H * H_fac
 
-        ic_frac = 1.0 / (1.0 + self.params.THETA / self.params.GAMMA_H)
-        hosp_frac = 1.0 / (1.0 + self.params.GAMMA_H / self.params.THETA)
+        # ic_frac = 1.0 / (1.0 + self.params.THETA / self.params.GAMMA_H)
+        # hosp_frac = 1.0 / (1.0 + self.params.GAMMA_H / self.params.THETA)
 
         # print(ic_frac + hosp_frac)
         exp_frac = (
@@ -731,7 +729,7 @@ class SEIR_covid(object):
 
         adm2_ids = np.broadcast_to(self.adm2_id[:, None], out.shape[1:])
 
-        n_time_steps = out.shape[-1]
+        # n_time_steps = out.shape[-1]
 
         if self.output_dates is None:
             t_output = xp.to_cpu(sol.t)
