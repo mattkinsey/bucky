@@ -5,7 +5,6 @@ import glob
 import logging
 import os
 import pickle
-import sys
 from datetime import timedelta
 
 import geopandas as gpd
@@ -185,7 +184,8 @@ def read_descartes_data(end_date):
     -----
     Data provided by Descartes Labs (https://descarteslabs.com/mobility/) [1]_
 
-    .. [1] Warren, Michael S. & Skillman, Samuel W. "Mobility Changes in Response to COVID-19". arXiv:2003.14228 [cs.SI], Mar. 2020. arxiv.org/abs/2003.14228
+    .. [1] Warren, Michael S. & Skillman, Samuel W. "Mobility Changes in Response to COVID-19". \
+            arXiv:2003.14228 [cs.SI], Mar. 2020. arxiv.org/abs/2003.14228
     """
     dl_data = pd.read_csv(mobility_dir + "DL-us-m50_index.csv")
     dl_data.rename(columns={"fips": "adm2"}, inplace=True)
@@ -311,8 +311,7 @@ def get_lex(last_date, window_size=7):
                 lex_df = lex_df.merge(tmp_df, left_index=True, right_index=True, how="outer")
             success += 1
             pbar.update(1)
-        except FileNotFoundError as e:
-            # print(e)
+        except FileNotFoundError:
             continue
 
     lex_df.fillna(0.0, inplace=True)
@@ -471,24 +470,24 @@ if __name__ == "__main__":
     contact_mat_folder = bucky_cfg["data_dir"] + "/contact_matrices_152_countries/*2.xlsx"
     state_mapping_file = bucky_cfg["data_dir"] + "/statefips_to_names.csv"
 
-    ##### FILE MANAGEMENT #####
+    # FILE MANAGEMENT
     # Make sure the output directory exists
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 
-    ##### UPDATE DATA #####
+    # UPDATE DATA
     # Update remote data repos for case data and mobility data
     if update_data:
         update_repos()
 
-    ##### START GRAPH CREATION #####
-    ##### SHAPE FILE #####
+    # START GRAPH CREATION
+    #  SHAPE FILE
     # Read county data
     counties = gpd.read_file(county_shapefile)
     counties["adm2"] = counties["GEOID"].astype(int)
     counties["adm1"] = counties["STATEFP"].astype(int)
 
-    ##### GEOID MAPPING #####
+    # GEOID MAPPING
 
     # Create dict for statefips to name
     state_map = csv.DictReader(open(state_mapping_file))
@@ -497,7 +496,7 @@ if __name__ == "__main__":
     for row in state_map:
         statefp_to_name[int(row["statefips"])] = row["name"]
 
-    ##### AGE AND DEMO DATA #####
+    # AGE AND DEMO DATA
     # Read age-stratified data
     age_data = pd.read_csv(age_strat_file, index_col=0, header=[0, 1])
     age_data.index = age_data.index.astype(int)
@@ -532,7 +531,7 @@ if __name__ == "__main__":
     # Compute population density
     popdens = compute_population_density(age_data, counties)
 
-    ##### CASE DATA #####
+    # CASE DATA
     # Read historical data
     hist_data = pd.read_csv(args.hist_file)
 
@@ -570,7 +569,7 @@ if __name__ == "__main__":
     # TODO: Find cause of duplicates
     date_data = date_data.loc[~date_data.index.duplicated(keep="first")]
 
-    ##### MOBILITY DATA #####
+    # MOBILITY DATA
 
     # Get mobility data
     mean_edge_weights, move_dict = get_mobility_data(popdens, last_date, age_data)
@@ -578,7 +577,7 @@ if __name__ == "__main__":
     # Create list of edges
     edge_list = mean_edge_weights.reset_index()[["StartId", "EndId", "frac_count"]]
 
-    ##### COMBINE DATA #####
+    # COMBINE DATA
     # Start merging all of our data together
     data = date_data.merge(popdens, left_on="adm2", right_index=True, how="left")
 
@@ -615,7 +614,7 @@ if __name__ == "__main__":
 
         logging.warning(str(required_num_nodes) + " nodes are expected. Only found " + str(data.shape[0]))
 
-    ##### EDGE CREATION #####
+    # EDGE CREATION
     # Get list of all unique FIPS
     uniq_fips = pd.unique(data["adm2"])
 
@@ -651,7 +650,7 @@ if __name__ == "__main__":
     self_loops = np.vstack(2 * [uniq_fips] + [np.ones(uniq_fips.shape)]).T
     edge_list = np.vstack([edge_list, diff_edge_list, self_loops])
 
-    ##### CONTACT MATRICES #####
+    # CONTACT MATRICES
     # Initialize contact matrices
     contact_mats = {}
 
@@ -661,7 +660,7 @@ if __name__ == "__main__":
         mat_name = "_".join(f.split("/")[-1].split("_")[1:-1])
         contact_mats[mat_name] = mat
 
-    ##### FINAL GRAPH #####
+    # FINAL GRAPH
     # Create graph
     G = nx.MultiDiGraph(contact_mats=contact_mats)
     G.add_weighted_edges_from(edge_list)
