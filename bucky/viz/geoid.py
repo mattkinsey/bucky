@@ -11,7 +11,7 @@ from ..util.read_config import bucky_cfg
 
 
 def read_geoid_from_graph(graph_file=None):
-    """Creates a dataframe relating geographic administration levels, 
+    """Creates a dataframe relating geographic administration levels,
     e.g. admin2 values in a given admin1.
 
     Parameters
@@ -46,14 +46,10 @@ def read_geoid_from_graph(graph_file=None):
     admin1_name_map = G.graph["adm1_to_str"]
 
     # Get admin1 values
-    admin1_vals = np.fromiter(
-        nx.get_node_attributes(G, G.graph["adm1_key"]).values(), dtype=int
-    )
+    admin1_vals = np.fromiter(nx.get_node_attributes(G, G.graph["adm1_key"]).values(), dtype=int)
 
     # Get admin2 values
-    admin2_vals = np.fromiter(
-        nx.get_node_attributes(G, G.graph["adm2_key"]).values(), dtype=int
-    )
+    admin2_vals = np.fromiter(nx.get_node_attributes(G, G.graph["adm2_key"]).values(), dtype=int)
     admin2_names = list(nx.get_node_attributes(G, "adm2_name").values())
 
     # Create initial dataframe
@@ -79,13 +75,13 @@ def read_geoid_from_graph(graph_file=None):
     # Deal with DC if in US
     if admin0_name == "US":
         df.loc[11001.0, "adm1_name"] = "District of Columbia"
-    
+
     df.reset_index(inplace=True)
     return df
 
 
 def read_lookup(geofile, country="US"):
-    """Creates a dataframe relating geographic administration levels, 
+    """Creates a dataframe relating geographic administration levels,
     e.g. admin2 values in a given admin1 based on a lookup table.
 
     Parameters
@@ -105,9 +101,7 @@ def read_lookup(geofile, country="US"):
     df = pd.read_csv(geofile)
 
     # Make columns match the lookup tables created by graph
-    df = df.rename(
-        columns={"geoid": "adm2", "state_name": "adm1_name", "county_name": "adm2_name"}
-    )
+    df = df.rename(columns={"geoid": "adm2", "state_name": "adm1_name", "county_name": "adm2_name"})
 
     # Add adm0 name
     df["adm0"] = country

@@ -16,8 +16,7 @@ def mPERT_sample(mu, a=0.0, b=1.0, gamma=4.0, var=None):
 
 
 def truncnorm(xp, loc=0.0, scale=1.0, size=1, a_min=None, a_max=None):
-    """ Provides a truncnorm implementation that is compatible with cupy
-    """
+    """Provides a truncnorm implementation that is compatible with cupy"""
     ret = xp.random.normal(loc, scale, size)
     if a_min is None:
         a_min = -xp.inf

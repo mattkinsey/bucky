@@ -12,53 +12,57 @@
 #
 import os
 import sys
-#sys.path.insert(0, os.path.abspath('../../..'))
-sys.path.insert(0, os.path.abspath('../..'))
 
 import recommonmark
-from recommonmark.transform import AutoStructify
-
-repo_root_url = 'http://gitlab.com/kinsemc/bucky/'
-
-# -- Project information -----------------------------------------------------
-
-project = 'Bucky'
-copyright = '2020, The Johns Hopkins University Applied Physics Laboratory LLC'
-author = 'Matt Kinsey, Kate Tallaksen, Freddy Obrecht'
-
-# The full version, including alpha/beta/rc tags
-release = '.1'
-
-# change the name of index for RTD
-master_doc = 'index'
-
-# -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 import sphinx_rtd_theme
-extensions = ['sphinx.ext.autodoc', 
-        'sphinx.ext.napoleon', 
-        'sphinx_rtd_theme',
-        'sphinx.ext.mathjax',
-        'recommonmark',
-        'sphinxcontrib.tikz',
-        'sphinxarg.ext',
-        'sphinxcontrib.bibtex',
-        'sphinx_copybutton',
+from recommonmark.transform import AutoStructify
+
+# sys.path.insert(0, os.path.abspath('../../..'))
+sys.path.insert(0, os.path.abspath("../.."))
+
+
+repo_root_url = "http://gitlab.com/kinsemc/bucky/"
+
+# -- Project information -----------------------------------------------------
+
+project = "Bucky"
+copyright = "2020, The Johns Hopkins University Applied Physics Laboratory LLC"
+author = "Matt Kinsey, Kate Tallaksen, Freddy Obrecht"
+
+# The full version, including alpha/beta/rc tags
+release = ".1"
+
+# change the name of index for RTD
+master_doc = "index"
+
+# -- General configuration ---------------------------------------------------
+
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.napoleon",
+    "sphinx_rtd_theme",
+    "sphinx.ext.mathjax",
+    "recommonmark",
+    "sphinxcontrib.tikz",
+    "sphinxarg.ext",
+    "sphinxcontrib.bibtex",
+    "sphinx_copybutton",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
 
-mathjax_path = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-AMS-MML_HTMLorMML'
-tikz_proc_suite = 'GhostScript'
+mathjax_path = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+tikz_proc_suite = "GhostScript"
 tikz_latex_preamble = "\\newcommand{\\asym}{\\alpha_i}\n \
         \\newcommand{\chr}{\\eta_i}\n \
         \\newcommand{\cfr}{\\phi_i}\n \
@@ -71,20 +75,25 @@ tikz_latex_preamble = "\\newcommand{\\asym}{\\alpha_i}\n \
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
-#html_theme = 'alabaster'
-html_logo = '../../logo.png'
-#html_theme_options = {
+html_theme = "sphinx_rtd_theme"
+# html_theme = 'alabaster'
+html_logo = "../../logo.png"
+# html_theme_options = {
 #        'logo_only':True,
 #    }
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ["_static"]
+
 
 def setup(app):
-    app.add_config_value('recommonmark_config', {
-            'url_resolver': lambda url: repo_doc_root + url,
-            'auto_toc_tree_section': 'Usage',
-            }, True)
+    app.add_config_value(
+        "recommonmark_config",
+        {
+            "url_resolver": lambda url: repo_doc_root + url,
+            "auto_toc_tree_section": "Usage",
+        },
+        True,
+    )
     app.add_transform(AutoStructify)

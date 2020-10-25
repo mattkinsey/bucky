@@ -2,23 +2,24 @@ import argparse
 import glob
 import logging
 import os
-import pickle
 import sys
 
-import matplotlib # isort:skip
-matplotlib.rc("axes.formatter", useoffset=False) # isort:skip
-import matplotlib.pyplot as plt # isort:skip
-from matplotlib.ticker import StrMethodFormatter # isort:skip
-import networkx as nx
-import numpy as np
 import pandas as pd
 import scipy.stats
-from tqdm import tqdm
+import tqdm
 
-from ..util.read_config import bucky_cfg
 from ..util.get_historical_data import get_historical_data
+from ..util.read_config import bucky_cfg
 from ..util.readable_col_names import readable_col_names
 from .geoid import read_geoid_from_graph, read_lookup
+
+import matplotlib  # isort:skip
+import matplotlib.pyplot as plt  # isort:skip
+
+# from matplotlib.ticker import StrMethodFormatter  # isort:skip
+
+# Disable weird y-axis formatting
+matplotlib.rc("axes.formatter", useoffset=False)
 
 plt.style.use("ggplot")
 
@@ -78,15 +79,14 @@ parser.add_argument(
 
 # Can pass in a lookup table to use in place of graph
 parser.add_argument(
-    "--lookup", default=None, type=str, help="Lookup table for geographic mapping info",
+    "--lookup",
+    default=None,
+    type=str,
+    help="Lookup table for geographic mapping info",
 )
 
 # Pass in the minimum number of historical data points to plot
-parser.add_argument(
-    "--min_hist",
-    default=0,
-    type=int,
-    help="Minimum number of historical data points to plot.")
+parser.add_argument("--min_hist", default=0, type=int, help="Minimum number of historical data points to plot.")
 
 # Pass in a specific historical start date and historical file
 parser.add_argument(
@@ -98,7 +98,10 @@ parser.add_argument(
 
 # Optional flags
 parser.add_argument(
-    "--adm1_name", default=None, type=str, help="Admin1 to make admin2-level plots for",
+    "--adm1_name",
+    default=None,
+    type=str,
+    help="Admin1 to make admin2-level plots for",
 )
 
 parser.add_argument(
@@ -108,9 +111,7 @@ parser.add_argument(
     help="Data will not be plotted past this point",
 )
 
-parser.add_argument(
-    "-v", "--verbose", action="store_true", help="Print extra information"
-)
+parser.add_argument("-v", "--verbose", action="store_true", help="Print extra information")
 
 parser.add_argument(
     "-hist",
@@ -123,7 +124,8 @@ parser.add_argument(
     "--hist_file",
     type=str,
     default=None,
-    help="Path to historical data file. If None, uses either CSSE or Covid Tracking data depending on columns requested.",
+    help="Path to historical data file. If None, uses either CSSE or \
+            Covid Tracking data depending on columns requested.",
 )
 
 parser.add_argument(
@@ -144,6 +146,7 @@ parser.add_argument(
     help="Size of window (in days) to apply to historical data",
 )
 
+
 def interval(mean, sem, conf, N):
     z = scipy.stats.t.ppf((1 + conf) / 2.0, N - 1)
     return (mean - sem * z).clip(lower=0.0), mean + sem * z
@@ -163,7 +166,7 @@ def plot(
     For example, a DataFrame with state-level data would create a plot for
     each unique state. Simulation data is plotted as a line with shaded
     confidence intervals. Historical data is added as scatter points if
-    requested. 
+    requested.
 
     Parameters
     ----------
@@ -174,7 +177,7 @@ def plot(
         areas
     key : string
         Key to use to relate simulation data and geographic areas. Must
-        appear in lookup and simulation data (and historical data if 
+        appear in lookup and simulation data (and historical data if
         applicable)
     sim_data : Pandas DataFrame
         Simulation data to plot
@@ -183,7 +186,7 @@ def plot(
     plot_columns : list of strings
         Columns to plot
     quantiles : list of floats (or None)
-        List of quantiles to plot. If None, will plot all available 
+        List of quantiles to plot. If None, will plot all available
         quantiles in data.
     """
 
@@ -212,7 +215,7 @@ def plot(
     else:
         unique_areas = unique_lookup_areas
 
-    for area in tqdm(unique_areas, total=len(unique_areas)):
+    for area in tqdm.tqdm(unique_areas, total=len(unique_areas), desc="Plotting " + key, dynamic_ncols=True):
 
         # Get name
         name = lookup_df.loc[lookup_df[key] == area][key + "_name"].values[0]
@@ -290,26 +293,20 @@ def plot(
                     actuals = actuals.assign(date=pd.to_datetime(actuals["date"]))
                     # actuals.set_index('date', inplace=True)
                     hist_label = "Historical " + readable_col_names[plot_columns[i]]
-                    actuals.plot(
-                        x="date", y=plot_columns[i], ax=axs[i], color="r", marker="o", ls="", label=hist_label
-                    )
+                    actuals.plot(x="date", y=plot_columns[i], ax=axs[i], color="r", marker="o", ls="", label=hist_label)
 
                     # Set xlim
                     axs[i].set_xlim(actuals["date"].min(), dates.max())
                     # axs[i].scatter(actual_dates[ind:], actual_vals[ind:], label='Historical data', color='b')
                 else:
-                    
-                    print(plot_columns[i])
-                    logging.warning("Historical data missing for area: " + name)
+                    logging.warning("Historical data missing for area: " + name + ", column=" + plot_columns[i])
 
             axs[i].grid(True)
             axs[i].legend()
             axs[i].set_ylabel("Count")
-            #axs[i].yaxis.set_major_formatter(StrMethodFormatter('{x:,.0f}'))
+            # axs[i].yaxis.set_major_formatter(StrMethodFormatter('{x:,.0f}'))
 
-        plot_filename = os.path.join(
-            output_dir, readable_col_names[plot_columns[0]] + "_" + name + ".png"
-        )
+        plot_filename = os.path.join(output_dir, readable_col_names[plot_columns[0]] + "_" + name + ".png")
         plot_filename = plot_filename.replace(" : ", "_")
         plot_filename = plot_filename.replace(" ", "")
         plt.savefig(plot_filename)
@@ -335,7 +332,7 @@ def make_plots(
     admin1=None,
     hist_start=None,
 ):
-    """Wrapper function around plot. Creates plots, aggregating data 
+    """Wrapper function around plot. Creates plots, aggregating data
     if necessary.
 
     Parameters
@@ -345,7 +342,7 @@ def make_plots(
     input_dir : string
         Location of simulation data
     output_dir : string
-        Parent directory to place created plots. 
+        Parent directory to place created plots.
     lookup : Pandas DataFrame
         Lookup table for geographic mapping information
     plot_hist : boolean
@@ -353,7 +350,7 @@ def make_plots(
     plot_columns : list of strings
         List of columns to plot from data
     quantiles : list of floats (or None)
-        List of quantiles to plot. If None, will plot all available 
+        List of quantiles to plot. If None, will plot all available
         quantiles in data.
     window_size : int
         Size of window (in days) to apply to historical data
@@ -405,9 +402,7 @@ def make_plots(
         # For admin2 only: if a admin1 name was passed in, only keep data within that admin1
         if level == "adm2" and admin1 is not None:
 
-            admin2_vals = lookup_df.loc[lookup_df["adm1_name"] == admin1][
-                "adm2"
-            ].unique()
+            admin2_vals = lookup_df.loc[lookup_df["adm1_name"] == admin1]["adm2"].unique()
             data = data.loc[data["adm2"].isin(admin2_vals)]
 
         # Read historical data if needed
@@ -416,18 +411,16 @@ def make_plots(
 
             # Get historical data for requested columns
             hist_data = get_historical_data(plot_columns, level, lookup_df, window_size, hist_file)
-            
+
             # Check if historical data was not successfully fetched
             if hist_data is None:
                 logging.warning("No historical data could be found for: " + str(hist_columns))
-                
+
             else:
                 hist_data.reset_index(inplace=True)
 
                 # Drop data not within requested time range
-                hist_data = hist_data.assign(
-                    date=pd.to_datetime(hist_data["date"])
-                )
+                hist_data = hist_data.assign(date=pd.to_datetime(hist_data["date"]))
 
                 if hist_start is not None:
                     start_date = hist_start
@@ -438,12 +431,9 @@ def make_plots(
 
                 # Shift start date if necessary
                 if num_points < min_hist_points:
-                    start_date = last_hist_date - pd.Timedelta(str(min_hist_points) + ' days')
+                    start_date = last_hist_date - pd.Timedelta(str(min_hist_points) + " days")
 
-                hist_data = hist_data.loc[
-                    (hist_data["date"] < end_date)
-                    & (hist_data["date"] > start_date)
-                ]
+                hist_data = hist_data.loc[(hist_data["date"] < end_date) & (hist_data["date"] > start_date)]
         plot(
             output_dir=plot_dir,
             lookup_df=lookup_df,
@@ -459,7 +449,7 @@ if __name__ == "__main__":
 
     # Logging
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.WARNING,
         stream=sys.stdout,
         format="%(asctime)s - %(levelname)s - %(filename)s:%(funcName)s:%(lineno)d - %(message)s",
     )
@@ -521,5 +511,5 @@ if __name__ == "__main__":
         hist_file,
         min_hist,
         args.adm1_name,
-        hist_start
+        hist_start,
     )
