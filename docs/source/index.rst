@@ -12,9 +12,11 @@ Welcome to Bucky's documentation!
 
    getting_started
    install
+   model_overview
    compartment_model
    input_output
    graph_info
+   npi
    usage
    cli
    modules
