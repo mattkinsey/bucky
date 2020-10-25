@@ -4,7 +4,7 @@ import logging
 import numpy as np
 import pandas as pd
 
-from .util import date_to_t_int, remove_chars
+from .util import remove_chars
 
 
 def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):

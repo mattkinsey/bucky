@@ -2,7 +2,6 @@ import argparse
 import pickle
 
 import networkx as nx
-import numpy as np
 import pandas as pd
 
 parser = argparse.ArgumentParser(
@@ -38,4 +37,4 @@ df["date"] = df.date.map({i: v for i, v in enumerate(dates)})
 
 df.to_csv(args.output_file, index=False)
 
-print(df.groupby("date").sum().diff().tail())
+# print(df.groupby('date').sum().diff().tail())

@@ -1,5 +1,6 @@
 import argparse
 import glob
+import logging
 import os
 import sys
 from datetime import timedelta
@@ -8,7 +9,8 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from matplotlib.ticker import LogFormatter, ScalarFormatter
+
+# from matplotlib.ticker import LogFormatter, ScalarFormatter
 from tqdm import tqdm
 
 from ..util.read_config import bucky_cfg
@@ -293,7 +295,7 @@ def make_map(
 
     # If log, use a different colormap and scale columns
     if log_scale:
-        formatter = LogFormatter(10, labelOnlyBase=False)
+        # formatter = LogFormatter(10, labelOnlyBase=False)
 
         # Log scale columns and save
         for col in cols:
@@ -305,7 +307,7 @@ def make_map(
             data_ranges.append([df[col_name].min(), df[col_name].max()])
 
     else:
-        formatter = ScalarFormatter()
+        # formatter = ScalarFormatter()
 
         for col in cols:
             data_ranges.append([df[col].min(), df[col].max()])
@@ -496,11 +498,11 @@ if __name__ == "__main__":
     # Check all required parameters are passed in depending on requested maps
     if args.adm0 and args.adm1_shape is None:
 
-        print("Error: ADM1 shapefiles are required for ADM0 maps.")
+        logging.error("Error: ADM1 shapefiles are required for ADM0 maps.")
         sys.exit()
 
     if (args.adm1 or args.all_adm1) and args.adm2_shape is None:
-        print("Error: ADM2 shapefiles are required for ADM1 maps.")
+        logging.error("Error: ADM2 shapefiles are required for ADM1 maps.")
         sys.exit()
 
     # Parse other arguments
@@ -522,7 +524,7 @@ if __name__ == "__main__":
 
         if cmap not in plt.colormaps():
 
-            print("Error: " + cmap + " is not a valid matplotlib colormap. Defaulting to: " + default_cmap)
+            logging.error("Error: " + cmap + " is not a valid matplotlib colormap. Defaulting to: " + default_cmap)
             cmap = default_cmap
 
     map_cols = args.columns

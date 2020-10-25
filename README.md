@@ -1,5 +1,6 @@
 # Bucky Model 
 [![Documentation Status](https://readthedocs.org/projects/docs/badge/?version=latest)](https://bucky.readthedocs.io/en/latest/)
+![Lint Passing (master)](https://github.com/mattkinsey/bucky/workflows/test-pre-commit-hooks/badge.svg?branch=master)
 
 **[Documentation](https://bucky.readthedocs.io/en/latest/)** 
 

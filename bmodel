@@ -8,7 +8,7 @@ del sys.argv[1]
 
 base_pkg_name = "bucky."
 
-if not base_pkg_name in module_name[:6]:
+if base_pkg_name not in module_name[:6]:
     module_name = base_pkg_name + module_name
 
 try:

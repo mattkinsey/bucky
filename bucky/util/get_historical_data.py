@@ -1,7 +1,6 @@
 import logging
 import os
 
-import numpy as np
 import pandas as pd
 
 from .read_config import bucky_cfg

@@ -2,24 +2,24 @@ import argparse
 import glob
 import logging
 import os
-import pickle
 import sys
 
-import matplotlib  # isort:skip
-
-matplotlib.rc("axes.formatter", useoffset=False)  # isort:skip
-import matplotlib.pyplot as plt  # isort:skip
-from matplotlib.ticker import StrMethodFormatter  # isort:skip
-import networkx as nx
-import numpy as np
 import pandas as pd
 import scipy.stats
-from tqdm import tqdm
+import tqdm
 
 from ..util.get_historical_data import get_historical_data
 from ..util.read_config import bucky_cfg
 from ..util.readable_col_names import readable_col_names
 from .geoid import read_geoid_from_graph, read_lookup
+
+import matplotlib  # isort:skip
+import matplotlib.pyplot as plt  # isort:skip
+
+# from matplotlib.ticker import StrMethodFormatter  # isort:skip
+
+# Disable weird y-axis formatting
+matplotlib.rc("axes.formatter", useoffset=False)
 
 plt.style.use("ggplot")
 
@@ -124,7 +124,8 @@ parser.add_argument(
     "--hist_file",
     type=str,
     default=None,
-    help="Path to historical data file. If None, uses either CSSE or Covid Tracking data depending on columns requested.",
+    help="Path to historical data file. If None, uses either CSSE or \
+            Covid Tracking data depending on columns requested.",
 )
 
 parser.add_argument(
@@ -214,7 +215,7 @@ def plot(
     else:
         unique_areas = unique_lookup_areas
 
-    for area in tqdm(unique_areas, total=len(unique_areas)):
+    for area in tqdm.tqdm(unique_areas, total=len(unique_areas), desc="Plotting " + key, dynamic_ncols=True):
 
         # Get name
         name = lookup_df.loc[lookup_df[key] == area][key + "_name"].values[0]
@@ -298,9 +299,7 @@ def plot(
                     axs[i].set_xlim(actuals["date"].min(), dates.max())
                     # axs[i].scatter(actual_dates[ind:], actual_vals[ind:], label='Historical data', color='b')
                 else:
-
-                    print(plot_columns[i])
-                    logging.warning("Historical data missing for area: " + name)
+                    logging.warning("Historical data missing for area: " + name + ", column=" + plot_columns[i])
 
             axs[i].grid(True)
             axs[i].legend()
@@ -450,7 +449,7 @@ if __name__ == "__main__":
 
     # Logging
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.WARNING,
         stream=sys.stdout,
         format="%(asctime)s - %(levelname)s - %(filename)s:%(funcName)s:%(lineno)d - %(message)s",
     )

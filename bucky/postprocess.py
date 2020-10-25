@@ -1,20 +1,14 @@
 import argparse
-import datetime
 import gc
 import glob
 import logging
 import os
-import pickle
-from datetime import timedelta
-from functools import partial
-from multiprocessing import JoinableQueue, Pool, Process, Queue, RLock, cpu_count, current_process, set_start_method
+from multiprocessing import JoinableQueue, Pool, Process
 from pathlib import Path
 
-import networkx as nx
 import numpy as np
 import pandas as pd
-import scipy.stats
-from tqdm import tqdm
+import tqdm
 
 from .numerical_libs import use_cupy
 from .util.read_config import bucky_cfg
@@ -316,9 +310,11 @@ if __name__ == "__main__":
 
             # Apply map
             tot_df[level] = tot_df[admin2_key].map(level_dict).map(level_inv_map).astype(int)
+
             # Compute quantiles
-            # TODO why is this in the for loop? pretty sure we can move it but check for deps
+
             def quantiles_group(tot_df):
+                # TODO why is this in the for loop? pretty sure we can move it but check for deps
                 # Kernel opt currently only works on reductions (@v8.0.0) but maybe someday it'll help here
                 with xp.optimize_kernels():
                     # can we do this pivot in cupy?
@@ -373,7 +369,9 @@ if __name__ == "__main__":
             write_queue.put((os.path.join(output_dir, level + "_quantiles.csv"), q_df))
 
     pool = Pool(processes=args.nprocs)
-    for _ in tqdm(pool.imap_unordered(_process_date, dates), total=len(dates)):
+    for _ in tqdm.tqdm(
+        pool.imap_unordered(_process_date, dates), total=len(dates), desc="Postprocessing dates", dynamic_ncols=True
+    ):
         pass
     pool.close()
     pool.join()  # wait until everything is done
@@ -387,7 +385,7 @@ if __name__ == "__main__":
     if not args.no_sort:
         for level in args.levels:
             fname = os.path.join(output_dir, level + "_quantiles.csv")
-            print("Sorting output file " + fname, end="... ")
+            logging.info("Sorting output file " + fname + "...")
             df = pd.read_csv(fname)
 
             # TODO we can avoid having to set index here once readable_column names is complete
@@ -399,4 +397,4 @@ if __name__ == "__main__":
             # write out sorted csv
             df.drop(columns="index", inplace=True)  # TODO where did we pick this up?
             df.to_csv(fname, index=True)
-            print(" Done")
+            logging.info("Done sort")
