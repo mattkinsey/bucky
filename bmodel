@@ -16,9 +16,7 @@ try:
 except ImportError as e:
     if base_pkg_name not in str(e):
         raise e
-    print(
-        "\n !!! Submodule " + module_name.replace(base_pkg_name, "") + " not found !!!"
-    )
+    print("\n !!! Submodule " + module_name.replace(base_pkg_name, "") + " not found !!!")
     from pkgutil import iter_modules
 
     from setuptools import find_packages
@@ -28,9 +26,7 @@ except ImportError as e:
         for pkg in find_packages(path):
             modules.add(pkg)
             pkgpath = path + "/" + pkg.replace(".", "/")
-            if sys.version_info.major == 2 or (
-                sys.version_info.major == 3 and sys.version_info.minor < 6
-            ):
+            if sys.version_info.major == 2 or (sys.version_info.major == 3 and sys.version_info.minor < 6):
                 for _, name, ispkg in iter_modules([pkgpath]):
                     if not ispkg:
                         modules.add(pkg + "." + name)

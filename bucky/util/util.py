@@ -60,9 +60,7 @@ def bin_age_csv(filename, out_filename):
     df = pd.read_csv(filename, header=None, names=["fips", "age", "N"])
     pop_weighted_IFR = df.N.to_numpy() * estimate_IFR(df.age.to_numpy())
     df = df.assign(IFR=pop_weighted_IFR)
-    df["age_group"] = pd.cut(
-        df["age"], np.append(np.arange(0, 76, 5), 120), right=False
-    )
+    df["age_group"] = pd.cut(df["age"], np.append(np.arange(0, 76, 5), 120), right=False)
     df = df.groupby(["fips", "age_group"]).sum()[["N", "IFR"]].unstack("age_group")
 
     df = df.assign(IFR=df.IFR / df.N)
@@ -95,6 +93,7 @@ def unpack_cache(cache_file):
         os.makedirs(os.path.dirname(new_file), exist_ok=True)
         with open(new_file, "wb") as f:
             f.write(tmp[fname])
+
 
 def _banner():
     print(r" ____             _          ")

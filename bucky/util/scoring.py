@@ -3,12 +3,12 @@ import numpy as np
 
 def logistic(x, x0=0.0, k=1.0, L=1.0):
     """
-    
+
     Parameters
     ----------
-    : 
+    :
         TODO
-    : 
+    :
         TODO
     Returns
     -------
@@ -20,12 +20,12 @@ def logistic(x, x0=0.0, k=1.0, L=1.0):
 
 def IS(x, l, u, alp):
     """
-    
+
     Parameters
     ----------
-    : 
+    :
         TODO
-    : 
+    :
         TODO
     Returns
     -------
@@ -37,12 +37,12 @@ def IS(x, l, u, alp):
 
 def smooth_IS(x, l, u, alp):
     """
-    
+
     Parameters
     ----------
-    : 
+    :
         TODO
-    : 
+    :
         TODO
     Returns
     -------
@@ -59,12 +59,12 @@ def smooth_IS(x, l, u, alp):
 
 def WIS(x, q, x_q, norm=False, log=False, smooth=False):
     """
-    
+
     Parameters
     ----------
-    : 
+    :
         TODO
-    : 
+    :
         TODO
     Returns
     -------
@@ -79,20 +79,9 @@ def WIS(x, q, x_q, norm=False, log=False, smooth=False):
     w0 = 0.5
     wk = alps / 2.0
     if smooth:
-        ret = (
-            1.0
-            / (K + 1.0)
-            * (
-                w0 * 2 * np.abs(x - m)
-                + np.sum(wk * smooth_IS(x, Fs[:, 0], Fs[:, 1], alps))
-            )
-        )
+        ret = 1.0 / (K + 1.0) * (w0 * 2 * np.abs(x - m) + np.sum(wk * smooth_IS(x, Fs[:, 0], Fs[:, 1], alps)))
     else:
-        ret = (
-            1.0
-            / (K + 1.0)
-            * (w0 * 2 * np.abs(x - m) + np.sum(wk * IS(x, Fs[:, 0], Fs[:, 1], alps)))
-        )
+        ret = 1.0 / (K + 1.0) * (w0 * 2 * np.abs(x - m) + np.sum(wk * IS(x, Fs[:, 0], Fs[:, 1], alps)))
     if norm:
         ret /= x
     if log:
