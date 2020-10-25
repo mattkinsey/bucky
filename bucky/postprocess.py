@@ -1,19 +1,13 @@
 import argparse
-import datetime
 import gc
 import glob
 import logging
 import os
-import pickle
-from datetime import timedelta
-from functools import partial
-from multiprocessing import JoinableQueue, Pool, Process, Queue, RLock, cpu_count, current_process, set_start_method
+from multiprocessing import JoinableQueue, Pool, Process
 from pathlib import Path
 
-import networkx as nx
 import numpy as np
 import pandas as pd
-import scipy.stats
 import tqdm
 
 from .numerical_libs import use_cupy
@@ -316,9 +310,11 @@ if __name__ == "__main__":
 
             # Apply map
             tot_df[level] = tot_df[admin2_key].map(level_dict).map(level_inv_map).astype(int)
+
             # Compute quantiles
-            # TODO why is this in the for loop? pretty sure we can move it but check for deps
+
             def quantiles_group(tot_df):
+                # TODO why is this in the for loop? pretty sure we can move it but check for deps
                 # Kernel opt currently only works on reductions (@v8.0.0) but maybe someday it'll help here
                 with xp.optimize_kernels():
                     # can we do this pivot in cupy?
