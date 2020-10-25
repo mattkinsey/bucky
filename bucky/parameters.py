@@ -3,7 +3,6 @@ import logging
 from pprint import pformat
 
 import numpy as np
-import scipy.special as sc
 import yaml
 
 from .util import dotdict
@@ -17,7 +16,6 @@ def calc_Te(Tg, Ts, n, f):
 
 
 def calc_Reff(m, n, Tg, Te, r):
-    tdiff = Tg - Te
     num = 2.0 * n * r / (n + 1.0) * (Tg - Te) * (1.0 + r * Te / m) ** m
     den = 1.0 - (1.0 + 2.0 * r / (n + 1.0) * (Tg - Te)) ** (-n)
     return num / den
