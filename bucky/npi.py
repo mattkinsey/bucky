@@ -46,7 +46,7 @@ def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
     contact_weights = []
 
     # 1st dimension is date, 2nd is admin2 code
-    for name, group in df.sort_values(by=["date"]).groupby("date"):
+    for _, group in df.sort_values(by=["date"]).groupby("date"):
         # convert adm2 id to int
         group["admin2"] = group.adm2.astype(int)
         date_group = group.set_index("adm2").reindex(adm2_map)
