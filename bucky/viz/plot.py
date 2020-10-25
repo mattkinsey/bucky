@@ -15,8 +15,8 @@ import pandas as pd
 import scipy.stats
 import tqdm
 
-from ..util.read_config import bucky_cfg
 from ..util.get_historical_data import get_historical_data
+from ..util.read_config import bucky_cfg
 from ..util.readable_col_names import readable_col_names
 from .geoid import read_geoid_from_graph, read_lookup
 

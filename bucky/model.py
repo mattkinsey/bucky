@@ -19,14 +19,7 @@ import tqdm
 from .arg_parser_model import parser
 from .npi import read_npi_file
 from .parameters import buckyParams
-from .util import (
-    TqdmLoggingHandler,
-    _banner,
-    cache_files,
-    date_to_t_int,
-    dotdict,
-    map_np_array,
-)
+from .util import TqdmLoggingHandler, _banner, cache_files, date_to_t_int, dotdict, map_np_array
 from .util.distributions import mPERT_sample, truncnorm
 
 # supress pandas warning caused by pyarrow
@@ -995,7 +988,8 @@ if __name__ == "__main__":
     # TODO we should output the logs to output_dir too...
     _banner()
 
-    import threading, queue
+    import queue
+    import threading
 
     to_write = queue.Queue(maxsize=100)
 

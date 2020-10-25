@@ -19,8 +19,9 @@ except ImportError as e:
     print(
         "\n !!! Submodule " + module_name.replace(base_pkg_name, "") + " not found !!!"
     )
-    from setuptools import find_packages
     from pkgutil import iter_modules
+
+    from setuptools import find_packages
 
     def find_modules(path):
         modules = set()
