@@ -520,17 +520,15 @@ if __name__ == "__main__":
     cmap = args.cmap
 
     # Make sure its a valid matplotlib colormap
-    if cmap != default_cmap:
+    if cmap != default_cmap and cmap not in plt.colormaps():
 
-        if cmap not in plt.colormaps():
-
-            logging.error("Error: " + cmap + " is not a valid matplotlib colormap. Defaulting to: " + default_cmap)
-            cmap = default_cmap
+        logging.error("Error: " + cmap + " is not a valid matplotlib colormap. Defaulting to: " + default_cmap)
+        cmap = default_cmap
 
     map_cols = args.columns
     use_mean = args.mean
     dates = args.dates
-    use_log = False if args.linear else True
+    use_log = not args.linear
     adm1_col_name = args.adm1_col
     adm2_col_name = args.adm2_col
 

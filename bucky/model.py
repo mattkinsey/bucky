@@ -762,12 +762,12 @@ class SEIR_covid(object):
         hist_inc_death_mean = xp.mean(xp.sum(self.inc_death_hist[-7:], axis=-1))
 
         inc_death_rejection_fac = 2.0  # TODO These should come from the cli arg -r
-        if (init_inc_death_mean > inc_death_rejection_fac * hist_inc_death_mean) or (
-            inc_death_rejection_fac * init_inc_death_mean < hist_inc_death_mean
-        ):
-            if args.reject_runs:
-                logging.info("Inconsistent inc deaths, rejecting run")
-                raise SimulationException
+        if (
+            (init_inc_death_mean > inc_death_rejection_fac * hist_inc_death_mean)
+            or (inc_death_rejection_fac * init_inc_death_mean < hist_inc_death_mean)
+        ) and args.reject_runs:
+            logging.info("Inconsistent inc deaths, rejecting run")
+            raise SimulationException
 
         # prepend the min cumulative cases over the last 2 days in case in the decreased
         prepend_cases = xp.minimum(self.cum_case_hist[-2], self.cum_case_hist[-1])
@@ -778,12 +778,12 @@ class SEIR_covid(object):
         hist_inc_case_mean = xp.mean(xp.sum(self.inc_case_hist[-7:], axis=-1))
 
         inc_case_rejection_fac = 2.0  # TODO These should come from the cli arg -r
-        if (init_inc_case_mean > inc_case_rejection_fac * hist_inc_case_mean) or (
-            inc_case_rejection_fac * init_inc_case_mean < hist_inc_case_mean
-        ):
-            if args.reject_runs:
-                logging.info("Inconsistent inc cases, rejecting run")
-                raise SimulationException
+        if (
+            (init_inc_case_mean > inc_case_rejection_fac * hist_inc_case_mean)
+            or (inc_case_rejection_fac * init_inc_case_mean < hist_inc_case_mean)
+        ) and args.reject_runs:
+            logging.info("Inconsistent inc cases, rejecting run")
+            raise SimulationException
 
         daily_cases_total = daily_cases_reported / self.params.CASE_REPORT[:, None]  # /self.params.SYM_FRAC
         cum_cases_total = cum_cases_reported / self.params.CASE_REPORT[:, None]
@@ -838,15 +838,13 @@ class SEIR_covid(object):
 
             # df_data[k] = xp.to_cpu(df_data[k])
 
-            if k != "date":
-                if xp.any(xp.around(df_data[k], 2) < 0.0):
-                    logging.info("Negative values present in " + k)
-                    negative_values = True
+            if k != "date" and xp.any(xp.around(df_data[k], 2) < 0.0):
+                logging.info("Negative values present in " + k)
+                negative_values = True
 
-        if negative_values:
-            if args.reject_runs:
-                logging.info("Rejecting run b/c of negative values in output")
-                raise SimulationException
+        if negative_values and args.reject_runs:
+            logging.info("Rejecting run b/c of negative values in output")
+            raise SimulationException
 
         # Append data to the hdf5 file
         output_folder = os.path.join(outdir, self.run_id)

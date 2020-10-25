@@ -231,10 +231,10 @@ def distribute_data_by_population(total_df, dist_vect, data_to_dist, replace):
     else:
         tmp = tmp.assign(
             cumulative_reported_cases=tmp["cumulative_reported_cases_x"]
-            + tmp["pop_fraction"] * tmp["cumulative_reported_cases_y"]
+            + tmp["pop_fraction"] * tmp["cumulative_reported_cases_y"],
         )
         tmp = tmp.assign(
-            cumulative_deaths=tmp["cumulative_deaths_x"] + tmp["pop_fraction"] * tmp["cumulative_deaths_y"]
+            cumulative_deaths=tmp["cumulative_deaths_x"] + tmp["pop_fraction"] * tmp["cumulative_deaths_y"],
         )
 
     # Discard merge columns

@@ -391,7 +391,7 @@ def make_plots(
 
         # Determine if sub-folder is necessary (state or county-level)
         plot_dir = output_dir
-        if level == "adm2" or level == "adm1":
+        if level in ["adm2", "adm1"]:
 
             plot_dir = os.path.join(plot_dir, level.upper())
 
