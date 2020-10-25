@@ -9,6 +9,7 @@ Installation Guide
   git clone https://gitlab.com/kinsemc/bucky.git
 
 2. Next set up the enviroment required to run the model, first making sure `Anaconda <https://www.anaconda.com/>`_ is installed.
+
 .. note:: Anaconda can be downloaded from `<https://docs.anaconda.com/anaconda/install/>`_
 
 Included in the repository are two yaml formatted `Anaconda <https://www.anaconda.com/>`_ enviroment specs:
