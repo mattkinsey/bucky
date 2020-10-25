@@ -1,8 +1,6 @@
 # TODO break into file now that we have the utils submodule (also update __init__)
 
-import contextlib
 import copy
-import importlib
 import logging
 
 # import lz4.frame
@@ -28,7 +26,7 @@ class TqdmLoggingHandler(logging.Handler):
             self.flush()
         except (KeyboardInterrupt, SystemExit):
             raise
-        except:
+        except Exception:
             self.handleError(record)
 
 
