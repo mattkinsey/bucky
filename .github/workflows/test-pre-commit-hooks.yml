@@ -1,4 +1,4 @@
-name: pre-commit
+name: test-pre-commit-hooks
 
 on:
   pull_request:
