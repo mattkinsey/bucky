@@ -2,16 +2,8 @@ import argparse
 import glob
 import logging
 import os
-import pickle
 import sys
 
-import matplotlib  # isort:skip
-
-matplotlib.rc("axes.formatter", useoffset=False)  # isort:skip
-import matplotlib.pyplot as plt  # isort:skip
-from matplotlib.ticker import StrMethodFormatter  # isort:skip
-import networkx as nx
-import numpy as np
 import pandas as pd
 import scipy.stats
 import tqdm
@@ -20,6 +12,14 @@ from ..util.get_historical_data import get_historical_data
 from ..util.read_config import bucky_cfg
 from ..util.readable_col_names import readable_col_names
 from .geoid import read_geoid_from_graph, read_lookup
+
+import matplotlib  # isort:skip
+import matplotlib.pyplot as plt  # isort:skip
+
+# from matplotlib.ticker import StrMethodFormatter  # isort:skip
+
+# Disable weird y-axis formatting
+matplotlib.rc("axes.formatter", useoffset=False)
 
 plt.style.use("ggplot")
 
@@ -124,7 +124,8 @@ parser.add_argument(
     "--hist_file",
     type=str,
     default=None,
-    help="Path to historical data file. If None, uses either CSSE or Covid Tracking data depending on columns requested.",
+    help="Path to historical data file. If None, uses either CSSE or \
+            Covid Tracking data depending on columns requested.",
 )
 
 parser.add_argument(
