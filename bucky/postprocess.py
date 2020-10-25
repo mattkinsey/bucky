@@ -370,7 +370,10 @@ if __name__ == "__main__":
 
     pool = Pool(processes=args.nprocs)
     for _ in tqdm.tqdm(
-        pool.imap_unordered(_process_date, dates), total=len(dates), desc="Postprocessing dates", dynamic_ncols=True
+        pool.imap_unordered(_process_date, dates),
+        total=len(dates),
+        desc="Postprocessing dates",
+        dynamic_ncols=True,
     ):
         pass
     pool.close()

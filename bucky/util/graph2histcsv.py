@@ -5,7 +5,7 @@ import networkx as nx
 import pandas as pd
 
 parser = argparse.ArgumentParser(
-    description="Create CSSE style case/death history file from the data on a pickled Bucky graph"
+    description="Create CSSE style case/death history file from the data on a pickled Bucky graph",
 )
 parser.add_argument("graph", type=str, help="graph to read from")
 parser.add_argument("output_file", type=str, help="output file (it will be a csv)")

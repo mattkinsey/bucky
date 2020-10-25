@@ -122,7 +122,7 @@ def distribute_unallocated_csse(confirmed_file, deaths_file, hist_df):
         (deaths_df["Combined_Key"].str.contains("Out of")) | (deaths_df["Combined_Key"].str.contains("Unassigned"))
     ]
     deaths_unallocated = deaths_unallocated.assign(
-        state_fips=deaths_unallocated["FIPS"].astype(str).str[3:].astype(float)
+        state_fips=deaths_unallocated["FIPS"].astype(str).str[3:].astype(float),
     )
 
     # Sum unassigned and 'out of X'
@@ -152,15 +152,17 @@ def distribute_unallocated_csse(confirmed_file, deaths_file, hist_df):
 
     # Reformat dates to match processed data's format
     extra_cases = extra_cases.rename(
-        columns={x: datetime.strptime(x, "%m/%d/%y").strftime("%Y-%m-%d") for x in extra_cases.columns}
+        columns={x: datetime.strptime(x, "%m/%d/%y").strftime("%Y-%m-%d") for x in extra_cases.columns},
     )
     extra_deaths = extra_deaths.rename(
-        columns={x: datetime.strptime(x, "%m/%d/%y").strftime("%Y-%m-%d") for x in extra_deaths.columns}
+        columns={x: datetime.strptime(x, "%m/%d/%y").strftime("%Y-%m-%d") for x in extra_deaths.columns},
     )
 
     # Iterate over states in historical data
     for state_fips in tqdm.tqdm(
-        extra_cases.index.values, desc="Distributing unallocated state data", dynamic_ncols=True
+        extra_cases.index.values,
+        desc="Distributing unallocated state data",
+        dynamic_ncols=True,
     ):
 
         # Get extra cases and deaths
@@ -406,7 +408,7 @@ def distribute_territory_data(df, add_american_samoa):
             "date": date_col,
             "cumulative_reported_cases": [np.nan for d in date_col],
             "cumulative_deaths": [np.nan for d in date_col],
-        }
+        },
     )
     tframe.set_index(["FIPS", "date"], inplace=True)
     df = df.append(tframe)
@@ -429,7 +431,7 @@ def distribute_territory_data(df, add_american_samoa):
                 "date": dates,
                 "cumulative_reported_cases": [1.0 for d in dates],
                 "cumulative_deaths": [0.0 for d in dates],
-            }
+            },
         )
         as_frame.set_index(["FIPS", "date"], inplace=True)
         df = df.append(as_frame)
@@ -569,7 +571,9 @@ def process_usafacts(case_file, deaths_file):
         ts.set_index(["FIPS", "date"], inplace=True)
 
         for state_code, state_df in tqdm.tqdm(
-            df.groupby("stateFIPS"), desc="Processing USAFacts " + cols[i], dynamic_ncols=True
+            df.groupby("stateFIPS"),
+            desc="Processing USAFacts " + cols[i],
+            dynamic_ncols=True,
         ):
 
             # DC has no unallocated row

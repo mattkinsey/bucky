@@ -589,7 +589,7 @@ if __name__ == "__main__":
     if len(fips_diff) > 0:
         logging.warning(
             str(len(fips_diff))
-            + " FIPS appear in historical data but do not have shapefile information. This data is dropped"
+            + " FIPS appear in historical data but do not have shapefile information. This data is dropped",
         )
 
     data = counties.merge(data, on="adm2", sort=True, how="left")
@@ -636,8 +636,8 @@ if __name__ == "__main__":
                     np.full(neighbors.shape, row.adm2),
                     neighbors,
                     np.full(neighbors.shape, 0.001),
-                ]
-            )
+                ],
+            ),
         )  # *popdens['pop_dens'].loc[neighbors])]))
 
     # Drop geometry column

@@ -88,12 +88,25 @@ class SEIR_covid(object):
         state_indices["Di"] = state_indices["Rhi"][-1] + 1
 
         state_indices["Iai"] = xp.hstack(
-            [state_indices["Ii"], state_indices["Iasi"], state_indices["Ici"]]
+            [
+                state_indices["Ii"],
+                state_indices["Iasi"],
+                state_indices["Ici"],
+            ],
         )  # all I compartments
         state_indices["Hi"] = xp.hstack(
-            [state_indices["Rhi"], state_indices["Ici"]]
+            [
+                state_indices["Rhi"],
+                state_indices["Ici"],
+            ],
         )  # all compartments in hospitalization
-        state_indices["Ci"] = xp.hstack([state_indices["Ii"], state_indices["Ici"], state_indices["Rhi"]])
+        state_indices["Ci"] = xp.hstack(
+            [
+                state_indices["Ii"],
+                state_indices["Ici"],
+                state_indices["Rhi"],
+            ],
+        )
 
         state_indices["incH"] = state_indices["Di"] + 1
         state_indices["incC"] = state_indices["incH"] + 1
@@ -322,7 +335,7 @@ class SEIR_covid(object):
 
         # crr_days_needed = max( #TODO this depends on all the Td params, and D_REPORT_TIME...
         case_reporting = xp.to_cpu(
-            self.estimate_reporting(cfr=self.params.F, days_back=22, min_deaths=self.consts.case_reporting_min_deaths)
+            self.estimate_reporting(cfr=self.params.F, days_back=22, min_deaths=self.consts.case_reporting_min_deaths),
         )
         self.case_reporting = xp.array(
             mPERT_sample(  # TODO these facs should go in param file
@@ -330,7 +343,7 @@ class SEIR_covid(object):
                 a=xp.clip(0.8 * case_reporting, a_min=0.2, a_max=None),
                 b=xp.clip(1.2 * case_reporting, a_min=None, a_max=1.0),
                 gamma=500.0,
-            )
+            ),
         )
 
         self.doubling_t = self.estimate_doubling_time(
