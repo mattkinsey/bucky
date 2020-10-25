@@ -7,16 +7,7 @@ import os
 import pickle
 from datetime import timedelta
 from functools import partial
-from multiprocessing import (
-    JoinableQueue,
-    Pool,
-    Process,
-    Queue,
-    RLock,
-    cpu_count,
-    current_process,
-    set_start_method,
-)
+from multiprocessing import JoinableQueue, Pool, Process, Queue, RLock, cpu_count, current_process, set_start_method
 from pathlib import Path
 
 import networkx as nx
@@ -25,16 +16,15 @@ import pandas as pd
 import scipy.stats
 from tqdm import tqdm
 
+from .numerical_libs import use_cupy
 from .util.read_config import bucky_cfg
 from .viz.geoid import read_geoid_from_graph, read_lookup
 
-from .numerical_libs import use_cupy
-
 
 def divide_by_pop(dataframe, cols):
-    """Given a dataframe and list of columns, divides the columns by the 
+    """Given a dataframe and list of columns, divides the columns by the
     population column ('N').
-    
+
     Parameters
     ----------
     dataframe : Pandas DataFrame
@@ -72,7 +62,11 @@ parser.add_argument(
 
 # Graph file used for this run. Defaults to most recently created
 parser.add_argument(
-    "-g", "--graph_file", default=None, type=str, help="Graph file used for simulation",
+    "-g",
+    "--graph_file",
+    default=None,
+    type=str,
+    help="Graph file used for simulation",
 )
 
 # Aggregation levels, e.g. state, county, etc.
@@ -158,9 +152,7 @@ parser.add_argument(
 
 parser.add_argument("-cpu", "--cpu", action="store_true", help="Do not use cupy")
 
-parser.add_argument(
-    "--verify", action="store_true", help="Verify the quality of the data"
-)
+parser.add_argument("--verify", action="store_true", help="Verify the quality of the data")
 
 parser.add_argument(
     "--no-sort",
@@ -170,9 +162,7 @@ parser.add_argument(
 )
 
 # Optional flags
-parser.add_argument(
-    "-v", "--verbose", action="store_true", help="Print extra information"
-)
+parser.add_argument("-v", "--verbose", action="store_true", help="Print extra information")
 
 if __name__ == "__main__":
 
@@ -279,7 +269,7 @@ if __name__ == "__main__":
         tot_df = tot_df.loc[tot_df[admin2_key].isin(unique_adm2)]
 
         # List of columns that will be output per 100k population as well
-        per_capita_cols = ['cumulative_reported_cases', 'cumulative_deaths', 'current_hospitalizations']
+        per_capita_cols = ["cumulative_reported_cases", "cumulative_deaths", "current_hospitalizations"]
 
         # Multiply column by N, then at end divide by aggregated N
         pop_mean_cols = ["case_reporting_rate", "R_eff", "doubling_t"]
@@ -325,9 +315,7 @@ if __name__ == "__main__":
             level_inv_map = {v: k for k, v in level_map.items()}
 
             # Apply map
-            tot_df[level] = (
-                tot_df[admin2_key].map(level_dict).map(level_inv_map).astype(int)
-            )
+            tot_df[level] = tot_df[admin2_key].map(level_dict).map(level_inv_map).astype(int)
             # Compute quantiles
             # TODO why is this in the for loop? pretty sure we can move it but check for deps
             def quantiles_group(tot_df):
@@ -337,9 +325,7 @@ if __name__ == "__main__":
                     tot_df_stacked = tot_df.stack()
                     tot_df_unstack = tot_df_stacked.unstack("rid")
                     percentiles = xp.array(quantiles) * 100.0
-                    test = xp.percentile(
-                        xp.array(tot_df_unstack.to_numpy()), q=percentiles, axis=1
-                    )
+                    test = xp.percentile(xp.array(tot_df_unstack.to_numpy()), q=percentiles, axis=1)
                     q_df = (
                         pd.DataFrame(
                             xp.to_cpu(test.T),
@@ -362,22 +348,22 @@ if __name__ == "__main__":
 
             per_cap_dict = {}
             for col in per_capita_cols:
-                per_cap_dict[col+"_per_100k"] = (q_df[col] / q_df["total_population"]) * 100000.0
+                per_cap_dict[col + "_per_100k"] = (q_df[col] / q_df["total_population"]) * 100000.0
             q_df = q_df.assign(**per_cap_dict)
             q_df = divide_by_pop(q_df, pop_mean_cols)
 
             # Column management
-            #if level != admin2_key:
+            # if level != admin2_key:
             del q_df[admin2_key]
 
-            if 'adm2' in q_df.columns and level != 'adm2':
-                del q_df['adm2']
+            if "adm2" in q_df.columns and level != "adm2":
+                del q_df["adm2"]
 
-            if 'adm1' in q_df.columns and level != 'adm1':
-                del q_df['adm1']
+            if "adm1" in q_df.columns and level != "adm1":
+                del q_df["adm1"]
 
-            if 'adm0' in q_df.columns and level != 'adm0':
-                del q_df['adm0']
+            if "adm0" in q_df.columns and level != "adm0":
+                del q_df["adm0"]
 
             if verbose:
                 logging.info("\nQuantiles dataframe:")
@@ -404,13 +390,13 @@ if __name__ == "__main__":
             print("Sorting output file " + fname, end="... ")
             df = pd.read_csv(fname)
 
-            #TODO we can avoid having to set index here once readable_column names is complete 
+            # TODO we can avoid having to set index here once readable_column names is complete
             df.set_index([level, "date", "quantile"], inplace=True)
             # sort rows by index
             df.sort_index(inplace=True)
             # sort columns alphabetically
             df = df.reindex(sorted(df.columns), axis=1)
             # write out sorted csv
-            df.drop(columns='index', inplace=True) # TODO where did we pick this up?
+            df.drop(columns="index", inplace=True)  # TODO where did we pick this up?
             df.to_csv(fname, index=True)
             print(" Done")

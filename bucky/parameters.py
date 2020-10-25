@@ -62,9 +62,7 @@ class seir_params(object):
         while True:  # WTB python do-while...
             params = self.reroll_params(self.base_params, var)
             params = self.calc_derived_params(params)
-            if (
-                params.Te > 1.0 and params.Tg > params.Te and params.Ti > 1.0
-            ) or var == 0.0:
+            if (params.Te > 1.0 and params.Tg > params.Te and params.Ti > 1.0) or var == 0.0:
                 return params
             else:
                 logging.debug("Rejected params: " + pformat(params))
@@ -80,9 +78,7 @@ class seir_params(object):
             elif "mean" in base_params[p]:
                 if "CI" in base_params[p]:
                     if var:
-                        params[p] = truncnorm(
-                            np, *CI_to_std(base_params[p]["CI"]), a_min=1e-6
-                        )
+                        params[p] = truncnorm(np, *CI_to_std(base_params[p]["CI"]), a_min=1e-6)
                     else:  # just use mean if we set var to 0
                         params[p] = copy.deepcopy(base_params[p]["mean"])
                 else:
@@ -94,10 +90,7 @@ class seir_params(object):
                 params[p] = np.array(base_params[p]["values"])
                 params[p] *= truncnorm(np, 1.0, var, size=params[p].shape, a_min=1e-6)
                 # interp to our age bins
-                if (
-                    base_params[p]["age_bins"]
-                    != base_params["model_struct"]["age_bins"]
-                ):
+                if base_params[p]["age_bins"] != base_params["model_struct"]["age_bins"]:
                     params[p] = self.age_interp(
                         base_params["model_struct"]["age_bins"],
                         base_params[p]["age_bins"],
@@ -116,9 +109,7 @@ class seir_params(object):
         return params
 
     @staticmethod
-    def age_interp(
-        x_bins_new, x_bins, y
-    ):  # TODO we should probably account for population for the 65+ type bins...
+    def age_interp(x_bins_new, x_bins, y):  # TODO we should probably account for population for the 65+ type bins...
         x_mean_new = np.mean(np.array(x_bins_new), axis=1)
         x_mean = np.mean(np.array(x_bins), axis=1)
         return np.interp(x_mean_new, x_mean, y)

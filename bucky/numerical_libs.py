@@ -1,20 +1,24 @@
 # fmt: on/off
 # pylint: skip-file
-# I'd recommend not linting this file, we're really abusing the import system and variable scoping 
+# I'd recommend not linting this file, we're really abusing the import system and variable scoping
 # here and linters don't like it...
+
+import numpy as xp
 
 # Default imports for cpu code
 # This will be overwritten with a call to .numerical_libs.use_cupy()
 import scipy.integrate._ivp.ivp as ivp
-import numpy as xp
 import scipy.sparse as sparse
+
 xp.scatter_add = xp.add.at
 import contextlib
+
 xp.optimize_kernels = contextlib.nullcontext
-xp.to_cpu = lambda x, **kwargs: x # one arg noop
+xp.to_cpu = lambda x, **kwargs: x  # one arg noop
+
 
 def use_cupy(optimize=False):
-    """ Perform imports for libraries with APIs matching numpy, scipy.integrate.ivp, scipy.sparse
+    """Perform imports for libraries with APIs matching numpy, scipy.integrate.ivp, scipy.sparse
 
     These imports will use a monkey-patched version of these modules that has had all it's numpy references replaced with CuPy
 
@@ -24,6 +28,7 @@ def use_cupy(optimize=False):
     """
     import importlib
     import logging
+
     cupy_spec = importlib.util.find_spec("cupy")
     if cupy_spec is None:
         logging.warn("CuPy not found, reverting to cpu/numpy")
@@ -92,7 +97,8 @@ def use_cupy(optimize=False):
             return x.get(stream=stream, out=out)
         else:
             return x
-    cp.to_cpu = cp_to_cpu #lambda x, **kwargs: x.get(**kwargs) if "cupy" in type(x).__module__ else x
+
+    cp.to_cpu = cp_to_cpu  # lambda x, **kwargs: x.get(**kwargs) if "cupy" in type(x).__module__ else x
 
     xp = cp
     import cupyx.scipy.sparse as sparse

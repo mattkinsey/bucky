@@ -19,10 +19,11 @@ ADD_AMERICAN_SAMOA = False
 # CSSE UIDs for Michigan prison information
 MI_PRISON_UIDS = [84070004, 84070005]
 
+
 def get_timeseries_data(col_name, filename, fips_key="FIPS", is_csse=True):
-    """Takes a historical data file and reduces it to a dataframe with FIPs, 
+    """Takes a historical data file and reduces it to a dataframe with FIPs,
     date, and case or death data.
-    
+
     Parameters
     ----------
     col_name : string
@@ -81,11 +82,11 @@ def get_timeseries_data(col_name, filename, fips_key="FIPS", is_csse=True):
 def distribute_unallocated_csse(confirmed_file, deaths_file, hist_df):
     """Distributes unallocated historical case and deaths data from CSSE.
 
-    JHU CSSE data contains state-level unallocated data, indicated with 
-    "Unassigned" or "Out of" for each state. This function distributes 
+    JHU CSSE data contains state-level unallocated data, indicated with
+    "Unassigned" or "Out of" for each state. This function distributes
     these unallocated cases based on the proportion of cases in each
     county relative to the state.
-    
+
     Parameters
     ----------
     confirmed_file : string
@@ -114,16 +115,12 @@ def distribute_unallocated_csse(confirmed_file, deaths_file, hist_df):
 
     # Get unassigned and 'out of X'
     cases_unallocated = case_df.loc[
-        (case_df["Combined_Key"].str.contains("Out of"))
-        | (case_df["Combined_Key"].str.contains("Unassigned"))
+        (case_df["Combined_Key"].str.contains("Out of")) | (case_df["Combined_Key"].str.contains("Unassigned"))
     ]
-    cases_unallocated = cases_unallocated.assign(
-        state_fips=cases_unallocated["FIPS"].astype(str).str[3:].astype(float)
-    )
+    cases_unallocated = cases_unallocated.assign(state_fips=cases_unallocated["FIPS"].astype(str).str[3:].astype(float))
 
     deaths_unallocated = deaths_df.loc[
-        (deaths_df["Combined_Key"].str.contains("Out of"))
-        | (deaths_df["Combined_Key"].str.contains("Unassigned"))
+        (deaths_df["Combined_Key"].str.contains("Out of")) | (deaths_df["Combined_Key"].str.contains("Unassigned"))
     ]
     deaths_unallocated = deaths_unallocated.assign(
         state_fips=deaths_unallocated["FIPS"].astype(str).str[3:].astype(float)
@@ -132,23 +129,34 @@ def distribute_unallocated_csse(confirmed_file, deaths_file, hist_df):
     # Sum unassigned and 'out of X'
     extra_cases = cases_unallocated.groupby("state_fips").sum()
     extra_deaths = deaths_unallocated.groupby("state_fips").sum()
-    extra_cases.drop(columns=["UID", "code3", "FIPS", "Lat", "Long_",], inplace=True)
+    extra_cases.drop(
+        columns=[
+            "UID",
+            "code3",
+            "FIPS",
+            "Lat",
+            "Long_",
+        ],
+        inplace=True,
+    )
     extra_deaths.drop(
-        columns=["UID", "Population", "code3", "FIPS", "Lat", "Long_",], inplace=True
+        columns=[
+            "UID",
+            "Population",
+            "code3",
+            "FIPS",
+            "Lat",
+            "Long_",
+        ],
+        inplace=True,
     )
 
     # Reformat dates to match processed data's format
     extra_cases = extra_cases.rename(
-        columns={
-            x: datetime.strptime(x, "%m/%d/%y").strftime("%Y-%m-%d")
-            for x in extra_cases.columns
-        }
+        columns={x: datetime.strptime(x, "%m/%d/%y").strftime("%Y-%m-%d") for x in extra_cases.columns}
     )
     extra_deaths = extra_deaths.rename(
-        columns={
-            x: datetime.strptime(x, "%m/%d/%y").strftime("%Y-%m-%d")
-            for x in extra_deaths.columns
-        }
+        columns={x: datetime.strptime(x, "%m/%d/%y").strftime("%Y-%m-%d") for x in extra_deaths.columns}
     )
 
     # Iterate over states in historical data
@@ -163,9 +171,7 @@ def distribute_unallocated_csse(confirmed_file, deaths_file, hist_df):
         state_df = state_df.reset_index()
         state_confirmed = state_df[["FIPS", "date", "cumulative_reported_cases"]]
 
-        state_confirmed = state_confirmed.pivot(
-            index="FIPS", columns="date", values="cumulative_reported_cases"
-        )
+        state_confirmed = state_confirmed.pivot(index="FIPS", columns="date", values="cumulative_reported_cases")
         frac_df = state_confirmed / state_confirmed.sum()
         frac_df = frac_df.replace(np.nan, 0)
 
@@ -187,14 +193,14 @@ def distribute_unallocated_csse(confirmed_file, deaths_file, hist_df):
 
 def distribute_data_by_population(total_df, dist_vect, data_to_dist, replace):
     """Distributes data by population across a state or territory.
-    
+
     Parameters
     ----------
     total_df : Pandas DataFrame
         DataFrame containing confirmed and death data indexed by date and
         FIPS code
     dist_vect : Pandas DataFrame
-        Population data for each county as proportion of total state 
+        Population data for each county as proportion of total state
         population, indexed by FIPS code
     data_to_dist: Pandas DataFrame
         Data to distribute, indexed by data
@@ -221,9 +227,12 @@ def distribute_data_by_population(total_df, dist_vect, data_to_dist, replace):
         tmp = tmp.assign(cumulative_deaths=tmp["pop_fraction"] * tmp["cumulative_deaths_y"])
     else:
         tmp = tmp.assign(
-            cumulative_reported_cases=tmp["cumulative_reported_cases_x"] + tmp["pop_fraction"] * tmp["cumulative_reported_cases_y"]
+            cumulative_reported_cases=tmp["cumulative_reported_cases_x"]
+            + tmp["pop_fraction"] * tmp["cumulative_reported_cases_y"]
         )
-        tmp = tmp.assign(cumulative_deaths=tmp["cumulative_deaths_x"] + tmp["pop_fraction"] * tmp["cumulative_deaths_y"])
+        tmp = tmp.assign(
+            cumulative_deaths=tmp["cumulative_deaths_x"] + tmp["pop_fraction"] * tmp["cumulative_deaths_y"]
+        )
 
     # Discard merge columns
     tmp = tmp[["FIPS", "date", "cumulative_reported_cases", "cumulative_deaths"]]
@@ -234,9 +243,9 @@ def distribute_data_by_population(total_df, dist_vect, data_to_dist, replace):
 
 
 def get_county_population_data(csse_deaths_file, county_fips):
-    """Uses JHU CSSE deaths file to get county-level population data as 
+    """Uses JHU CSSE deaths file to get county-level population data as
     as fraction of total population across requested list of counties.
-    
+
     Parameters
     ----------
     csse_deaths_file : string
@@ -255,9 +264,7 @@ def get_county_population_data(csse_deaths_file, county_fips):
     df = pd.read_csv(csse_deaths_file)
     population_df = df.loc[df["FIPS"].isin(county_fips)][["FIPS", "Population"]]
     population_df.set_index("FIPS", inplace=True)
-    population_df = population_df.assign(
-        pop_fraction=population_df["Population"] / population_df["Population"].sum()
-    )
+    population_df = population_df.assign(pop_fraction=population_df["Population"] / population_df["Population"].sum())
     population_df.drop(columns=["Population"], inplace=True)
 
     return population_df
@@ -265,7 +272,7 @@ def get_county_population_data(csse_deaths_file, county_fips):
 
 def distribute_nyc_data(df):
     """Distributes NYC case data across the six NYC counties.
-    
+
     Parameters
     ----------
     df : Pandas DataFrame
@@ -274,7 +281,7 @@ def distribute_nyc_data(df):
     Returns
     -------
     df : Pandas DataFrame
-        Modified DataFrame containing corrected NYC historical data 
+        Modified DataFrame containing corrected NYC historical data
         indexed by FIPS and date
 
     """
@@ -296,9 +303,7 @@ def distribute_nyc_data(df):
         columns=["Population"],
         index=county_populations.keys(),
     )
-    population_df = population_df.assign(
-        pop_fraction=population_df["Population"] / total_nyc_pop
-    )
+    population_df = population_df.assign(pop_fraction=population_df["Population"] / total_nyc_pop)
     population_df.drop(columns=["Population"], inplace=True)
     population_df.index.set_names(["FIPS"], inplace=True)
 
@@ -312,7 +317,7 @@ def distribute_nyc_data(df):
 def distribute_mdoc(df, csse_deaths_file):
     """Distributes Michigan Department of Corrections data across Michigan
     counties by population.
-    
+
     Parameters
     ----------
     df : Pandas DataFrame
@@ -351,8 +356,8 @@ def distribute_mdoc(df, csse_deaths_file):
 
 def distribute_territory_data(df, add_american_samoa):
     """Distributes territory-wide case and death data for territories.
-    
-    Uses county population to distribute cases for US Virgin Islands, 
+
+    Uses county population to distribute cases for US Virgin Islands,
     Guam, and CNMI. Optionally adds a single case to the most populous
     American Samoan county.
 
@@ -367,7 +372,7 @@ def distribute_territory_data(df, add_american_samoa):
     Returns
     -------
     df : Pandas DataFrame
-        Modified historical dataframe with territory-wide data 
+        Modified historical dataframe with territory-wide data
         distributed to counties
 
     """
@@ -409,9 +414,7 @@ def distribute_territory_data(df, add_american_samoa):
     for state_fips in state_level_fips:
         state_data = df.xs(state_fips, level=0)
         state_pop = pop_df.loc[pop_df["FIPS"] // 1000 == state_fips]
-        state_pop = state_pop.assign(
-            pop_fraction=state_pop["total"] / state_pop["total"].sum()
-        )
+        state_pop = state_pop.assign(pop_fraction=state_pop["total"] / state_pop["total"].sum())
         state_pop = state_pop.drop(columns=["total"])
         df = distribute_data_by_population(df, state_pop, state_data, True)
 
@@ -437,20 +440,17 @@ def process_csse_data():
 
     CSSE data is separated into two different files: confirmed cases and
     deaths. These two files are combined into one dataframe, indexed by
-    FIPS and date with two columns, Confirmed and Deaths. This function 
+    FIPS and date with two columns, Confirmed and Deaths. This function
     distributes CSSE that is either unallocated or territory-wide instead
     of county-wide. Michigan data from the state Department of Corrections
     and Federal Correctional Institution is distributed to Michigan counties.
     New York City data which is currently all placed in one county (New
     York County) is distributed to the other NYC counties. Territory data
-    for Guam, CNMI, and US Virgin Islands is also distributed. This data 
+    for Guam, CNMI, and US Virgin Islands is also distributed. This data
     is written to a CSV.
 
     """
-    data_dir = (
-        bucky_cfg["data_dir"]
-        + "/cases/COVID-19/csse_covid_19_data/csse_covid_19_time_series/"
-    )
+    data_dir = bucky_cfg["data_dir"] + "/cases/COVID-19/csse_covid_19_data/csse_covid_19_time_series/"
 
     # Get confirmed and deaths files
     confirmed_file = os.path.join(data_dir, "time_series_covid19_confirmed_US.csv")
@@ -460,8 +460,8 @@ def process_csse_data():
     deaths = get_timeseries_data("Deaths", deaths_file)
 
     # rename columns
-    confirmed.rename(columns={'Confirmed':'cumulative_reported_cases'}, inplace=True)
-    deaths.rename(columns={'Deaths':'cumulative_deaths'}, inplace=True)
+    confirmed.rename(columns={"Confirmed": "cumulative_reported_cases"}, inplace=True)
+    deaths.rename(columns={"Deaths": "cumulative_deaths"}, inplace=True)
 
     # Merge datasets
     data = pd.merge(confirmed, deaths, on=["FIPS", "date"], how="left").fillna(0)
@@ -509,9 +509,7 @@ def update_covid_tracking_data():
     # Download data
     context = ssl._create_unverified_context()
     # Create filename
-    with urllib.request.urlopen(url, context=context) as testfile, open(
-        filename, "w"
-    ) as f:
+    with urllib.request.urlopen(url, context=context) as testfile, open(filename, "w") as f:
         f.write(testfile.read().decode())
 
     # Read file
@@ -523,7 +521,7 @@ def update_covid_tracking_data():
 
     # Rename FIPS
     df.rename(columns={"fips": "adm1"}, inplace=True)
-    
+
     # Save
     covid_tracking_name = bucky_cfg["data_dir"] + "/cases/covid_tracking.csv"
     logging.info("Saving COVID Tracking Data as %s" % covid_tracking_name)
@@ -535,7 +533,7 @@ def process_usafacts(case_file, deaths_file):
 
     USAFacts contains unallocated cases and deaths for each state. These
     are allocated across states based on case distribution in the state.
-    
+
     Parameters
     ----------
     case_file : string
@@ -600,18 +598,14 @@ def process_usafacts(case_file, deaths_file):
                 state_df = state_df.T.stack().reset_index()
 
                 # Replace column names
-                state_df = state_df.rename(
-                    columns={"countyFIPS": "FIPS", "level_1": "date", 0: cols[i]}
-                )
+                state_df = state_df.rename(columns={"countyFIPS": "FIPS", "level_1": "date", 0: cols[i]})
                 state_df.set_index(["FIPS", "date"], inplace=True)
                 ts.loc[state_df.index] = state_df.values
 
         processed_frames.append(ts)
 
     # Combine
-    combined_df = pd.merge(
-        processed_frames[0], processed_frames[1], on=["FIPS", "date"], how="left"
-    ).fillna(0)
+    combined_df = pd.merge(processed_frames[0], processed_frames[1], on=["FIPS", "date"], how="left").fillna(0)
     return combined_df
 
 
@@ -634,9 +628,7 @@ def update_usafacts_data():
     for i, url in enumerate(urls):
 
         # Create filename
-        with urllib.request.urlopen(url, context=context) as testfile, open(
-            filenames[i], "w"
-        ) as f:
+        with urllib.request.urlopen(url, context=context) as testfile, open(filenames[i], "w") as f:
             f.write(testfile.read().decode())
 
     # Merge datasets
@@ -651,8 +643,7 @@ def update_usafacts_data():
 
 
 def update_repos():
-    """Uses git to update public data repos.  
-    """
+    """Uses git to update public data repos."""
     # Repos to update
     repos = [
         bucky_cfg["data_dir"] + "/cases/COVID-19/",
@@ -675,7 +666,7 @@ def update_repos():
 
 def git_pull(abs_path):
     """Updates a git repository given its path.
-    
+
     Parameters
     ----------
     abs_path : string
@@ -685,9 +676,7 @@ def git_pull(abs_path):
     git_command = "git pull --rebase origin master"
 
     # pull
-    process = subprocess.Popen(
-        git_command.split(), stdout=subprocess.PIPE, cwd=abs_path
-    )
+    process = subprocess.Popen(git_command.split(), stdout=subprocess.PIPE, cwd=abs_path)
     output, error = process.communicate()
 
     if error:

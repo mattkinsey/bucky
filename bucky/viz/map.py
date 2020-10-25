@@ -12,8 +12,8 @@ from matplotlib.ticker import LogFormatter, ScalarFormatter
 from tqdm import tqdm
 
 from ..util.read_config import bucky_cfg
-from ..util.util import remove_chars
 from ..util.readable_col_names import readable_col_names
+from ..util.util import remove_chars
 from .geoid import read_geoid_from_graph, read_lookup
 
 parser = argparse.ArgumentParser(description="Bucky model mapping tools")
@@ -42,7 +42,11 @@ parser.add_argument(
 
 # Graph file used for this run. Defaults to most recently created
 parser.add_argument(
-    "-g", "--graph_file", default=None, type=str, help="Graph file used during model",
+    "-g",
+    "--graph_file",
+    default=None,
+    type=str,
+    help="Graph file used during model",
 )
 
 # Data columns
@@ -79,9 +83,7 @@ parser.add_argument(
 )
 
 # Optionally pass in specific dates (takes priority over frequency)
-parser.add_argument(
-    "-d", "--dates", default=None, type=str, nargs="+", help="Specific dates to map"
-)
+parser.add_argument("-d", "--dates", default=None, type=str, nargs="+", help="Specific dates to map")
 
 # Create country-level plot
 parser.add_argument("--adm0", action="store_true", help="Create adm0-level plot ")
@@ -133,7 +135,10 @@ parser.add_argument(
 
 # Can pass in a lookup table to use in place of graph
 parser.add_argument(
-    "--lookup", default=None, type=str, help="Lookup table for geographic mapping info",
+    "--lookup",
+    default=None,
+    type=str,
+    help="Lookup table for geographic mapping info",
 )
 
 # Colormap
@@ -148,10 +153,10 @@ parser.add_argument(
 
 
 def get_dates(df, frequency="weekly"):
-    """Given a DataFrame of simulation data, this method returns dates 
-    based on the requested frequency. 
+    """Given a DataFrame of simulation data, this method returns dates
+    based on the requested frequency.
 
-    
+
     Parameters
     ----------
     df : Pandas DataFrame
@@ -200,7 +205,7 @@ def get_dates(df, frequency="weekly"):
 
 def get_map_data(data_dir, adm_level, use_mean=False):
     """Reads requested simulation data.
-    
+
     Maps are created using one level down from the requested map level.
     For example, a national map is created using state-level data.
 
@@ -256,7 +261,7 @@ def make_map(
     outline_df=None,
 ):
     """Creates a map for each date and column.
-    
+
     Parameters
     ----------
     shape_df : Geopandas GeoDataFrame
@@ -358,25 +363,19 @@ def make_map(
             axes.set_aspect("equal")
 
             # Create filename
-            filename = os.path.join(
-                output_dir, adm_key + "_" + map_title.replace(" ", "") + ".png"
-            )
+            filename = os.path.join(output_dir, adm_key + "_" + map_title.replace(" ", "") + ".png")
 
             # print(filename)
             # plt.show()
-            df.xs(date, level=0).to_csv(
-                os.path.join(
-                    output_dir, adm_key + "_" + map_title.replace(" ", "") + ".csv"
-                )
-            )
+            df.xs(date, level=0).to_csv(os.path.join(output_dir, adm_key + "_" + map_title.replace(" ", "") + ".csv"))
             plt.savefig(filename)
             plt.close()
 
 
 def get_state_outline(adm2_data, adm1_data):
     """Given admin2 shape data, finds matching admin1 shape data in order
-    to get the admin1 outline. 
-    
+    to get the admin1 outline.
+
     Parameters
     ----------
     adm2_data : Geopandas GeoDataFrame
@@ -414,7 +413,7 @@ def make_adm1_maps(
     add_outline=False,
 ):
     """Creates adm1 maps.
-    
+
     Parameters
     ----------
     adm2_shape_df : Geopandas GeoDataFrame
@@ -430,7 +429,7 @@ def make_adm1_maps(
     cols : list of strings
         List of columns to make maps for
     adm1_list : list of strings or None
-        List of explicit admin1 names to create names for. If None, a map 
+        List of explicit admin1 names to create names for. If None, a map
         is made for each unique admin1 in the lookup table
     output_dir : string
         Directory to place created maps
@@ -461,12 +460,8 @@ def make_adm1_maps(
     for admin_area in tqdm(adm1_list, total=len(adm1_list)):
 
         # Find admin 2 values in this admin1
-        admin1_code = lookup_df.loc[lookup_df["adm1_name"] == admin_area][
-            "adm1"
-        ].unique()[0]
-        admin2_vals = lookup_df.loc[lookup_df["adm1_name"] == admin_area][
-            "adm2"
-        ].unique()
+        admin1_code = lookup_df.loc[lookup_df["adm1_name"] == admin_area]["adm1"].unique()[0]
+        admin2_vals = lookup_df.loc[lookup_df["adm1_name"] == admin_area]["adm2"].unique()
 
         area_data = df.loc[df["adm2"].isin(admin2_vals)]
         area_data = area_data.assign(adm1=admin1_code)
@@ -527,12 +522,7 @@ if __name__ == "__main__":
 
         if cmap not in plt.colormaps():
 
-            print(
-                "Error: "
-                + cmap
-                + " is not a valid matplotlib colormap. Defaulting to: "
-                + default_cmap
-            )
+            print("Error: " + cmap + " is not a valid matplotlib colormap. Defaulting to: " + default_cmap)
             cmap = default_cmap
 
     map_cols = args.columns
@@ -557,7 +547,7 @@ if __name__ == "__main__":
 
         # Rename join column
         if adm1_col_name != "adm1":
-            shape_data = shape_data.rename(columns={adm1_col_name : "adm1"})
+            shape_data = shape_data.rename(columns={adm1_col_name: "adm1"})
 
         # Column management - adm1/2 vals should be integers only
         shape_data["adm1"] = shape_data["adm1"].apply(remove_chars).astype(int)
@@ -600,16 +590,14 @@ if __name__ == "__main__":
 
         # Cast to int
         adm2_shape_data["adm1"] = adm2_shape_data["adm1"].apply(remove_chars).astype(int)
-        adm2_shape_data = adm2_shape_data.assign(
-            adm2=adm2_shape_data[adm2_col_name].apply(remove_chars).astype(int)
-        )
+        adm2_shape_data = adm2_shape_data.assign(adm2=adm2_shape_data[adm2_col_name].apply(remove_chars).astype(int))
 
         # use adm1 shape data as well
         adm1_shape_data = gpd.read_file(args.adm1_shape)
 
         # Rename join column
         if adm1_col_name != "adm1":
-            adm1_shape_data = adm1_shape_data.rename(columns={adm1_col_name : "adm1"})
+            adm1_shape_data = adm1_shape_data.rename(columns={adm1_col_name: "adm1"})
 
         # Cast to int
         adm1_shape_data["adm1"] = adm1_shape_data["adm1"].apply(remove_chars).astype(int)
