@@ -23,16 +23,16 @@ from recommonmark.transform import AutoStructify
 
 # sys.path.insert(0, os.path.abspath('../../..'))
 sys.path.insert(0, os.path.abspath("../.."))
-repo_root_url = 'https://github.com/OCHA-DAP/pa-ocha-bucky'
+repo_root_url = "https://github.com/OCHA-DAP/pa-ocha-bucky"
 
 
 repo_root_url = "http://gitlab.com/kinsemc/bucky/"
 
 # -- Project information -----------------------------------------------------
 
-project = 'OCHA-Bucky'
-copyright = '2020, The Johns Hopkins University Applied Physics Laboratory LLC'
-author = 'Matt Kinsey, Kate Tallaksen, Freddy Obrecht'
+project = "OCHA-Bucky"
+copyright = "2020, The Johns Hopkins University Applied Physics Laboratory LLC"
+author = "Matt Kinsey, Kate Tallaksen, Freddy Obrecht"
 
 # The full version, including alpha/beta/rc tags
 release = ".1"
