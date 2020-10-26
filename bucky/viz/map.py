@@ -285,7 +285,6 @@ def make_map(
     outline_df : Geopandas GeoDataFrame or None
         Shapefile for outline
     """
-
     # Maps are joined one level down from the map-level
     # National maps color by state, state maps color by county
     join_key = "adm2" if adm_key == "adm1" else "adm1"
@@ -314,7 +313,7 @@ def make_map(
 
     # Index by date
     df["date"] = pd.to_datetime(df["date"])
-    df.set_index(["date", join_key], inplace=True)
+    df = df.set_index(["date", join_key])
 
     # Make maps for each requested data
     for date in dates:

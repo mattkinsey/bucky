@@ -1,6 +1,6 @@
 """arg parser for bucky.model
 
-This module handles all the CLI argument parsing for bucky.model and autodetects CuPy
+This module handles all the CLI argument parsing for bucky.model and autodetects CuPy.
 
 """
 import argparse

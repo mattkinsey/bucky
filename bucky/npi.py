@@ -6,7 +6,7 @@ import pandas as pd
 
 
 def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
-    """
+    """TODO Description.
 
     Parameters
     ----------
@@ -25,12 +25,11 @@ def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
     npi_params : dict
         TODO
     """
-
     # filter by overlap with simulation date range
     df = pd.read_csv(fname)
     df["date"] = pd.to_datetime(df.date)  # force a parse in case it's an odd format
     # rename adm2 column b/c people keep using different names
-    df.rename(columns={"admin2": "adm2", "FIPS": "adm2"}, inplace=True)
+    df = df.rename(columns={"admin2": "adm2", "FIPS": "adm2"})
     end_date = start_date + datetime.timedelta(days=end_t)
     mask = (df["date"] >= str(start_date)) & (df["date"] <= str(end_date))
     # If npi file isn't up to date just use last known value

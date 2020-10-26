@@ -202,7 +202,7 @@ if __name__ == "__main__":
     # Get aggregation levels
     agg_levels = args.levels
 
-    lookup_df.set_index("adm2", inplace=True)
+    lookup_df = lookup_df.set_index("adm2")
 
     admin2_key = "adm2_id"
 
@@ -340,7 +340,7 @@ if __name__ == "__main__":
             q_df = g.apply(quantiles_group)
 
             q_df[level] = q_df[level].round().astype(int).map(level_map)
-            q_df.set_index([level, "date", "quantile"], inplace=True)
+            q_df = q_df.set_index([level, "date", "quantile"])
 
             per_cap_dict = {}
             for col in per_capita_cols:
@@ -392,12 +392,11 @@ if __name__ == "__main__":
             df = pd.read_csv(fname)
 
             # TODO we can avoid having to set index here once readable_column names is complete
-            df.set_index([level, "date", "quantile"], inplace=True)
-            # sort rows by index
-            df.sort_index(inplace=True)
+            # set index and sort them
+            df = df.set_index([level, "date", "quantile"]).sort_index()
             # sort columns alphabetically
             df = df.reindex(sorted(df.columns), axis=1)
             # write out sorted csv
-            df.drop(columns="index", inplace=True)  # TODO where did we pick this up?
+            df = df.drop(columns="index")  # TODO where did we pick this col up?
             df.to_csv(fname, index=True)
             logging.info("Done sort")

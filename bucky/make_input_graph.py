@@ -61,11 +61,9 @@ parser.add_argument("--no_update", action="store_false", help="Skip updating dat
 
 
 def get_case_history(historical_data, end_date, num_days=DAYS_OF_HIST):
-    """Gets case and death history for the requested number of days for
-    each FIPS.
+    """Gets case and death history for the requested number of days for each FIPS.
 
-    If data is missing for a date, it is replaced with the data from the
-    last valid date.
+    If data is missing for a date, it is replaced with the data from the last valid date.
 
     Parameters
     ----------
@@ -81,7 +79,6 @@ def get_case_history(historical_data, end_date, num_days=DAYS_OF_HIST):
     hist : dict
         Dictionary of case data, keyed by FIPS
     """
-
     # Cast historical data's dates to datetime objects
     historical_data["date"] = pd.to_datetime(historical_data["date"])
     end_date = pd.to_datetime(end_date)
@@ -149,7 +146,7 @@ def compute_population_density(age_df, shape_df):
     """
     # Use age data and shape file to compute population density
     pop_df = pd.DataFrame(age_df.sum(axis=1))
-    pop_df.rename(columns={0: "total"}, inplace=True)
+    pop_df = pop_df.rename(columns={0: "total"})
     popdens = pop_df.merge(
         counties.set_index("adm2")["ALAND"].to_frame(),
         left_index=True,
@@ -164,7 +161,7 @@ def compute_population_density(age_df, shape_df):
 
 
 def read_descartes_data(end_date):
-    """Reads Descartes mobility data. :cite:`warren2020mobility`
+    """Reads Descartes mobility data :cite:`warren2020mobility`.
 
     Parameters
     ----------
@@ -188,7 +185,7 @@ def read_descartes_data(end_date):
             arXiv:2003.14228 [cs.SI], Mar. 2020. arxiv.org/abs/2003.14228
     """
     dl_data = pd.read_csv(mobility_dir + "DL-us-m50_index.csv")
-    dl_data.rename(columns={"fips": "adm2"}, inplace=True)
+    dl_data = dl_data.rename(columns={"fips": "adm2"})
     dl_data = (
         dl_data.set_index(["admin_level", "adm2"])
         .drop(columns=["country_code", "admin1", "admin2"])
@@ -226,8 +223,7 @@ def read_descartes_data(end_date):
 
 
 def read_lex_data(date):
-    """Reads county-level location exposure indices for a given date from
-    PlaceIQ location data.
+    """Reads county-level location exposure indices for a given date from PlaceIQ location data.
 
     In order to improve performance, preprocessed data is saved. If the
     user requests data for a date that has already been preprocessed, it
@@ -274,8 +270,7 @@ def read_lex_data(date):
 
 
 def get_lex(last_date, window_size=7):
-    """Reads county-level location exposure indices from PlaceIQ
-    location data and applies a window.
+    """Reads county-level location exposure indices from PlaceIQ location data and applies a window.
 
     Parameters
     ----------
@@ -301,20 +296,18 @@ def get_lex(last_date, window_size=7):
         d += 1
         try:
             if lex_df is None:
-                lex_df = read_lex_data(date_str)
-                lex_df.set_index(["StartId", "EndId"], inplace=True)
-                lex_df.rename(columns={"frac_count": date_str}, inplace=True)
+                lex_df = read_lex_data(date_str).set_index(["StartId", "EndId"])
+                lex_df = lex_df.rename(columns={"frac_count": date_str})
             else:
-                tmp_df = read_lex_data(date_str)
-                tmp_df.set_index(["StartId", "EndId"], inplace=True)
-                tmp_df.rename(columns={"frac_count": date_str}, inplace=True)
+                tmp_df = read_lex_data(date_str).set_index(["StartId", "EndId"])
+                tmp_df = tmp_df.rename(columns={"frac_count": date_str})
                 lex_df = lex_df.merge(tmp_df, left_index=True, right_index=True, how="outer")
             success += 1
             pbar.update(1)
         except FileNotFoundError:
             continue
 
-    lex_df.fillna(0.0, inplace=True)
+    lex_df = lex_df.fillna(0.0)
     mean_df = lex_df.mean(axis=1)
     tot_df = mean_df.reset_index().groupby("StartId").sum()
 
@@ -349,12 +342,12 @@ def get_safegraph(last_date, window_size=7):
         try:
             if sg_df is None:
                 sg_df = pd.read_csv(bucky_cfg["data_dir"] + "/safegraph_processed/" + date_str + "_county.csv.gz")
-                sg_df.set_index(["origin", "dest"], inplace=True)
-                sg_df.rename(columns={"count": date_str}, inplace=True)
+                sg_df = sg_df.set_index(["origin", "dest"])
+                sg_df = sg_df.rename(columns={"count": date_str})
             else:
                 tmp_df = pd.read_csv(bucky_cfg["data_dir"] + "/safegraph_processed/" + date_str + "_county.csv.gz")
-                tmp_df.set_index(["origin", "dest"], inplace=True)
-                tmp_df.rename(columns={"count": date_str}, inplace=True)
+                tmp_df = tmp_df.set_index(["origin", "dest"])
+                tmp_df = tmp_df.rename(columns={"count": date_str})
                 sg_df = sg_df.merge(tmp_df, left_index=True, right_index=True, how="outer")
             logging.info("using sg data from " + date_str)
             success += 1
@@ -362,7 +355,7 @@ def get_safegraph(last_date, window_size=7):
         except FileNotFoundError:
             continue
 
-    sg_df.fillna(0.0, inplace=True)
+    sg_df = sg_df.fillna(0.0)
     mean_df = sg_df.mean(axis=1)
     tot_df = mean_df.reset_index().groupby("origin").sum()
 
@@ -401,7 +394,7 @@ def get_mobility_data(popdens, end_date, age_data, add_territories=True):
 
         sg_df = get_safegraph(last_date)
         tmp = lex.set_index(["StartId", "EndId"]).frac_count.sort_index()
-        sg_df.index.rename(["StartId", "EndId"], inplace=True)
+        sg_df.index = sg_df.index.rename(["StartId", "EndId"])
         merged_df = tmp.to_frame().merge(sg_df.to_frame(), left_index=True, right_index=True, how="outer")
         mean_df = merged_df.mean(axis=1, skipna=True)
         lex = mean_df.to_frame(name="frac_count").reset_index()
@@ -563,7 +556,7 @@ if __name__ == "__main__":
     # grab from covid tracking project, (only defined at state level)
     ct_data = pd.read_csv(bucky_cfg["data_dir"] + "/cases/covid_tracking.csv")
     ct_data = ct_data.loc[ct_data.date <= last_date]
-    ct_data.set_index(["adm1", "date"], inplace=True)
+    ct_data = ct_data.set_index(["adm1", "date"])
 
     # Remove duplicates
     # TODO: Find cause of duplicates
@@ -601,9 +594,9 @@ if __name__ == "__main__":
     data = data.rename(columns={"NAMELSAD": "adm2_name"})
 
     # Drop duplicates
-    data.drop(data[data.duplicated("adm2", keep="first")].index, inplace=True)
+    data = data.drop(data[data.duplicated("adm2", keep="first")].index)
 
-    data.dropna(subset=["geometry"], inplace=True)  # this should happen but 2 of the cases have unknown fips
+    data = data.dropna(subset=["geometry"])  # this should happen but 2 of the cases have unknown fips
 
     # Only keep FIPS that appear in our age data
     data = data[data["adm2"].isin(list(age_dict.keys()))]
@@ -641,7 +634,7 @@ if __name__ == "__main__":
         )  # *popdens['pop_dens'].loc[neighbors])]))
 
     # Drop geometry column
-    data.drop(columns=["geometry"], inplace=True)
+    data = data.drop(columns=["geometry"])
 
     diff_edge_list = np.hstack(edges).T
 

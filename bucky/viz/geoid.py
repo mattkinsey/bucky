@@ -9,10 +9,11 @@ import pandas as pd
 
 from ..util.read_config import bucky_cfg
 
+# TODO this belongs in utils, not viz
+
 
 def read_geoid_from_graph(graph_file=None):
-    """Creates a dataframe relating geographic administration levels,
-    e.g. admin2 values in a given admin1.
+    """Creates a dataframe relating geographic administration levels, e.g. admin2 values in a given admin1.
 
     Parameters
     ----------
@@ -70,19 +71,18 @@ def read_geoid_from_graph(graph_file=None):
     if df["adm1_name"].isna().sum() == df["adm1_name"].size:
         df["adm1_name"] = df["adm1"].values.astype(str)
 
-    df.set_index("adm2", inplace=True)
+    df = df.set_index("adm2")  # TODO we shouldn't be setting the index the reseting after one op
 
     # Deal with DC if in US
     if admin0_name == "US":
         df.loc[11001.0, "adm1_name"] = "District of Columbia"
 
-    df.reset_index(inplace=True)
+    df = df.reset_index()
     return df
 
 
 def read_lookup(geofile, country="US"):
-    """Creates a dataframe relating geographic administration levels,
-    e.g. admin2 values in a given admin1 based on a lookup table.
+    """Creates a dataframe relating geographic administration levels e.g. admin2 values in a given admin1 based on a lookup table.
 
     Parameters
     ----------
@@ -97,7 +97,6 @@ def read_lookup(geofile, country="US"):
         Dataframe with names and values for admin0, admin1, and admin2
 
     """
-
     df = pd.read_csv(geofile)
 
     # Make columns match the lookup tables created by graph

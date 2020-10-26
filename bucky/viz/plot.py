@@ -189,7 +189,6 @@ def plot(
         List of quantiles to plot. If None, will plot all available
         quantiles in data.
     """
-
     # If quantiles were not specified, get all quantiles present in data
     if quantiles is None:
         quantiles = sim_data["quantile"].unique()
@@ -243,7 +242,7 @@ def plot(
         for i, col in enumerate(plot_columns):
 
             # Set index
-            area_data.set_index(["date", "quantile"], inplace=True)
+            area_data = area_data.set_index(["date", "quantile"])
 
             # Middle is median
             median_data = area_data.xs(quantiles[int(num_intervals / 2)], level=1)[col]
@@ -282,7 +281,7 @@ def plot(
                 )
 
             # axs[i].set_ylim([.8*oq_lower.min(), 1.2*oq_upper.max()])
-            area_data.reset_index(inplace=True)
+            area_data = area_data.reset_index()
 
             # Plot historical data which is already at the correct level
             if hist_data is not None and i <= (len(plot_columns) - 1):
@@ -369,7 +368,6 @@ def make_plots(
         Plot historical data from this point. If None, aligns with
         simulation start date
     """
-
     # Loop over requested levels
     for level in adm_levels:
 
@@ -417,7 +415,7 @@ def make_plots(
                 logging.warning("No historical data could be found for: " + str(hist_columns))
 
             else:
-                hist_data.reset_index(inplace=True)
+                hist_data = hist_data.reset_index()
 
                 # Drop data not within requested time range
                 hist_data = hist_data.assign(date=pd.to_datetime(hist_data["date"]))

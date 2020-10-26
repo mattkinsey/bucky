@@ -250,8 +250,7 @@ class SEIR_covid(object):
 
             if "covid_tracking_data" in G.graph:
                 self.rescale_chr = True
-                ct_data = G.graph["covid_tracking_data"]
-                ct_data.reset_index(inplace=True)
+                ct_data = G.graph["covid_tracking_data"].reset_index()
                 hosp_data = ct_data.loc[ct_data.date == str(self.first_date)][["adm1", "hospitalizedCurrently"]]
                 hosp_data_adm1 = hosp_data["adm1"].to_numpy()
                 hosp_data_count = hosp_data["hospitalizedCurrently"].to_numpy()
@@ -266,8 +265,9 @@ class SEIR_covid(object):
                 # reading over historical data, e.g. case_hist[-Ti:] during init)
 
                 for adm1, g in df.groupby("adm1"):
-                    g_df = g.set_index("date").sort_index().rolling(7).mean().dropna(how="all")
-                    g_df.clip(lower=0.0, inplace=True)
+                    g_df = g.reset_index().set_index("date").sort_index()
+                    g_df = g_df.rolling(7).mean().dropna(how="all")
+                    g_df = g_df.clip(lower=0.0)
                     g_df = g_df.rolling(7).sum()
                     new_deaths = g_df.deathIncrease.to_numpy()
                     new_cases = g_df.positiveIncrease.to_numpy()

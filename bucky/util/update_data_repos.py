@@ -20,8 +20,7 @@ MI_PRISON_UIDS = [84070004, 84070005]
 
 
 def get_timeseries_data(col_name, filename, fips_key="FIPS", is_csse=True):
-    """Takes a historical data file and reduces it to a dataframe with FIPs,
-    date, and case or death data.
+    """Takes a historical data file and reduces it to a dataframe with FIPs, date, and case or death data.
 
     Parameters
     ----------
@@ -41,7 +40,6 @@ def get_timeseries_data(col_name, filename, fips_key="FIPS", is_csse=True):
         Dataframe with the historical data indexed by FIPS, date
 
     """
-
     # Read file
     df = pd.read_csv(filename)
 
@@ -67,7 +65,7 @@ def get_timeseries_data(col_name, filename, fips_key="FIPS", is_csse=True):
     df = df[keep_cols]
 
     # Reindex and stack
-    df.set_index(fips_key, inplace=True)
+    df = df.set_index(fips_key)
 
     # Stack
     df = df.stack().reset_index()
@@ -102,12 +100,12 @@ def distribute_unallocated_csse(confirmed_file, deaths_file, hist_df):
         modified historical DataFrame with cases and deaths distributed
 
     """
-    hist_df.reset_index(inplace=True)
+    hist_df = hist_df.reset_index()
     if "index" in hist_df.columns:
         hist_df = hist_df.drop(columns=["index"])
 
     hist_df = hist_df.assign(state_fips=hist_df["FIPS"] // 1000)
-    hist_df.set_index(["date", "FIPS"], inplace=True)
+    hist_df = hist_df.set_index(["date", "FIPS"])
     # Read cases and deaths files
     case_df = pd.read_csv(confirmed_file)
     deaths_df = pd.read_csv(deaths_file)
@@ -128,7 +126,7 @@ def distribute_unallocated_csse(confirmed_file, deaths_file, hist_df):
     # Sum unassigned and 'out of X'
     extra_cases = cases_unallocated.groupby("state_fips").sum()
     extra_deaths = deaths_unallocated.groupby("state_fips").sum()
-    extra_cases.drop(
+    extra_cases = extra_cases.drop(
         columns=[
             "UID",
             "code3",
@@ -136,9 +134,8 @@ def distribute_unallocated_csse(confirmed_file, deaths_file, hist_df):
             "Lat",
             "Long_",
         ],
-        inplace=True,
     )
-    extra_deaths.drop(
+    extra_deaths = extra_deaths.drop(
         columns=[
             "UID",
             "Population",
@@ -147,7 +144,6 @@ def distribute_unallocated_csse(confirmed_file, deaths_file, hist_df):
             "Lat",
             "Long_",
         ],
-        inplace=True,
     )
 
     # Reformat dates to match processed data's format
@@ -218,7 +214,6 @@ def distribute_data_by_population(total_df, dist_vect, data_to_dist, replace):
         Modified input dataframe with distributed data
 
     """
-
     # Create temporary dataframe and merge
     tmp = total_df.reset_index()
     tmp = tmp.merge(dist_vect, on="FIPS")
@@ -239,15 +234,14 @@ def distribute_data_by_population(total_df, dist_vect, data_to_dist, replace):
 
     # Discard merge columns
     tmp = tmp[["FIPS", "date", "cumulative_reported_cases", "cumulative_deaths"]]
-    tmp.set_index(["FIPS", "date"], inplace=True)
+    tmp = tmp.set_index(["FIPS", "date"])
     total_df.loc[tmp.index] = tmp.values
 
     return total_df
 
 
 def get_county_population_data(csse_deaths_file, county_fips):
-    """Uses JHU CSSE deaths file to get county-level population data as
-    as fraction of total population across requested list of counties.
+    """Uses JHU CSSE deaths file to get county-level population data as as fraction of total population across requested list of counties.
 
     Parameters
     ----------
@@ -265,10 +259,9 @@ def get_county_population_data(csse_deaths_file, county_fips):
     """
     # Use CSSE Deaths file to get population values by FIPS
     df = pd.read_csv(csse_deaths_file)
-    population_df = df.loc[df["FIPS"].isin(county_fips)][["FIPS", "Population"]]
-    population_df.set_index("FIPS", inplace=True)
+    population_df = df.loc[df["FIPS"].isin(county_fips)][["FIPS", "Population"]].set_index("FIPS")
     population_df = population_df.assign(pop_fraction=population_df["Population"] / population_df["Population"].sum())
-    population_df.drop(columns=["Population"], inplace=True)
+    population_df = population_df.drop(columns=["Population"])
 
     return population_df
 
@@ -309,8 +302,8 @@ def distribute_nyc_data(df):
         index=county_populations.keys(),
     )
     population_df = population_df.assign(pop_fraction=population_df["Population"] / total_nyc_pop)
-    population_df.drop(columns=["Population"], inplace=True)
-    population_df.index.set_names(["FIPS"], inplace=True)
+    population_df = population_df.drop(columns=["Population"])
+    population_df.index = population_df.index.set_names(["FIPS"])
 
     # All data is in FIPS 36061
     nyc_data = df.xs(36061, level=0)
@@ -385,9 +378,8 @@ def distribute_territory_data(df, add_american_samoa):
     age_df = pd.read_csv(TERRITORY_DATA, index_col="fips")
 
     # use age-stratified data to get total pop per county
-    pop_df = pd.DataFrame(age_df.sum(axis=1))
-    pop_df.reset_index(inplace=True)
-    pop_df.rename(columns={"fips": "FIPS", 0: "total"}, inplace=True)
+    pop_df = pd.DataFrame(age_df.sum(axis=1)).reset_index()
+    pop_df = pop_df.rename(columns={"fips": "FIPS", 0: "total"})
 
     # Drop PR because CSSE does have county-level PR data now
     pop_df = pop_df.loc[~(pop_df["FIPS"] // 1000).isin([72, 60])]
@@ -409,8 +401,7 @@ def distribute_territory_data(df, add_american_samoa):
             "cumulative_reported_cases": [np.nan for d in date_col],
             "cumulative_deaths": [np.nan for d in date_col],
         },
-    )
-    tframe.set_index(["FIPS", "date"], inplace=True)
+    ).set_index(["FIPS", "date"])
     df = df.append(tframe)
 
     # CSSE has state-level data for Guam, CNMI, USVI
@@ -432,8 +423,7 @@ def distribute_territory_data(df, add_american_samoa):
                 "cumulative_reported_cases": [1.0 for d in dates],
                 "cumulative_deaths": [0.0 for d in dates],
             },
-        )
-        as_frame.set_index(["FIPS", "date"], inplace=True)
+        ).set_index(["FIPS", "date"])
         df = df.append(as_frame)
 
     return df
@@ -464,8 +454,8 @@ def process_csse_data():
     deaths = get_timeseries_data("Deaths", deaths_file)
 
     # rename columns
-    confirmed.rename(columns={"Confirmed": "cumulative_reported_cases"}, inplace=True)
-    deaths.rename(columns={"Deaths": "cumulative_deaths"}, inplace=True)
+    confirmed = confirmed.rename(columns={"Confirmed": "cumulative_reported_cases"})
+    deaths = deaths.rename(columns={"Deaths": "cumulative_deaths"})
 
     # Merge datasets
     data = pd.merge(confirmed, deaths, on=["FIPS", "date"], how="left").fillna(0)
@@ -524,7 +514,7 @@ def update_covid_tracking_data():
     df["date"] = pd.to_datetime(df["date"], format="%Y%m%d")
 
     # Rename FIPS
-    df.rename(columns={"fips": "adm1"}, inplace=True)
+    df = df.rename(columns={"fips": "adm1"})
 
     # Save
     covid_tracking_name = bucky_cfg["data_dir"] + "/cases/covid_tracking.csv"
@@ -554,7 +544,7 @@ def process_usafacts(case_file, deaths_file):
     """
     # Read case file, will be used to scale unallocated cases & deaths
     case_df = pd.read_csv(case_file)
-    case_df.drop(columns=["County Name", "State", "stateFIPS"], inplace=True)
+    case_df = case_df.drop(columns=["County Name", "State", "stateFIPS"])
 
     files = [case_file, deaths_file]
     cols = ["Confirmed", "Deaths"]
@@ -562,13 +552,13 @@ def process_usafacts(case_file, deaths_file):
     for i, file in enumerate(files):
 
         df = pd.read_csv(file)
-        df.drop(columns=["County Name", "State"], inplace=True)
+        df = df.drop(columns=["County Name", "State"])
 
         # Get time series versions
         ts = get_timeseries_data(cols[i], file, "countyFIPS", False)
 
         ts = ts.loc[~ts["FIPS"].isin([0, 1])]
-        ts.set_index(["FIPS", "date"], inplace=True)
+        ts = ts.set_index(["FIPS", "date"])
 
         for state_code, state_df in tqdm.tqdm(
             df.groupby("stateFIPS"),
@@ -580,23 +570,23 @@ def process_usafacts(case_file, deaths_file):
             if state_df.loc[state_df["countyFIPS"] == 0].empty:
                 continue
 
-            state_df.set_index("countyFIPS", inplace=True)
+            state_df = state_df.set_index("countyFIPS")
             state_df = state_df.drop(columns=["stateFIPS"])
 
             # Get unallocated cases
             state_unallocated = state_df.xs(0)
-            state_df.drop(index=0, inplace=True)
+            state_df = state_df.drop(index=0)
 
             if state_code == 36:
 
                 # NYC includes "probable" deaths - these are currently being dropped
-                state_df.drop(index=1, inplace=True)
+                state_df = state_df.drop(index=1)
 
             if state_unallocated.sum() > 0:
 
                 # Distribute by cases
                 state_cases = case_df.loc[case_df["countyFIPS"] // 1000 == state_code]
-                state_cases.set_index("countyFIPS", inplace=True)
+                state_cases = state_cases.set_index("countyFIPS")
                 frac_df = state_cases / state_cases.sum()
                 frac_df = frac_df.replace(np.nan, 0)
 
@@ -607,7 +597,7 @@ def process_usafacts(case_file, deaths_file):
 
                 # Replace column names
                 state_df = state_df.rename(columns={"countyFIPS": "FIPS", "level_1": "date", 0: cols[i]})
-                state_df.set_index(["FIPS", "date"], inplace=True)
+                state_df = state_df.set_index(["FIPS", "date"])
                 ts.loc[state_df.index] = state_df.values
 
         processed_frames.append(ts)
@@ -646,7 +636,7 @@ def update_usafacts_data():
     # Sort by date
     data["date"] = pd.to_datetime(data["date"])
     data = data.sort_values(by="date")
-    data.rename(columns={"FIPS": "adm2"}, inplace=True)
+    data = data.rename(columns={"FIPS": "adm2"})
     data.to_csv(bucky_cfg["data_dir"] + "/cases/usafacts_hist.csv")
 
 
@@ -680,7 +670,6 @@ def git_pull(abs_path):
     abs_path : string
         Abs path location of repository to update
     """
-
     git_command = "git pull --rebase origin master"
 
     # pull
