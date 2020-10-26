@@ -1,5 +1,5 @@
-CLI Interface
-=============
+Command Line Interface
+======================
 
 bucky.make_input_graph
 ++++++++++++++++++++++
