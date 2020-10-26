@@ -22,3 +22,6 @@ venv.bak/
 
 # IDEs
 .idea/*
+
+#Mac DSStore
+.DS_Store
