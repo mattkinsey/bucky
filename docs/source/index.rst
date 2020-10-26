@@ -11,7 +11,6 @@ Welcome to OCHA-Bucky's documentation!
    :caption: Contents:
 
    getting_started
-   install
    model_overview
    compartment_model
    input_output

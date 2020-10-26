@@ -54,3 +54,13 @@ Mobility-based                 Reduction in mobility between regions            
 Reproduction number-based      60-8% reduction in overall community transmission                                            72.5% (6.25)                                      :cite:`jarvis2020quantifying` :cite:`joseph2020assessing`
 =============================  ===========================================================================================  ================================================  =============== 
 
+Creating the NPI file
+---------------------
+The NPI file has to consist of the columns `admin2, date, home, school, work, other_locations, mobility_reduction,r0_reduction`.
+Each row contains an unique `admin2`-`date` combination. The other columns indicate the effect of the current NPIs on the given column.
+A value of 1 indicates the NPIs having no effect on the transmission for the given column name. A value smaller than 1 indicates that the NPI's lower the transmission in this domain, while values larger than 1 indicate an increased transmission.
+
+The columns `home, work, school, other_locations,` correspond with the columns in the contact matrix. The contact matrix is multiplied with the values of these columns in the NPI file.
+The value in `mobility_reduction` influences the mobility between regions, each weight in the mobility matrix that has as start or endpoint the given admin2, will be multiplied by that `mobility_reduction` value. Lastly, the effective reproduction rate is multiplied with the `r0_reduction` to come to the new effective reproduction rate given the NPIs.
+
+An example file is given in *included_data/npi/AFG_NPIs_20201014.csv*. The `OCHA model parameterization repository <https://github.com/OCHA-DAP/pa-COVID-model-parameterization>`_ implements a method to convert written NPI measures to the required Bucky format.  This script also generates an `elderly_shielding` column, but this NPI is currently not implemented in the model and thus not required.
