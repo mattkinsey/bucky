@@ -19,6 +19,7 @@ Welcome to OCHA-Bucky's documentation!
    usage
    cli
    modules
+   faq
    references
 
 .. image:: ../../logo.png
