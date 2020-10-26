@@ -31,7 +31,7 @@ class TqdmLoggingHandler(logging.Handler):
 
 
 class dotdict(dict):
-    """dot.notation access to dictionary attributes"""
+    """dot.notation access to dictionary attributes."""
 
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
@@ -102,10 +102,10 @@ def unpack_cache(cache_file):
 
 
 def _banner():
-    print(r" ____             _          ")
-    print(r"| __ ) _   _  ___| | ___   _ ")
-    print(r"|  _ \| | | |/ __| |/ / | | |")
-    print(r"| |_) | |_| | (__|   <| |_| |")
-    print(r"|____/ \__,_|\___|_|\_\\__, |")
-    print(r"                       |___/ ")
-    print(r"                             ")
+    print(r" ____             _          ")  # noqa: T001
+    print(r"| __ ) _   _  ___| | ___   _ ")  # noqa: T001
+    print(r"|  _ \| | | |/ __| |/ / | | |")  # noqa: T001
+    print(r"| |_) | |_| | (__|   <| |_| |")  # noqa: T001
+    print(r"|____/ \__,_|\___|_|\_\\__, |")  # noqa: T001
+    print(r"                       |___/ ")  # noqa: T001
+    print(r"                             ")  # noqa: T001

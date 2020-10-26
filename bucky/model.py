@@ -88,12 +88,25 @@ class SEIR_covid(object):
         state_indices["Di"] = state_indices["Rhi"][-1] + 1
 
         state_indices["Iai"] = xp.hstack(
-            [state_indices["Ii"], state_indices["Iasi"], state_indices["Ici"]]
+            [
+                state_indices["Ii"],
+                state_indices["Iasi"],
+                state_indices["Ici"],
+            ],
         )  # all I compartments
         state_indices["Hi"] = xp.hstack(
-            [state_indices["Rhi"], state_indices["Ici"]]
+            [
+                state_indices["Rhi"],
+                state_indices["Ici"],
+            ],
         )  # all compartments in hospitalization
-        state_indices["Ci"] = xp.hstack([state_indices["Ii"], state_indices["Ici"], state_indices["Rhi"]])
+        state_indices["Ci"] = xp.hstack(
+            [
+                state_indices["Ii"],
+                state_indices["Ici"],
+                state_indices["Rhi"],
+            ],
+        )
 
         state_indices["incH"] = state_indices["Di"] + 1
         state_indices["incC"] = state_indices["incH"] + 1
@@ -251,8 +264,7 @@ class SEIR_covid(object):
 
             if "covid_tracking_data" in G.graph:
                 self.rescale_chr = True
-                ct_data = G.graph["covid_tracking_data"]
-                ct_data.reset_index(inplace=True)
+                ct_data = G.graph["covid_tracking_data"].reset_index()
                 hosp_data = ct_data.loc[ct_data.date == str(self.first_date)][["adm1", "hospitalizedCurrently"]]
                 hosp_data_adm1 = hosp_data["adm1"].to_numpy()
                 hosp_data_count = hosp_data["hospitalizedCurrently"].to_numpy()
@@ -267,8 +279,9 @@ class SEIR_covid(object):
                 # reading over historical data, e.g. case_hist[-Ti:] during init)
 
                 for adm1, g in df.groupby("adm1"):
-                    g_df = g.set_index("date").sort_index().rolling(7).mean().dropna(how="all")
-                    g_df.clip(lower=0.0, inplace=True)
+                    g_df = g.reset_index().set_index("date").sort_index()
+                    g_df = g_df.rolling(7).mean().dropna(how="all")
+                    g_df = g_df.clip(lower=0.0)
                     g_df = g_df.rolling(7).sum()
                     new_deaths = g_df.deathIncrease.to_numpy()
                     new_cases = g_df.positiveIncrease.to_numpy()
@@ -392,7 +405,7 @@ class SEIR_covid(object):
 
         # crr_days_needed = max( #TODO this depends on all the Td params, and D_REPORT_TIME...
         case_reporting = xp.to_cpu(
-            self.estimate_reporting(cfr=self.params.F, days_back=22, min_deaths=self.consts.case_reporting_min_deaths)
+            self.estimate_reporting(cfr=self.params.F, days_back=22, min_deaths=self.consts.case_reporting_min_deaths),
         )
         self.case_reporting = xp.array(
             mPERT_sample(  # TODO these facs should go in param file
@@ -400,7 +413,7 @@ class SEIR_covid(object):
                 a=xp.clip(0.8 * case_reporting, a_min=0.2, a_max=None),
                 b=xp.clip(1.2 * case_reporting, a_min=None, a_max=1.0),
                 gamma=500.0,
-            )
+            ),
         )
 
         self.doubling_t = self.estimate_doubling_time(
@@ -819,12 +832,12 @@ class SEIR_covid(object):
         hist_inc_death_mean = xp.mean(xp.sum(self.inc_death_hist[-7:], axis=-1))
 
         inc_death_rejection_fac = 2.0  # TODO These should come from the cli arg -r
-        if (init_inc_death_mean > inc_death_rejection_fac * hist_inc_death_mean) or (
-            inc_death_rejection_fac * init_inc_death_mean < hist_inc_death_mean
-        ):
-            if args.reject_runs:
-                logging.info("Inconsistent inc deaths, rejecting run")
-                raise SimulationException
+        if (
+            (init_inc_death_mean > inc_death_rejection_fac * hist_inc_death_mean)
+            or (inc_death_rejection_fac * init_inc_death_mean < hist_inc_death_mean)
+        ) and args.reject_runs:
+            logging.info("Inconsistent inc deaths, rejecting run")
+            raise SimulationException
 
         # prepend the min cumulative cases over the last 2 days in case in the decreased
         prepend_cases = xp.minimum(self.cum_case_hist[-2], self.cum_case_hist[-1])
@@ -835,12 +848,12 @@ class SEIR_covid(object):
         hist_inc_case_mean = xp.mean(xp.sum(self.inc_case_hist[-7:], axis=-1))
 
         inc_case_rejection_fac = 2.0  # TODO These should come from the cli arg -r
-        if (init_inc_case_mean > inc_case_rejection_fac * hist_inc_case_mean) or (
-            inc_case_rejection_fac * init_inc_case_mean < hist_inc_case_mean
-        ):
-            if args.reject_runs:
-                logging.info("Inconsistent inc cases, rejecting run")
-                raise SimulationException
+        if (
+            (init_inc_case_mean > inc_case_rejection_fac * hist_inc_case_mean)
+            or (inc_case_rejection_fac * init_inc_case_mean < hist_inc_case_mean)
+        ) and args.reject_runs:
+            logging.info("Inconsistent inc cases, rejecting run")
+            raise SimulationException
 
         daily_cases_total = daily_cases_reported / self.params.CASE_REPORT[:, None]  # /self.params.SYM_FRAC
         cum_cases_total = cum_cases_reported / self.params.CASE_REPORT[:, None]
@@ -895,15 +908,13 @@ class SEIR_covid(object):
 
             # df_data[k] = xp.to_cpu(df_data[k])
 
-            if k != "date":
-                if xp.any(xp.around(df_data[k], 2) < 0.0):
-                    logging.info("Negative values present in " + k)
-                    negative_values = True
+            if k != "date" and xp.any(xp.around(df_data[k], 2) < 0.0):
+                logging.info("Negative values present in " + k)
+                negative_values = True
 
-        if negative_values:
-            if args.reject_runs:
-                logging.info("Rejecting run b/c of negative values in output")
-                raise SimulationException
+        if negative_values and args.reject_runs:
+            logging.info("Rejecting run b/c of negative values in output")
+            raise SimulationException
 
         # Append data to the hdf5 file
         output_folder = os.path.join(outdir, self.run_id)

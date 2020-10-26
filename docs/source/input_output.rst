@@ -4,11 +4,15 @@ Model Input and Output
 
 Input
 =====
-The Bucky model uses two main sources of input: the input graph and CDC-recommended parameters. The input graph contains data regarding demographics, geographic information, and historical case information.
+The Bucky model uses two main sources of input: the input graph and CDC-recommended parameters.  
+
+Input Graph
+-----------
+The input graph contains data regarding demographics, geographic information, and historical case information. For details, see :doc:`Graph Information <graph_info>`.
 
 CDC-Recommended Parameters
 --------------------------
-The Centers for Disease Control and Prevention (CDC) has published pandemic planning scenarios [7] which contain recommended parameters describing biological and epidemiological parameters. Of these five planning scenarios, OCHA-Bucky utilizes scenario 5, which contains the CDC’s current best estimates for disease severity and transmission. These parameters are described in detail, based on information available from the CDC, and summarized in Table 2.
+The Centers for Disease Control and Prevention (CDC) has published pandemic planning scenarios :cite:`centers2020covid` which contain recommended parameters describing biological and epidemiological parameters. Of these five planning scenarios, Bucky utilizes scenario 5, which contains the CDC’s current best estimates for disease severity and transmission. These parameters are described in detail, based on information available from the CDC, and summarized in the table below. CDC-recommended parameters are controlled by parameter files located in the ``par`` directory.
 
 ===================================================  =====================  ==============
 Parameter Description                                Bucky Variable Name    Value (Interquartile Range)
@@ -35,6 +39,23 @@ Time between death and reporting                     D_REPORT_TIME          - 0-
                                                                             - 65+ years: 6.6 
 ===================================================  =====================  ==============
 
+Disease Transmission
+********************
+
+The following parameters describe the transmissibility of the virus. The **percentage of infections that are asymptomatic**, ``asym_frac``, refers to the percentage of infections that will never develop symptoms. This is a difficult parameter to estimate due to logistical complications (individuals would need to be tested to ensure they remain asymptomatic while infectious) and because the level of asymptomatic infections varies by age. The best estimate for this parameter is the midpoint between the lower bound of :cite:`byambasuren2020estimating`, the upper bound of :cite:`poletti2020probability`, which corresponds to the estimates from :cite:`oran2020prevalence`. 
+
+The **relative infectiousness of asymptomatic individuals** compared to symptomatic individuals ``rel_inf_asym`` is calculated using upper and lower bounds on the difference in viral dynamics between asymptomatic and symptomatic cases. The lower bound is derived from data indicating that more severe cases have higher viral loads :cite:`liu2020viral` and a study that indicates symptomatic cases shed for longer and have higher viral loads than asymptomatic cases :cite:`noh2020asymptomatic`. Other studies indicate that both symptomatic and asymptomatic cases have similar duration and viral shedding :cite:`lee2020clinical`, which is used as the upper bound. 
+
+The final parameter relating to disease transmission is the **fraction of transmission prior to symptom onset** ``frac_trans_before_sym`` which corresponds to the percentage of new cases that were caused by transmission from an individual before they become symptomatic. The lower bound is derived from :cite:`he2020temporal`, with the upper bound derived from :cite:`casey2020estimating`.
+
+Disease Characteristics and Severity
+************************************
+
+The mean serial interval, ``Ts``, is the time in days from exposure to onset of symptoms and is taken from :cite:`mcaloon2020incubation`. The mean generation interval, ``Tg``, is the period of time (in days) between symptom onset for one individual and symptom onset for a person they have infected. This value is from :cite:`he2020temporal`. 
+
+The case fatality ratio (**CFR**) is the number of individuals who will die of the disease; the case hospitalization-severity ratio (**CHR**) corresponds to the number of cases that are severe and necessitate hospitalization. Within the context of the United States, this ratio corresponds to the individuals admitted to a hospital.  In a context where access to medical care is limited, this ratio corresponds to the ratio of individuals who exhibit severe disease symptoms.
+
+Hospital-related parameters are derived using data from COVID-Net :cite:`covid-net` and the CDC's Data Collation and Integration for Public Health Event Response (DCIPHER). All data is taken from the period between March 1, 2020 to July 15, 2020 unless otherwise noted. The time it takes from symptom onset to hospitalization in days is denoted by ``I_to_H_time``. The number of days an individual will be hospitalized is ``H_TIME``. Finally, the number of days between death and reporting is ``D_REPORT_TIME``.
 
 Output
 ======

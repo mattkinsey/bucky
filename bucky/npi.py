@@ -8,7 +8,7 @@ from .util import remove_chars
 
 
 def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
-    """
+    """TODO Description.
 
     Parameters
     ----------
@@ -27,12 +27,11 @@ def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
     npi_params : dict
         TODO
     """
-
     # filter by overlap with simulation date range
     df = pd.read_csv(fname)
     df["date"] = pd.to_datetime(df.date)  # force a parse in case it's an odd format
     # rename adm2 column b/c people keep using different names
-    df.rename(columns={"admin2": "adm2", "FIPS": "adm2"}, inplace=True)
+    df = df.rename(columns={"admin2": "adm2", "FIPS": "adm2"})
     end_date = start_date + datetime.timedelta(days=end_t)
     mask = (df["date"] >= str(start_date)) & (df["date"] <= str(end_date))
     # If npi file isn't up to date just use last known value
@@ -48,7 +47,7 @@ def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
     contact_weights = []
 
     # 1st dimension is date, 2nd is admin2 code
-    for name, group in df.sort_values(by=["date"]).groupby("date"):
+    for _, group in df.sort_values(by=["date"]).groupby("date"):
         # convert adm2 id to int
         group["admin2"] = group.adm2.apply(remove_chars).astype(int)
         date_group = group.set_index("adm2").reindex(adm2_map)
