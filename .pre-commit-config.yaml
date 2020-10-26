@@ -12,6 +12,13 @@ repos:
       - id: isort
         #language_version: python3.8
 
+  - repo: https://github.com/terrencepreilly/darglint
+    rev: v1.5.5
+    hooks:
+    - id: darglint
+      args: ['--no-exit-code']
+      verbose: true
+
   - repo: https://gitlab.com/pycqa/flake8
     rev: 3.8.4
     hooks:
@@ -31,6 +38,7 @@ repos:
           #flake8-eradicate,
           pandas-vet,
         ]
+        verbose: true
         #language_version: python3.8
 #
 #  - repo: https://github.com/pre-commit/mirrors-pylint
