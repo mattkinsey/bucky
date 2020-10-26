@@ -3,7 +3,6 @@ import logging
 from pprint import pformat
 
 import numpy as np
-import scipy.special as sc
 import yaml
 
 from .util import dotdict
@@ -17,7 +16,6 @@ def calc_Te(Tg, Ts, n, f):
 
 
 def calc_Reff(m, n, Tg, Te, r):
-    tdiff = Tg - Te
     num = 2.0 * n * r / (n + 1.0) * (Tg - Te) * (1.0 + r * Te / m) ** m
     den = 1.0 - (1.0 + 2.0 * r / (n + 1.0) * (Tg - Te)) ** (-n)
     return num / den
@@ -41,12 +39,13 @@ def CI_to_std(CI):
     return (upper + lower) / 2.0, (upper - lower) / std95 / 2.0
 
 
-class seir_params(object):
+class buckyParams(object):
     def __init__(self, par_file=None, gpu=False):
 
         self.par_file = par_file
         if par_file is not None:
             self.base_params = self.read_yml(par_file)
+            self.consts = dotdict(self.base_params["consts"])
         else:
             self.base_params = None
 
@@ -62,9 +61,7 @@ class seir_params(object):
         while True:  # WTB python do-while...
             params = self.reroll_params(self.base_params, var)
             params = self.calc_derived_params(params)
-            if (
-                params.Te > 1.0 and params.Tg > params.Te and params.Ti > 1.0
-            ) or var == 0.0:
+            if (params.Te > 1.0 and params.Tg > params.Te and params.Ti > 1.0) or var == 0.0:
                 return params
             else:
                 logging.debug("Rejected params: " + pformat(params))
@@ -80,9 +77,7 @@ class seir_params(object):
             elif "mean" in base_params[p]:
                 if "CI" in base_params[p]:
                     if var:
-                        params[p] = truncnorm(
-                            np, *CI_to_std(base_params[p]["CI"]), a_min=1e-6
-                        )
+                        params[p] = truncnorm(np, *CI_to_std(base_params[p]["CI"]), a_min=1e-6)
                     else:  # just use mean if we set var to 0
                         params[p] = copy.deepcopy(base_params[p]["mean"])
                 else:
@@ -94,12 +89,9 @@ class seir_params(object):
                 params[p] = np.array(base_params[p]["values"])
                 params[p] *= truncnorm(np, 1.0, var, size=params[p].shape, a_min=1e-6)
                 # interp to our age bins
-                if (
-                    base_params[p]["age_bins"]
-                    != base_params["model_struct"]["age_bins"]
-                ):
+                if base_params[p]["age_bins"] != base_params["consts"]["age_bins"]:
                     params[p] = self.age_interp(
-                        base_params["model_struct"]["age_bins"],
+                        base_params["consts"]["age_bins"],
                         base_params[p]["age_bins"],
                         params[p],
                     )
@@ -116,9 +108,7 @@ class seir_params(object):
         return params
 
     @staticmethod
-    def age_interp(
-        x_bins_new, x_bins, y
-    ):  # TODO we should probably account for population for the 65+ type bins...
+    def age_interp(x_bins_new, x_bins, y):  # TODO we should probably account for population for the 65+ type bins...
         x_mean_new = np.mean(np.array(x_bins_new), axis=1)
         x_mean = np.mean(np.array(x_bins), axis=1)
         return np.interp(x_mean_new, x_mean, y)
@@ -127,8 +117,8 @@ class seir_params(object):
     def rescale_doubling_rate(D, params, xp, A=None):
         r = xp.log(2.0) / D
         params["R0"] = calc_Reff(
-            params["model_struct"]["Im"],
-            params["model_struct"]["En"],
+            params["consts"]["Im"],
+            params["consts"]["En"],
             params["Tg"],
             params["Te"],
             r,
@@ -144,14 +134,14 @@ class seir_params(object):
         params["Te"] = calc_Te(
             params["Tg"],
             params["Ts"],
-            params["model_struct"]["En"],
+            params["consts"]["En"],
             params["frac_trans_before_sym"],
         )
-        params["Ti"] = calc_Ti(params["Te"], params["Tg"], params["model_struct"]["En"])
+        params["Ti"] = calc_Ti(params["Te"], params["Tg"], params["consts"]["En"])
         r = np.log(2.0) / params["D"]
         params["R0"] = calc_Reff(
-            params["model_struct"]["Im"],
-            params["model_struct"]["En"],
+            params["consts"]["Im"],
+            params["consts"]["En"],
             params["Tg"],
             params["Te"],
             r,

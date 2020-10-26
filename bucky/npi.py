@@ -4,17 +4,17 @@ import logging
 import numpy as np
 import pandas as pd
 
-from .util import date_to_t_int, remove_chars
+from .util import remove_chars
 
 
 def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
     """
-    
+
     Parameters
     ----------
-    fname : string 
+    fname : string
         Filename of NPI file
-    start_date : string 
+    start_date : string
         Start date to use
     end_t : int
         Number of days after start date
@@ -37,8 +37,8 @@ def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
     mask = (df["date"] >= str(start_date)) & (df["date"] <= str(end_date))
     # If npi file isn't up to date just use last known value
     if np.all(~mask):
-        max_npi_date = df['date'].max()
-        mask = df['date'] == max_npi_date
+        max_npi_date = df["date"].max()
+        mask = df["date"] == max_npi_date
 
     df = df.loc[mask]
 
@@ -54,9 +54,7 @@ def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
         date_group = group.set_index("adm2").reindex(adm2_map)
         r0_reduction = np.array(date_group[["r0_reduction"]])
         mobility_reduction = np.array(date_group[["mobility_reduction"]])
-        contact_weight = np.array(
-            date_group[["home", "other_locations", "school", "work"]]
-        )
+        contact_weight = np.array(date_group[["home", "other_locations", "school", "work"]])
         r0_reductions.append(r0_reduction)
         mobility_reductions.append(mobility_reduction)
         contact_weights.append(contact_weight)

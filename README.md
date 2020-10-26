@@ -1,5 +1,7 @@
+
 # OCHA-Bucky Model
 [![Documentation Status](https://readthedocs.org/projects/docs/badge/?version=latest)](https://ocha-bucky.readthedocs.io/en/latest/getting_started.html)
+![Lint Passing (master)](https://github.com/mattkinsey/bucky/workflows/test-pre-commit-hooks/badge.svg?branch=master)
 
 The documentation on how to use the model can be accessed **[here](https://ocha-bucky.readthedocs.io/en/latest/)** 
 
