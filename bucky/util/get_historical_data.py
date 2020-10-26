@@ -38,9 +38,7 @@ def add_daily_history(history_data, window_size=None):
     history_data : Pandas DataFrame
         Historical data with added columns for daily case and death data
     """
-
-    history_data = history_data.set_index(["adm2", "date"])
-    history_data.sort_index(inplace=True)
+    history_data = history_data.set_index(["adm2", "date"]).sort_index()  # TODO do we need it sorted?
 
     # Remove string columns if they exist
     str_cols = list(history_data.select_dtypes(include=["object"]).columns)
@@ -63,8 +61,7 @@ def add_daily_history(history_data, window_size=None):
         # daily_data = daily_data.rolling(7, center=True, on='date').mean()
         # daily_data = hdaily_data.set_index(['adm2', 'date'])
 
-    history_data = history_data.merge(daily_data, left_index=True, right_index=True)
-    history_data.reset_index(inplace=True)
+    history_data = history_data.merge(daily_data, left_index=True, right_index=True).reset_index()
 
     # TODO Set negative values to 0
 
@@ -125,7 +122,7 @@ def get_historical_data(columns, level, lookup_df, window_size, hist_file):
 
                 # Use either county or state to aggregate as needed
                 lookup_col = "adm2" if "adm2" in data.columns else "adm1"
-                lookup_df.set_index(lookup_col, inplace=True)
+                lookup_df = lookup_df.set_index(lookup_col)
                 level_dict = lookup_df[level].to_dict()
                 data[level] = data[lookup_col].map(level_dict)
 
@@ -144,7 +141,7 @@ def get_historical_data(columns, level, lookup_df, window_size, hist_file):
             else:
                 df = df.merge(agg_data[requested_col].to_frame(), how="outer", left_index=True, right_index=True)
 
-        lookup_df.reset_index(inplace=True)
+        lookup_df = lookup_df.reset_index()  # TODO we can probably avoid doing this everytime
 
     return df
 

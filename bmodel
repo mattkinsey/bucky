@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import logging
 import runpy
 import sys
 
@@ -16,7 +17,7 @@ try:
 except ImportError as e:
     if base_pkg_name not in str(e):
         raise e
-    print("\n !!! Submodule " + module_name.replace(base_pkg_name, "") + " not found !!!")
+    logging.error(" !!! Submodule " + module_name.replace(base_pkg_name, "") + " not found !!!")
     from pkgutil import iter_modules
 
     from setuptools import find_packages
@@ -24,21 +25,21 @@ except ImportError as e:
     def find_modules(path):
         modules = set()
         for pkg in find_packages(path):
-            modules.add(pkg)
+            modules.add(pkg)  # noqa: PD005
             pkgpath = path + "/" + pkg.replace(".", "/")
             if sys.version_info.major == 2 or (sys.version_info.major == 3 and sys.version_info.minor < 6):
                 for _, name, ispkg in iter_modules([pkgpath]):
                     if not ispkg:
-                        modules.add(pkg + "." + name)
+                        modules.add(pkg + "." + name)  # noqa: PD005
             else:
                 for info in iter_modules([pkgpath]):
                     if not info.ispkg:
-                        modules.add(pkg + "." + info.name)
+                        modules.add(pkg + "." + info.name)  # noqa: PD005
         return modules
 
-    print("\nValid submodules:")
+    logging.error("Valid submodules:")
     for mod_name in sorted(find_modules(".")):
-        print("    " + mod_name.replace(base_pkg_name, ""))
+        logging.error("    " + mod_name.replace(base_pkg_name, ""))
 
 
 # TODO add some 'standard' options here like make_input_graph->model->postprocess->plot

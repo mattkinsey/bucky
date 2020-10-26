@@ -1,10 +1,35 @@
+""" Provides any probability distributions used by the model that aren't in numpy/cupy."""
+
 import numpy as np
 import scipy.special as sc
 
 
 # TODO only works on cpu atm
-# we'd need to implement betaincinv ourselves in cupy/numpy
+# we'd need to implement betaincinv ourselves in cupy
 def mPERT_sample(mu, a=0.0, b=1.0, gamma=4.0, var=None):
+    """Provides a vectorized Modified PERT distribution.
+
+    Parameters
+    ----------
+    mu : float, array_like
+        Mean value for the PERT distribution.
+    a : float, array_like
+        Lower bound for the distribution.
+    b : float, array_like
+        Upper bound for the distribution.
+    gamma : float, array_like
+        Shape paramter.
+    var : float, array_like, None
+        Variance of the distribution. If var != None,
+        gamma will be calcuated to meet the desired variance.
+
+    Returns
+    -------
+    out : float, array_like
+        Samples drawn from the specified mPERT distribution.
+        Shape is the broadcasted shape of the the input parameters.
+
+    """
     mu, a, b = np.atleast_1d(mu, a, b)
     if var is not None:
         gamma = (mu - a) * (b - mu) / var - 3.0
@@ -16,7 +41,21 @@ def mPERT_sample(mu, a=0.0, b=1.0, gamma=4.0, var=None):
 
 
 def truncnorm(xp, loc=0.0, scale=1.0, size=1, a_min=None, a_max=None):
-    """Provides a truncnorm implementation that is compatible with cupy"""
+    """Provides a vectorized truncnorm implementation that is compatible with cupy.
+
+    The output is calculated by using the numpy/cupy random.normal() and
+    truncted via rejection sampling. The interface is intended to mirror
+    the scipy implementation of truncnorm.
+
+    Parameters
+    ----------
+    xp : module
+
+
+    Returns
+    -------
+
+    """
     ret = xp.random.normal(loc, scale, size)
     if a_min is None:
         a_min = -xp.inf

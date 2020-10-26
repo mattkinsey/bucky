@@ -1,13 +1,10 @@
-# pylint: skip-file
-# I'd recommend not linting this file, we're really abusing the import system and variable scoping
-# here and linters don't like it...
+"""Provides an interface to import numerical libraries using the GPU (if available)."""
 
 import contextlib
 
-import numpy as xp
-
 # Default imports for cpu code
 # This will be overwritten with a call to .numerical_libs.use_cupy()
+import numpy as xp
 import scipy.integrate._ivp.ivp as ivp  # noqa: F401
 import scipy.sparse as sparse  # noqa: F401
 
@@ -17,7 +14,7 @@ xp.to_cpu = lambda x, **kwargs: x  # one arg noop
 
 
 def use_cupy(optimize=False):
-    """Perform imports for libraries with APIs matching numpy, scipy.integrate.ivp, scipy.sparse
+    """Perform imports for libraries with APIs matching numpy, scipy.integrate.ivp, scipy.sparse.
 
     These imports will use a monkey-patched version of these modules
     that has had all it's numpy references replaced with CuPy.
@@ -26,6 +23,25 @@ def use_cupy(optimize=False):
     otherwise make it a nullcontext (noop)
 
     returns nothing but imports a version of 'xp', 'ivp', and 'sparse' to the global scope of this module
+
+    Parameters
+    ----------
+    optimize : bool
+        Enable kernel optimization in cupy >=v8.0.0. This will slow down initial
+        function call (mostly reduction operations) but will offer better
+        performance for repeated calls (e.g. in the RHS call of an integrator).
+
+    Returns
+    -------
+    exit_code : int
+        Non-zero value indicates error code, or zero on success.
+
+    Raises
+    ------
+    NotImplementedError
+        If the user calls a monkeypatched function of the libs that isn't
+        fully implemented.
+
     """
     import importlib
     import logging
@@ -89,6 +105,10 @@ def use_cupy(optimize=False):
         logging.info("Optuna not installed, kernel opt is disabled")
         cp.optimize_kernels = contextlib.nullcontext
     elif optimize:
+        import optuna
+
+        optuna.logging.set_verbosity(optuna.logging.WARN)
+        logging.warning("Using optuna to optimize kernels, the first calls will be slowwwww")
         cp.optimize_kernels = cupyx.optimizing.optimize
     else:
         cp.optimize_kernels = contextlib.nullcontext

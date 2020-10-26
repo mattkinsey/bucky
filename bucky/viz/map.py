@@ -285,7 +285,6 @@ def make_map(
     outline_df : Geopandas GeoDataFrame or None
         Shapefile for outline
     """
-
     # Maps are joined one level down from the map-level
     # National maps color by state, state maps color by county
     join_key = "adm2" if adm_key == "adm1" else "adm1"
@@ -314,7 +313,7 @@ def make_map(
 
     # Index by date
     df["date"] = pd.to_datetime(df["date"])
-    df.set_index(["date", join_key], inplace=True)
+    df = df.set_index(["date", join_key])
 
     # Make maps for each requested data
     for date in dates:
@@ -520,17 +519,15 @@ if __name__ == "__main__":
     cmap = args.cmap
 
     # Make sure its a valid matplotlib colormap
-    if cmap != default_cmap:
+    if cmap != default_cmap and cmap not in plt.colormaps():
 
-        if cmap not in plt.colormaps():
-
-            logging.error("Error: " + cmap + " is not a valid matplotlib colormap. Defaulting to: " + default_cmap)
-            cmap = default_cmap
+        logging.error("Error: " + cmap + " is not a valid matplotlib colormap. Defaulting to: " + default_cmap)
+        cmap = default_cmap
 
     map_cols = args.columns
     use_mean = args.mean
     dates = args.dates
-    use_log = False if args.linear else True
+    use_log = not args.linear
     adm1_col_name = args.adm1_col
     adm2_col_name = args.adm2_col
 
