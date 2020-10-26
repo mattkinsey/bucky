@@ -32,7 +32,7 @@ do
 
    ./bmodel viz.plot -l adm0 adm1 -g $GRAPH_DIR/${c}_graph.p
 
-   ./bmodel viz.plot -l adm0 adm1 --plot_columns hospitalizations daily_hospitalizations -g $GRAPH_DIR/${c}_graph.p
+   ./bmodel viz.plot -l adm0 adm1 --plot_columns current_hospitalizations daily_hospitalizations -g $GRAPH_DIR/${c}_graph.p
 
    #run model with --disable-npi
    ./bmodel model -d $N_DAYS -n $N_MC -opt -g $GRAPH_DIR/${c}_graph.p --npi_file $NPI_DIR/${c}_NPIs.csv --disable-npi
@@ -41,6 +41,6 @@ do
 
    ./bmodel viz.plot -l adm0 adm1 -g $GRAPH_DIR/${c}_graph.p
 
-   ./bmodel viz.plot -l adm0 adm1 --plot_columns hospitalizations daily_hospitalizations -g $GRAPH_DIR/${c}_graph.p
+   ./bmodel viz.plot -l adm0 adm1 --plot_columns current_hospitalizations daily_hospitalizations -g $GRAPH_DIR/${c}_graph.p
 
 done
