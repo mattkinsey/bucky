@@ -14,6 +14,7 @@ The following data sources are used to create the graph:
 - Historical WHO national level case and death data
 - Contact matrix information for the country
 - Mobility data (or a proxy)
+- Proxy data for vulnerability
 
 All data is placed into a single dataframe, joined by the admin2-level key, with the exception of mobility data (which is used to create edges, not nodes).
 
@@ -126,3 +127,10 @@ Mobility Data
 Mobility data is used to construct the edges of the graph. Mobility data, or a proxy for it, is used to describe the contact rates between counties.
 
 The baseline mobility data shows up as an edge attributed called *weight*. *R0_frac* is a factor that is multiplied with the baseline mobility value to model the effect of NPIs, etc., on mobility. For example, given baseline mobility data from February 2020, *R0_frac* would be computed by dividing recent mobility data values with the February 2020 baseline. *R0_frac* exists to provide a knob to tune during the simulation to model NPIs.
+
+Vulnerability data
+-------------------
+Based on The fraction of the population per admin2 that is considered vulnerable is computed. This number is placed on the node under the key *vulnerable_frac*. This fraction of the population is assigned a higher case fatality and case severity rate in the model.
+
+The data sources used to compute the vulnerable fraction are urban-rural dissagregation, solid fuels and handwashing facilities, food insecurity, and health data on raised blood pressure, diabetes and smoking.
+How these are combined to compute the fraction is further explained in the `OCHA model parametrization repository <https://github.com/OCHA-DAP/pa-COVID-model-parameterization>`_.
