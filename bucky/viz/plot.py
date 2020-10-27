@@ -12,7 +12,6 @@ import os
 import sys
 
 import pandas as pd
-import scipy.stats
 import tqdm
 
 from ..util.get_historical_data import get_historical_data
@@ -154,13 +153,8 @@ parser.add_argument(
 )
 
 
-def interval(mean, sem, conf, N):
-    z = scipy.stats.t.ppf((1 + conf) / 2.0, N - 1)
-    return (mean - sem * z).clip(lower=0.0), mean + sem * z
-
-
 def plot(
-    output_dir,
+    out_dir,
     lookup_df,
     key,
     sim_data,
@@ -177,7 +171,7 @@ def plot(
 
     Parameters
     ----------
-    output_dir : string
+    out_dir : string
         Location to place created plots.
     lookup_df : Pandas DataFrame
         Dataframe containing information relating different geographic
@@ -312,22 +306,22 @@ def plot(
             axs[i].set_ylabel("Count")
             # axs[i].yaxis.set_major_formatter(StrMethodFormatter('{x:,.0f}'))
 
-        plot_filename = os.path.join(output_dir, readable_col_names[plot_columns[0]] + "_" + name + ".png")
+        plot_filename = os.path.join(out_dir, readable_col_names[plot_columns[0]] + "_" + name + ".png")
         plot_filename = plot_filename.replace(" : ", "_")
         plot_filename = plot_filename.replace(" ", "")
         plt.savefig(plot_filename)
         plt.close()
 
         # Save CSV
-        csv_filename = os.path.join(output_dir, name + ".csv")
+        csv_filename = os.path.join(out_dir, name + ".csv")
         area_data.to_csv(csv_filename)
 
 
 def make_plots(
     adm_levels,
-    input_dir,
-    output_dir,
-    lookup,
+    input_directory,
+    output_directory,
+    lookup_df,
     plot_hist,
     plot_columns,
     quantiles,
@@ -345,9 +339,9 @@ def make_plots(
     ----------
     adm_levels : list of strings
         List of ADM levels to make plots for
-    input_dir : string
+    input_directory : string
         Location of simulation data
-    output_dir : string
+    output_directory : string
         Parent directory to place created plots.
     lookup : Pandas DataFrame
         Lookup table for geographic mapping information
@@ -381,7 +375,7 @@ def make_plots(
         filename = level + "_quantiles.csv"
 
         # Read the requested file from the input dir
-        data = pd.read_csv(os.path.join(input_dir, filename))
+        data = pd.read_csv(os.path.join(input_directory, filename))
         data = data.assign(date=pd.to_datetime(data["date"]))
 
         # Get dates for data
@@ -395,7 +389,7 @@ def make_plots(
         data = data.loc[(data["date"] < end_date) & (data["date"] > start_date)]
 
         # Determine if sub-folder is necessary (state or county-level)
-        plot_dir = output_dir
+        plot_dir = output_directory
         if level in ["adm2", "adm1"]:
 
             plot_dir = os.path.join(plot_dir, level.upper())
@@ -419,7 +413,7 @@ def make_plots(
 
             # Check if historical data was not successfully fetched
             if hist_data is None:
-                logging.warning("No historical data could be found for: " + str(hist_columns))
+                logging.warning("No historical data could be found for: " + str(plot_columns))
 
             else:
                 hist_data = hist_data.reset_index()
@@ -440,7 +434,7 @@ def make_plots(
 
                 hist_data = hist_data.loc[(hist_data["date"] < end_date) & (hist_data["date"] > start_date)]
         plot(
-            output_dir=plot_dir,
+            out_dir=plot_dir,
             lookup_df=lookup_df,
             key=level,
             sim_data=data,
@@ -482,24 +476,24 @@ if __name__ == "__main__":
     plot_cols = args.plot_columns
 
     if args.lookup is not None:
-        lookup_df = read_lookup(args.lookup)
+        lookup_table = read_lookup(args.lookup)
     else:
-        lookup_df = read_geoid_from_graph(args.graph_file)
+        lookup_table = read_geoid_from_graph(args.graph_file)
 
     # Historical data start
-    hist_start = args.hist_start
+    hist_start_date = args.hist_start
 
     # Parse optional flags
     window = args.window_size
     plot_historical = args.hist
     verbose = args.verbose
-    end_date = args.end_date
-    quantiles = args.quantiles
-    hist_file = args.hist_file
+    plot_end_date = args.end_date
+    list_quantiles = args.quantiles
+    hist_data_file = args.hist_file
     min_hist = args.min_hist
 
     # If a historical file was passed in, make sure hist is also true
-    if hist_file is not None:
+    if hist_data_file is not None:
         plot_historical = True
 
     # Plot
@@ -507,14 +501,14 @@ if __name__ == "__main__":
         levels,
         input_dir,
         output_dir,
-        lookup_df,
+        lookup_table,
         plot_historical,
         plot_cols,
-        quantiles,
+        list_quantiles,
         window,
-        end_date,
-        hist_file,
+        plot_end_date,
+        hist_data_file,
         min_hist,
         args.adm1_name,
-        hist_start,
+        hist_start_date,
     )
