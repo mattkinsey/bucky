@@ -7,17 +7,12 @@ Welcome to Bucky's documentation!
 =================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
 
    getting_started
    install
-   model_overview
-   compartment_model
-   input_output
-   graph_info
-   npi
-   usage
+   model_tree
    cli
    modules
    references
