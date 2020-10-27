@@ -416,7 +416,7 @@ class SEIR_covid(object):
             ),
         )
 
-        self.doubling_t = self.estimate_doubling_time(
+        self.doubling_t = self.estimate_doubling_time_WHO(
             doubling_time_window=self.consts.doubling_t_window,
             mean_time_window=self.consts.doubling_t_N_historical_days,
         )
