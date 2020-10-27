@@ -11,16 +11,17 @@ The following data sources are used to create the graph:
 - admin2-level shapefile
 - admin2-level population data stratified by age
 - Historical admin2-level case and death data
+- Historical WHO national level case and death data
 - Contact matrix information for the country
 - Mobility data (or a proxy)
 
-All data is placed into a single dataframe, joined by the admin2-level key (e.g., FIPS for United States), with the exception of mobility data (which is used to create edges, not nodes).
+All data is placed into a single dataframe, joined by the admin2-level key, with the exception of mobility data (which is used to create edges, not nodes).
 
 
 Graph-Level Attributes
 ----------------------
 
-Administrative information is placed on the top graph-level. For example:
+Administrative information is placed on the top graph-level. An example for the US:
 
 .. code-block:: python
   
@@ -34,6 +35,8 @@ Administrative information is placed on the top graph-level. For example:
 .. note:: `adm1_to_str` is a dict with key-value pairs indicating the adm1 names for each adm1 value appearing in the graph. 
 
 Contact matrices are also on this level under the key `'contact_mats'`.
+
+The historical WHO data is also on the level under the key `'data_WHO'`. This data is used to estimate the historical doubling time.
 
 Sample Node
 -----------
@@ -104,10 +107,10 @@ If population data for an admin2 area is known (i.e. number of total people per 
 
 The total population for an admin2 is placed on the node under the key *Population*.
 
-Case Data
+Admin2-level Case Data
 ---------
 
-Case data should be at the admin2-level and include cumulative data as of the start date of the simulation and historical data for the 45-day period preceding the start date:
+The graph should include case data at the admin2-level and include cumulative data as of the start date of the simulation and historical data for the 45-day period preceding the start date:
 
 - case_hist:  **Cumulative** historical case data
 - death_hist :  **Cumulative** historical death data
