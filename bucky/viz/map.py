@@ -1,3 +1,10 @@
+"""
+===================================================
+Bucky Mapping Tools (:mod:`bucky.viz.map`)
+===================================================
+
+Creates maps at the ADM0, ADM1, or ADM2 level.
+"""
 import argparse
 import glob
 import logging
@@ -52,20 +59,13 @@ parser.add_argument(
 )
 
 # Data columns
-default_plot_cols = ["daily_cases_reported", "daily_deaths"]
+default_plot_cols = ["daily_reported_cases", "daily_deaths"]
 parser.add_argument(
     "--columns",
     default=default_plot_cols,
     nargs="+",
     type=str,
     help="Data columns to plot. Maps are created separately for each requested column",
-)
-
-# Use mean or median values (median default)
-parser.add_argument(
-    "--mean",
-    action="store_true",
-    help="Use mean value instead of median value for map",
 )
 
 # Use log or linear (log default)
@@ -205,7 +205,7 @@ def get_dates(df, frequency="weekly"):
     return date_list
 
 
-def get_map_data(data_dir, adm_level, use_mean=False):
+def get_map_data(data_dir, adm_level):
     """Reads requested simulation data.
 
     Maps are created using one level down from the requested map level.
@@ -217,8 +217,6 @@ def get_map_data(data_dir, adm_level, use_mean=False):
         Location of preprocessed simulation data
     adm_level : {'adm0', adm1'}
         Admin level of requested map
-    use_mean : boolean
-        If true, uses mean data. Otherwise, uses median quantile
 
     Returns
     -------
@@ -229,23 +227,12 @@ def get_map_data(data_dir, adm_level, use_mean=False):
     # Determine filename
     file_prefix = "adm1" if adm_level == "adm0" else "adm2"
 
-    if use_mean:
+    # Read file
+    filename = os.path.join(data_dir, file_prefix + "_quantiles.csv")
+    df = pd.read_csv(filename)
 
-        # Read file
-        filename = os.path.join(input_dir, file_prefix + "_mean_std.csv")
-        df = pd.read_csv(filename)
-
-        # Keep mean only
-        df = df.loc[df["stat"] == "mean"]
-
-    else:
-
-        # Read file
-        filename = os.path.join(input_dir, file_prefix + "_quantiles.csv")
-        df = pd.read_csv(filename)
-
-        # Keep median
-        df = df.loc[df["quantile"] == 0.5]
+    # Keep median
+    df = df.loc[df["quantile"] == 0.5]
 
     return df
 
@@ -507,13 +494,13 @@ if __name__ == "__main__":
     # Parse other arguments
     input_dir = args.input_dir
 
-    output_dir = args.output
-    if output_dir is None:
-        output_dir = os.path.join(input_dir, "maps")
+    out_dir = args.output
+    if out_dir is None:
+        out_dir = os.path.join(input_dir, "maps")
 
     # Make sure output directory exists
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
 
     # Get colormap
     cmap = args.cmap
@@ -525,8 +512,7 @@ if __name__ == "__main__":
         cmap = default_cmap
 
     map_cols = args.columns
-    use_mean = args.mean
-    dates = args.dates
+    list_dates = args.dates
     use_log = not args.linear
     adm1_col_name = args.adm1_col
     adm2_col_name = args.adm2_col
@@ -535,11 +521,11 @@ if __name__ == "__main__":
     if args.adm0:
 
         # Get data
-        df = get_map_data(input_dir, "adm0", use_mean)
+        map_data = get_map_data(input_dir, "adm0")
 
         # Get dates
-        if dates is None:
-            dates = get_dates(df, args.freq)
+        if list_dates is None:
+            list_dates = get_dates(map_data, args.freq)
 
         # Read adm1 shapefile
         shape_data = gpd.read_file(args.adm1_shape)
@@ -554,11 +540,11 @@ if __name__ == "__main__":
         # Send to map
         make_map(
             shape_df=shape_data,
-            df=df,
-            dates=dates,
+            df=map_data,
+            dates=list_dates,
             adm_key="adm0",
             cols=map_cols,
-            output_dir=output_dir,
+            output_dir=out_dir,
             title_prefix="ADM0",
             log_scale=use_log,
             colormap=cmap,
@@ -567,18 +553,18 @@ if __name__ == "__main__":
     if args.adm1 or args.all_adm1:
 
         if args.lookup is not None:
-            lookup_df = read_lookup(args.lookup)
+            lookup_table = read_lookup(args.lookup)
             add_state_outline = True
         else:
-            lookup_df = read_geoid_from_graph(args.graph_file)
+            lookup_table = read_geoid_from_graph(args.graph_file)
             add_state_outline = True
 
         # Get data
-        df = get_map_data(input_dir, "adm1", use_mean)
+        map_data = get_map_data(input_dir, "adm1")
 
         # Get dates
-        if dates is None:
-            dates = get_dates(df, args.freq)
+        if list_dates is None:
+            list_dates = get_dates(map_data, args.freq)
 
         # Read adm1 shapefile
         adm2_shape_data = gpd.read_file(args.adm2_shape)
@@ -604,12 +590,12 @@ if __name__ == "__main__":
         make_adm1_maps(
             adm2_shape_df=adm2_shape_data,
             adm1_shape_df=adm1_shape_data,
-            df=df,
-            lookup_df=lookup_df,
-            dates=dates,
+            df=map_data,
+            lookup_df=lookup_table,
+            dates=list_dates,
             cols=map_cols,
             adm1_list=args.adm1,
-            output_dir=output_dir,
+            output_dir=out_dir,
             log_scale=use_log,
             colormap=cmap,
             add_outline=add_state_outline,

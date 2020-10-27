@@ -3,7 +3,7 @@
 Bucky Plotting Tools (:mod:`bucky.viz.plot`)
 ===================================================
 
-TODO
+Creates line plots with confidence intervals at the ADM0, ADM1, or ADM2 level.
 """
 import argparse
 import glob
@@ -332,8 +332,7 @@ def make_plots(
     admin1=None,
     hist_start=None,
 ):
-    """Wrapper function around plot. Creates plots, aggregating data
-    if necessary.
+    """Wrapper function around plot. Creates plots, aggregating data if necessary.
 
     Parameters
     ----------

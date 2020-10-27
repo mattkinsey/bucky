@@ -1,3 +1,10 @@
+"""
+==========================================================
+Geographic Administrative Utility (:mod:`bucky.viz.geoid`)
+==========================================================
+
+Creates lookup tables relating geographic administrative divisions for use in visualization tools.
+"""
 import glob
 import logging
 import os
@@ -82,7 +89,7 @@ def read_geoid_from_graph(graph_file=None):
 
 
 def read_lookup(geofile, country="US"):
-    """Creates a dataframe relating geographic administration levels e.g. admin2 values in a given admin1 based on a lookup table.
+    """Creates a dataframe relating geographic admin levels e.g. admin2 values in an admin1 based on a lookup table.
 
     Parameters
     ----------
