@@ -59,7 +59,35 @@ Hospital-related parameters are derived using data from COVID-Net :cite:`covid-n
 
 Output
 ======
-The Bucky model generates one file per Monte Carlo run. This data is post-processed to combine data across all dates and simulations. It can then be aggregated at desired geographic levels. A separate file is created for each requested administrative levevel, with each row indexed by data, admin ID, and quantile. The columns of this output file are described in the tables below.
+The Bucky model generates one file per Monte Carlo run. This data is post-processed to combine data across all dates and simulations. It can then be aggregated at desired geographic levels. A separate file is created for each requested administrative level, with each row indexed by data, admin ID, and quantile. The columns of this output file are described in the tables below.
+
+Aggregated files are placed in subfolder named using the Monte Carlo ID within the specified output directory. Filenames are constructed by appending the aggregation level with the aggregation type (quantiles vs mean). For example, the following file contains quantiles at the national level:
+
+``/output/2020-06-10__14_13_04/adm0_quantiles.csv`` 
+
+An example output directory structure is shown below:
+
+:: 
+
+    2020-07-28__15_21_52/
+    ├── adm0_quantiles.csv
+    ├── adm1_quantiles.csv
+    ├── adm2_quantiles.csv
+    ├── maps
+    │   └── ADM1
+    │       ├── adm1_AlabamaDailyReportedCases2020-07-26.png
+    │       ├── adm1_AlabamaDailyReportedCases2020-08-02.png
+    │       ├── ...
+    └── plots
+        ├── ADM1
+        │   ├── DailyReportedCases_Alabama.png
+        │   ├── ...
+        ├── US.csv
+        └── US.png
+
+Column and Index Names
+----------------------
+
 
 ==========  ===========
 Index name  Description
