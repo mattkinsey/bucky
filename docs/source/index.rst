@@ -6,6 +6,8 @@
 Welcome to OCHA-Bucky's documentation!
 ======================================
 
+.. image:: ../../logo.png
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
@@ -22,7 +24,6 @@ Welcome to OCHA-Bucky's documentation!
    faq
    references
 
-.. image:: ../../logo.png
 
 Indices and tables
 ==================

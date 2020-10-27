@@ -1,4 +1,4 @@
-bucky package
+Bucky package
 =============
 
 Subpackages

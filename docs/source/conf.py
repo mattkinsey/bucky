@@ -31,7 +31,6 @@ repo_root_url = "http://gitlab.com/kinsemc/bucky/"
 # -- Project information -----------------------------------------------------
 
 project = "OCHA-Bucky"
-copyright = "2020, The Johns Hopkins University Applied Physics Laboratory LLC"
 author = "Matt Kinsey, Kate Tallaksen, Freddy Obrecht"
 
 # The full version, including alpha/beta/rc tags
