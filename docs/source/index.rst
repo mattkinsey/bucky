@@ -9,16 +9,11 @@ Welcome to OCHA-Bucky's documentation!
 .. image:: ../../logo.png
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
 
    getting_started
-   model_overview
-   compartment_model
-   input_output
-   graph_info
-   npi
-   usage
+   model_tree
    cli
    modules
    faq

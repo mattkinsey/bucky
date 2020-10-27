@@ -1,3 +1,15 @@
+"""
+===========================================================
+Data Updating Utility (:mod:`bucky.util.update_data_repos`)
+===========================================================
+
+A utility for fetching updated data for mobility and case data from public repositories.
+
+This module pulls from public git repositories and preprocessed the 
+data if necessary. For case data, unallocated or unassigned cases are
+distributed as necessary.
+
+"""
 import logging
 import os
 import ssl
@@ -20,7 +32,7 @@ MI_PRISON_UIDS = [84070004, 84070005]
 
 
 def get_timeseries_data(col_name, filename, fips_key="FIPS", is_csse=True):
-    """Takes a historical data file and reduces it to a dataframe with FIPs, date, and case or death data.
+    """Transforms a historical data file to a dataframe with FIPs, date, and case or death data.
 
     Parameters
     ----------
@@ -241,7 +253,7 @@ def distribute_data_by_population(total_df, dist_vect, data_to_dist, replace):
 
 
 def get_county_population_data(csse_deaths_file, county_fips):
-    """Uses JHU CSSE deaths file to get county-level population data as as fraction of total population across requested list of counties.
+    """Uses JHU CSSE deaths file to get county population data as as fraction of population across list of counties.
 
     Parameters
     ----------
@@ -313,8 +325,7 @@ def distribute_nyc_data(df):
 
 
 def distribute_mdoc(df, csse_deaths_file):
-    """Distributes Michigan Department of Corrections data across Michigan
-    counties by population.
+    """Distributes Michigan Department of Corrections data across Michigan counties by population.
 
     Parameters
     ----------
@@ -489,8 +500,7 @@ def process_csse_data():
 
 
 def update_covid_tracking_data():
-    """Downloads and processes data from the Atlantic's COVID Tracking project
-    to match the format of other preprocessed data sources.
+    """Downloads and processes data from the COVID Tracking project to match the format of other preprocessed data.
 
     The COVID Tracking project contains data at a state-level. Each state
     is given a random FIPS selected from all FIPS in that state. This is
@@ -608,9 +618,8 @@ def process_usafacts(case_file, deaths_file):
 
 
 def update_usafacts_data():
-    """Retrieves updated historical data from USA Facts, preprocesses it,
-    and writes to CSV.
-    """
+    """Retrieves updated historical data from USA Facts, preprocesses it, and writes to CSV."""
+
     logging.info("Downloading USA Facts data")
     case_url = "https://usafactsstatic.blob.core.windows.net/public/data/covid-19/covid_confirmed_usafacts.csv"
     deaths_url = "https://usafactsstatic.blob.core.windows.net/public/data/covid-19/covid_deaths_usafacts.csv"
