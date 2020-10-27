@@ -36,5 +36,7 @@ The start date of the simulation is the start date as specified in the input gra
 Can the simulation start at a date later than the last subnational data point?
 ------------------------------------------------------------------------------
 No, the model initializes based on the last data point and thus this has to equal the start date.
+
 What is the maximum number of historical days Bucky uses?
-This depends on the parameters of the doubling time and case reporting rate estimates. Around 45 days is a rough estimation, but it doesn’t harm to have a longer history in the graph file.
+----------------------------------------------------------
+This depends on the parameters of the doubling time and case reporting rate estimates. The minimum is 45 days, but it does not harm to have a longer history in the graph file.
