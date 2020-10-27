@@ -416,7 +416,7 @@ class SEIR_covid(object):
             ),
         )
 
-        self.doubling_t = self.estimate_doubling_time(
+        self.doubling_t = self.estimate_doubling_time_WHO(
             doubling_time_window=self.consts.doubling_t_window,
             mean_time_window=self.consts.doubling_t_N_historical_days,
         )
@@ -542,7 +542,22 @@ class SEIR_covid(object):
         new_R0_fracij = truncnorm(xp, 1.0, var, size=self.A.shape, a_min=1e-6)
         new_R0_fracij = xp.clip(new_R0_fracij, 1e-6, None)
         A = self.baseline_A * new_R0_fracij
-        self.A = A / xp.sum(A, axis=0)  # / 2. + xp.identity(self.A.shape[-1])/2.
+        self.A = A / xp.sum(A, axis=0) / 2.0 + xp.identity(self.A.shape[-1]) / 2.0
+
+    # TODO this needs to be cleaned up
+    def estimate_doubling_time_WHO(
+        self, days_back=14, doubling_time_window=7, mean_time_window=None, min_doubling_t=1.0
+    ):
+
+        cases = xp.array(self.G.graph["data_WHO"]["#affected+infected+confirmed+total"])[-days_back:]
+        cases_old = xp.array(self.G.graph["data_WHO"]["#affected+infected+confirmed+total"])[
+            -days_back - doubling_time_window : -doubling_time_window
+        ]
+        adm0_doubling_t = doubling_time_window * xp.log(2.0) / xp.log(cases / cases_old)
+        doubling_t = xp.repeat(adm0_doubling_t[:, None], self.cum_case_hist.shape[-1], axis=1)
+        if mean_time_window is not None:
+            hist_doubling_t = xp.nanmean(doubling_t[-mean_time_window:], axis=0)
+        return hist_doubling_t
 
     # TODO these rollups to higher adm levels should be a util (it might make sense as a decorator)
     # it shows up here, the CRR, the CHR rescaling, and in postprocess...
