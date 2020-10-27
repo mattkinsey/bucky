@@ -7,6 +7,8 @@
 
 The documentation of the model, including how to get started, can be accessed **[here](https://ocha-bucky.readthedocs.io/en/latest/)** 
 
+If you have any questions or feedback, contact us at centrehumdata@un.org.
+
 ## About the model
 The OCHA-Bucky model is a spatial SEIR model for simulating COVID-19 at the subnational level. 
 The model has been developed as a partnership between UN OCHA and the Johns Hopkins University Applied Physics Laboratory (JHU/APL). 
