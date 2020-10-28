@@ -29,18 +29,26 @@ bucky.make\_input\_graph module
    :undoc-members:
    :show-inheritance:
 
-bucky.make\_state\_csv module
------------------------------
-
-.. automodule:: bucky.make_state_csv
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 bucky.model module
 ------------------
 
 .. automodule:: bucky.model
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+bucky.npi module
+----------------
+
+.. automodule:: bucky.npi
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+bucky.numerical\_libs module
+----------------------------
+
+.. automodule:: bucky.numerical_libs
    :members:
    :undoc-members:
    :show-inheritance:

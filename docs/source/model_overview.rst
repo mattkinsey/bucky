@@ -59,17 +59,6 @@ The total population is represented by the sum of the compartments.  Basic assum
 .. note:: The compartments :math:`\text{E}`, :math:`\text{I}^{\text{asym}}`, :math:`\text{I}^{\text{mild}}`, :math:`\text{I}^{\text{hosp}}` and :math:`\text{R}^{\text{hosp}}` are gamma-distributed with shape parameters specified in the configuration file.
 
 
-
-The Bucky model consists of a collection of coupled and stratified SEIR models. Since COVID-19 exhibits heavily age dependent properties, wherein a majority of severe cases are in older individuals, SEIR models are stratified via the age demographic structure of a geographic region in order to get accurate estimates of case severity and deaths.  Additionally, to model the spatial dynamics of COVID spread, we consider a set of SEIR sub-models at the smallest geographic level for which we have appropriate data.
-
-The basic structure of the model is displayed in the diagram above. Age is denoted by index *i*, and geographic regions are denoted by index *j*. Within each strata, Bucky models the susceptible and exposed populations, followed by one of three possible infected states: asymptomatic (:math:`\text{I}^{\text{asym}}`), mild (:math:`\text{I}^{\text{mild}}`), and severe (:math:`\text{I}^{\text{hosp}}`).  Members of the population who are either asymptomatic or exhibit mild symptoms recover from the virus at a rate :math:`\gamma`.  Those who exhibit severe symptoms and are in need of healthcare support will either recover after a period of illness at rate :math:`1/\tau_i` or expire as a result of the virus at rate :math:`\phi_i \gamma`. 
-
-A critical component of the Bucky model is the parameterization of the model.  A number of parameters must be derived and/or estimated from their original data sources.  These include, but are not limited to those listed in tables below as well as local estimates of local case doubling time, case reporting rate, case fatality rate, and the case hospitalization rate.  Further details of these quantities as well as how they are estimated are given in the :doc:`Model Input and Ouput section <input_output>`. All parameter estimation for the model includes the basic assumption that, once estimated and initialized, these parameters remain constant during the simulation period. 
-
-Coupling individual age and geographically stratified sub-models occurs across a number of dimensions including disease state. Sub-models are coupled together using both the spatial mobility matrix and age-based contact matrices. Modeling of the overall interaction rates between geographic locations and age groups is an important component in accurately modeling non-pharmaceutical Interventions (NPIs).  Bucky accounts for the implementation of NPIs (e.g. school closures, border closures, face mask wearing) via modifying either the social contact matrices or the basic reproductive number, :math:`R_0`. For further details, see :doc:`Non-pharmaceutical Interventions <npi>`.
-
-All together, these components contribute to a model that is adaptable to a number of contexts. Bucky is calibrated to the uncertainties in both the case data and the disease parameters, leading to a model that is robust to both the quality and resolution of available input data.
-
 ========================  ===========
 Variable                  Description
 ========================  ===========
@@ -95,3 +84,14 @@ Parameter                 Description
 :math:`\frac{1}{\gamma}`  Infectious period
 :math:`\tau_i`            Recovery period from severe infection for age group *i*
 ========================  =======
+
+
+The Bucky model consists of a collection of coupled and stratified SEIR models. Since COVID-19 exhibits heavily age dependent properties, wherein a majority of severe cases are in older individuals, SEIR models are stratified via the age demographic structure of a geographic region in order to get accurate estimates of case severity and deaths.  Additionally, to model the spatial dynamics of COVID spread, we consider a set of SEIR sub-models at the smallest geographic level for which we have appropriate data.
+
+The basic structure of the model is displayed in the diagram above. Age is denoted by index *i*, and geographic regions are denoted by index *j*. Within each strata, Bucky models the susceptible and exposed populations, followed by one of three possible infected states: asymptomatic (:math:`\text{I}^{\text{asym}}`), mild (:math:`\text{I}^{\text{mild}}`), and severe (:math:`\text{I}^{\text{hosp}}`).  Members of the population who are either asymptomatic or exhibit mild symptoms recover from the virus at a rate :math:`\gamma`.  Those who exhibit severe symptoms and are in need of healthcare support will either recover after a period of illness at rate :math:`1/\tau_i` or expire as a result of the virus at rate :math:`\phi_i \gamma`. 
+
+A critical component of the Bucky model is the parameterization of the model.  A number of parameters must be derived and/or estimated from their original data sources.  These include, but are not limited to those listed in tables above as well as local estimates of local case doubling time, case reporting rate, case fatality rate, and the case hospitalization rate.  Further details of these quantities as well as how they are estimated are given in the :doc:`Model Input and Ouput section <input_output>`. All parameter estimation for the model includes the basic assumption that, once estimated and initialized, these parameters remain constant during the simulation period. 
+
+Coupling individual age and geographically stratified sub-models occurs across a number of dimensions including disease state. Sub-models are coupled together using both the spatial mobility matrix and age-based contact matrices. Modeling of the overall interaction rates between geographic locations and age groups is an important component in accurately modeling non-pharmaceutical Interventions (NPIs).  Bucky accounts for the implementation of NPIs (e.g. school closures, border closures, face mask wearing) via modifying either the social contact matrices or the basic reproductive number, :math:`R_0`. For further details, see :doc:`Non-pharmaceutical Interventions <npi>`.
+
+All together, these components contribute to a model that is adaptable to a number of contexts. Bucky is calibrated to the uncertainties in both the case data and the disease parameters, leading to a model that is robust to both the quality and resolution of available input data.

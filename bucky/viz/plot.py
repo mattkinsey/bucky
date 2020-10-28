@@ -1,3 +1,10 @@
+"""
+===================================================
+Bucky Plotting Tools (:mod:`bucky.viz.plot`)
+===================================================
+
+TODO
+"""
 import argparse
 import glob
 import logging
