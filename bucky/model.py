@@ -633,7 +633,8 @@ class SEIR_covid(object):
         dG = xp.zeros(s.shape)
 
         # effective params after damping w/ allocated stuff
-        BETA_eff = npi["r0_reduct"][int(t)] * par["BETA"]
+        t_index = min(int(t), npi["r0_reduct"].shape[0] - 1)  # prevent OOB error when integrator overshoots
+        BETA_eff = npi["r0_reduct"][t_index] * par["BETA"]
         F_eff = par["F_eff"]
         H = par["H"]
         THETA = Rhn * par["THETA"]
@@ -644,11 +645,11 @@ class SEIR_covid(object):
         # ASYM_FRAC = par["ASYM_FRAC"]
         CASE_REPORT = par["CASE_REPORT"]
 
-        Cij = npi["contact_weights"][int(t)] * contact_mats
+        Cij = npi["contact_weights"][t_index] * contact_mats
         Cij = xp.sum(Cij, axis=1)
         Cij /= xp.sum(Cij, axis=2, keepdims=True)
 
-        Aij_eff = npi["mobility_reduct"][int(t)][..., None] * Aij.T
+        Aij_eff = npi["mobility_reduct"][t_index][..., None] * Aij.T
 
         # perturb Aij
         # new_R0_fracij = truncnorm(xp, 1.0, .1, size=Aij.shape, a_min=1e-6)
