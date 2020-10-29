@@ -1,3 +1,10 @@
+"""
+====================================================
+Input Graph Creation (:mod:`bucky.make_input_graph`)
+====================================================
+
+Makes input graphs for the model using case, demographic, and mobility data.
+"""
 import argparse
 import csv
 import datetime
@@ -87,7 +94,9 @@ def get_case_history(historical_data, end_date, num_days=DAYS_OF_HIST):
 
     logging.info("Getting " + str(num_days) + " days of case/death data for each county...")
 
-    for fips, group in tqdm.tqdm(historical_data.groupby("adm2"), desc="Grabbing adm2 histories", dynamic_ncols=True):
+    for adm2_code, group in tqdm.tqdm(
+        historical_data.groupby("adm2"), desc="Grabbing adm2 histories", dynamic_ncols=True
+    ):
 
         # Get block of data
         block = group.loc[(group["date"] >= start_date) & (group["date"] <= end_date)]
@@ -95,7 +104,7 @@ def get_case_history(historical_data, end_date, num_days=DAYS_OF_HIST):
 
         # If no data, fill with zeros
         if block.empty:
-            hist[fips] = np.zeros(num_days + 1)
+            hist[adm2_code] = np.zeros(num_days + 1)
         else:
             # Sort by data
             block = block.set_index("date").sort_index()
@@ -123,7 +132,7 @@ def get_case_history(historical_data, end_date, num_days=DAYS_OF_HIST):
                 block = nan_frame.merge(block, left_index=True, right_index=True, how="left").bfill()
                 deaths = block["cumulative_deaths"].to_numpy()
 
-            hist[fips] = np.vstack([confirmed, deaths])
+            hist[adm2_code] = np.vstack([confirmed, deaths])
 
     return hist
 
@@ -148,7 +157,7 @@ def compute_population_density(age_df, shape_df):
     pop_df = pd.DataFrame(age_df.sum(axis=1))
     pop_df = pop_df.rename(columns={0: "total"})
     popdens = pop_df.merge(
-        counties.set_index("adm2")["ALAND"].to_frame(),
+        shape_df.set_index("adm2")["ALAND"].to_frame(),
         left_index=True,
         right_index=True,
     )
@@ -278,6 +287,7 @@ def get_lex(last_date, window_size=7):
         Fetches data for requested date
     window_size : int (default: 7)
         Size of window, in days, to apply to data
+
     Returns
     -------
     frac_df : Pandas DataFrame
@@ -324,6 +334,7 @@ def get_safegraph(last_date, window_size=7):
         Fetches data for requested date
     window_size : int (default: 7)
         Size of window, in days, to apply to data
+
     Returns
     -------
     frac_df : Pandas DataFrame

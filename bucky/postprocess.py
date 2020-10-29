@@ -1,3 +1,10 @@
+"""
+====================================================
+Postprocess (:mod:`bucky.postprocess`)
+====================================================
+
+Postprocesses data across dates and simulation runs before aggregating at geographic levels (ADM0, ADM1, or ADM2).
+"""
 import argparse
 import gc
 import glob
@@ -16,8 +23,7 @@ from .viz.geoid import read_geoid_from_graph, read_lookup
 
 
 def divide_by_pop(dataframe, cols):
-    """Given a dataframe and list of columns, divides the columns by the
-    population column ('N').
+    """Given a dataframe and list of columns, divides the columns by the population column ('N').
 
     Parameters
     ----------
