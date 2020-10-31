@@ -905,16 +905,17 @@ if __name__ == "__main__":
         env = SEIR_covid(randomize_params_on_reset=True)
         n_mc = args.n_mc
 
+    seed_seq = np.random.SeedSequence(args.seed)
+
     total_start = datetime.datetime.now()
-    seed = 0  # TODO make init seed a cli arg
     success = 0
     times = []
     pbar = tqdm.tqdm(total=n_mc, desc="Performing Monte Carlos", dynamic_ncols=True)
     try:
         while success < n_mc:
             start = datetime.datetime.now()
-            pbar.set_postfix({"seed": seed})
-            pbar.refresh()
+            seed = seed_seq.spawn(1)[0].generate_state(1)[0]  # inc spawn key then grab next seed
+            pbar.set_postfix_str("seed=" + str(seed), refresh=True)
             try:
                 with xp.optimize_kernels():
                     env.run_once(seed=seed, outdir=args.output_dir, output_queue=to_write)
@@ -922,7 +923,6 @@ if __name__ == "__main__":
                 pbar.update(1)
             except SimulationException:
                 pass
-            seed += 1  # TODO add last seed to pbar
             run_time = (datetime.datetime.now() - start).total_seconds()
             times.append(run_time)
 
