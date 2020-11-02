@@ -42,17 +42,17 @@ class SimulationException(Exception):
 
 
 @lru_cache(maxsize=None)
-def get_runid(pid=0):  # TODO move to util and rename to timeid or something
-    start = datetime.datetime.now()
-    return str(start).replace(" ", "__").replace(":", "_").split(".")[0]
+def get_runid():  # TODO move to util and rename to timeid or something
+    dt_now = datetime.datetime.now()
+    return str(dt_now).replace(" ", "__").replace(":", "_").split(".")[0]
 
 
 class SEIR_covid(object):
-    def __init__(self, seed=None, randomize_params_on_reset=True, debug=False, sparse=False):
+    def __init__(self, seed=None, randomize_params_on_reset=True, debug=False, sparse_aij=False):
         self.rseed = seed
         self.randomize = randomize_params_on_reset
         self.debug = debug
-        self.sparse = sparse  # we can default to none and autodetect w/ override (maybe when #adm2 > 5k and some sparsity critera?)
+        self.sparse = sparse_aij  # we can default to none and autodetect w/ override (maybe when #adm2 > 5k and some sparsity critera?)
         # TODO we could make a adj mat class that provides a standard api (stuff like .multiply, overloaded __mul__, etc) so that we dont need to constantly check 'if self.sparse'. It could also store that diag info and provide the row norm...
 
         # Integrator params
@@ -946,7 +946,7 @@ if __name__ == "__main__":
         env = SEIR_covid(randomize_params_on_reset=False)
         n_mc = 1
     else:
-        env = SEIR_covid(randomize_params_on_reset=True, debug=debug_mode, sparse=(not args.dense))
+        env = SEIR_covid(randomize_params_on_reset=True, debug=debug_mode, sparse_aij=(not args.dense))
         n_mc = args.n_mc
 
     seed_seq = np.random.SeedSequence(args.seed)
@@ -957,17 +957,17 @@ if __name__ == "__main__":
     pbar = tqdm.tqdm(total=n_mc, desc="Performing Monte Carlos", dynamic_ncols=True)
     try:
         while success < n_mc:
-            start = datetime.datetime.now()
-            seed = seed_seq.spawn(1)[0].generate_state(1)[0]  # inc spawn key then grab next seed
-            pbar.set_postfix_str("seed=" + str(seed), refresh=True)
+            start_time = datetime.datetime.now()
+            mc_seed = seed_seq.spawn(1)[0].generate_state(1)[0]  # inc spawn key then grab next seed
+            pbar.set_postfix_str("seed=" + str(mc_seed), refresh=True)
             try:
                 with xp.optimize_kernels():
-                    env.run_once(seed=seed, outdir=args.output_dir, output_queue=to_write)
+                    env.run_once(seed=mc_seed, outdir=args.output_dir, output_queue=to_write)
                 success += 1
                 pbar.update(1)
             except SimulationException:
                 pass
-            run_time = (datetime.datetime.now() - start).total_seconds()
+            run_time = (datetime.datetime.now() - start_time).total_seconds()
             times.append(run_time)
 
             logging.info(f"{seed}: {datetime.datetime.now() - start}")
