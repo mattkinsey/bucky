@@ -26,7 +26,7 @@ class TqdmLoggingHandler(logging.Handler):
             self.flush()
         except (KeyboardInterrupt, SystemExit):
             raise  # pylint: disable=try-except-raise
-        except Exception:  # pylint: broad-except
+        except Exception:  # pylint: disable=broad-except
             self.handleError(record)
 
 
