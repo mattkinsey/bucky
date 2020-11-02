@@ -9,8 +9,8 @@ import contextlib
 # Default imports for cpu code
 # This will be overwritten with a call to .numerical_libs.use_cupy()
 import numpy as xp
-import scipy.integrate._ivp.ivp as ivp  # noqa: F401
-import scipy.sparse as sparse  # noqa: F401
+import scipy.integrate._ivp.ivp as ivp  # noqa: F401  # pylint: disable=unused-import
+import scipy.sparse as sparse  # noqa: F401  # pylint: disable=unused-import
 
 xp.scatter_add = xp.add.at
 xp.optimize_kernels = contextlib.nullcontext
@@ -106,7 +106,7 @@ def use_cupy(optimize=False):
             lambda src: src.replace("import numpy", "import cupy"),
         )
 
-    import cupyx  # pylint: disable=import-outside-toplevel,redefined-outer-name
+    import cupyx  # pylint: disable=import-outside-toplevel
 
     cp.scatter_add = cupyx.scatter_add
 
@@ -134,7 +134,7 @@ def use_cupy(optimize=False):
     cp.to_cpu = cp_to_cpu  # lambda x, **kwargs: x.get(**kwargs) if "cupy" in type(x).__module__ else x
 
     xp = cp
-    import cupyx.scipy.sparse as sparse  # pylint: disable=import-outside-toplevel
+    import cupyx.scipy.sparse as sparse  # pylint: disable=import-outside-toplevel,redefined-outer-name
 
     # TODO need to check cupy version is >9.0.0a1 in order to use sparse
 
