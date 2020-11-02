@@ -39,7 +39,9 @@ jobs:
         working-directory: ./docs
         run: python3 -m pip install -r ./requirements.txt
 
-      - run: make html
+      - name: Build sphinx html
+        run: make html
+        working-directory: ./docs
 
       #- name: Deploy
       #  uses: peaceiris/actions-gh-pages@v3
