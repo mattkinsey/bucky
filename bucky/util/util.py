@@ -91,7 +91,7 @@ def cache_files(*argv):
 
 def unpack_cache(cache_file):
     with lzma.open(cache_file, "rb") as f:
-        tmp = pickle.load(f)
+        tmp = pickle.load(f)  # nosec
 
     # os.mkdir(cache_file[:-5])
     for fname in tmp:

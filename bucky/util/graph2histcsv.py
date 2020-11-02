@@ -15,7 +15,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     with open(args.graph, "rb") as f:
-        g = pickle.load(f)
+        g = pickle.load(f)  # nosec
 
     adm2 = nx.get_node_attributes(g, "adm2_int")
     cases = nx.get_node_attributes(g, "case_hist")

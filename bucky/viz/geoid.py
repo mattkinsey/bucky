@@ -45,7 +45,7 @@ def read_geoid_from_graph(graph_file=None):
     logging.info(f"Using {graph_file} for admin level mappings.")
 
     with open(graph_file, "rb") as f:
-        G = pickle.load(f)
+        G = pickle.load(f)  # nosec
 
     # Get admin0 name
     admin0_name = G.graph["adm0_name"]
