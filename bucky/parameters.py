@@ -53,7 +53,7 @@ class buckyParams(object):
     def read_yml(par_file):
         # TODO check file exists
         with open(par_file, "rb") as f:
-            return yaml.load(f, yaml.SafeLoader)
+            return yaml.load(f, yaml.SafeLoader)  # nosec
 
     def generate_params(self, var=0.2):
         if var is None:
