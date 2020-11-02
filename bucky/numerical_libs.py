@@ -106,7 +106,7 @@ def use_cupy(optimize=False):
             lambda src: src.replace("import numpy", "import cupy"),
         )
 
-    import cupyx  # pylint: disable=import-outside-toplevel
+    import cupyx  # pylint: disable=import-outside-toplevel,redefined-outer-name
 
     cp.scatter_add = cupyx.scatter_add
 
