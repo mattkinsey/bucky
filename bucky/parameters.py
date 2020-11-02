@@ -115,6 +115,7 @@ class buckyParams(object):
 
     @staticmethod
     def rescale_doubling_rate(D, params, xp, A=None):
+        # TODO rename D to Td everwhere for consistency
         r = xp.log(2.0) / D
         params["R0"] = calc_Reff(
             params["consts"]["Im"],

@@ -81,7 +81,7 @@ parser.add_argument(
     help="Just do one run with the mean param values",
 )  # TODO rename to --mean or something
 
-# TODO this doesnt do anything
+# TODO this doesnt do anything other than let you throw and error if there's no cupy...
 parser.add_argument(
     "-gpu",
     "--gpu",

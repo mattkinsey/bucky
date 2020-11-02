@@ -33,13 +33,13 @@ if __name__ == "__main__":
 
 from .numerical_libs import xp, ivp, sparse  # noqa: E402 isort:skip
 
-
+# TODO move to a new file and add some more exception types
 class SimulationException(Exception):
     pass
 
 
 @lru_cache(maxsize=None)
-def get_runid(pid=0):
+def get_runid(pid=0):  # TODO move to util and rename to timeid or something
     start = datetime.datetime.now()
     return str(start).replace(" ", "__").replace(":", "_").split(".")[0]
 
@@ -898,7 +898,7 @@ if __name__ == "__main__":
         logging.info("Using GPU backend")
 
     logging.info(f"command line args: {args}")
-    if args.no_mc:
+    if args.no_mc:  # can we just remove this already?
         env = SEIR_covid(randomize_params_on_reset=False)
         n_mc = 1
     else:
