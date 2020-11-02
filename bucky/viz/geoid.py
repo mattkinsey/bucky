@@ -1,10 +1,4 @@
-"""
-==========================================================
-Geographic Administrative Utility (:mod:`bucky.viz.geoid`)
-==========================================================
-
-Creates lookup tables relating geographic administrative divisions for use in visualization tools.
-"""
+"""Creates lookup tables relating geographic administrative divisions for use in visualization tools."""
 import glob
 import logging
 import os
@@ -24,15 +18,15 @@ def read_geoid_from_graph(graph_file=None):
 
     Parameters
     ----------
-    graph_file : string or None
+    graph_file : str, or None
         Location of graph file. If None, uses most recently created graph
-        in data/input_graphs/
+        in data/input_graphs/.
 
     Returns
     -------
-    df : Pandas DataFrame
+    df : DataFrame
         Dataframe with names and values for admin0, admin1, and admin2
-        levels
+        levels.
 
     """
     # Use most recently created graph file if one was not provided
@@ -93,14 +87,14 @@ def read_lookup(geofile, country="US"):
 
     Parameters
     ----------
-    geofile : string
+    geofile : str
         Location of lookup table
-    country : string (default: 'US')
+    country : str, default "US"
         Country name
 
     Returns
     -------
-    df : Pandas DataFrame
+    df : DataFrame
         Dataframe with names and values for admin0, admin1, and admin2
 
     """
