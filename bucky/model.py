@@ -350,8 +350,8 @@ class SEIR_covid:
             adm1_F_fac = self.adm1_current_cfr / adm1_F
             adm1_F_fac[xp.isnan(adm1_F_fac)] = 1.0
 
-            F_RR_fac = truncnorm(xp, 1.0, self.consts.reroll_variance, size=adm1_F_fac.size, a_min=1e-6)
-            adm1_F_fac = adm1_F_fac * F_RR_fac
+            # F_RR_fac = truncnorm(xp, 1.0, self.consts.reroll_variance, size=adm1_F_fac.size, a_min=1e-6)
+            adm1_F_fac = adm1_F_fac  # * F_RR_fac
             adm1_F_fac = xp.clip(adm1_F_fac, a_min=0.1, a_max=10.0)  # prevent extreme values
             if self.debug:
                 logging.debug("adm1 cfr rescaling factor: " + pformat(adm1_F_fac))
@@ -416,8 +416,8 @@ class SEIR_covid:
         current_I *= 1.0 / (self.params["CASE_REPORT"])
 
         # TODO should be in param file
-        R_fac = xp.array(mPERT_sample(mu=0.5, a=0.25, b=0.75, gamma=50.0))
-        E_fac = xp.array(mPERT_sample(mu=1.4, a=1.15, b=1.65, gamma=50.0))
+        R_fac = xp.array(mPERT_sample(mu=0.25, a=0.2, b=0.3, gamma=50.0))
+        E_fac = xp.array(mPERT_sample(mu=1.5, a=1.25, b=1.75, gamma=50.0))
         H_fac = xp.array(mPERT_sample(mu=1.0, a=0.9, b=1.1, gamma=100.0))
 
         I_init = current_I[None, :] / self.Nij / self.n_age_grps
@@ -454,18 +454,19 @@ class SEIR_covid:
             xp.scatter_add(adm1_hosp, self.adm1_id, xp.sum(y[Hi] * self.Nij, axis=(0, 1)))
             adm2_hosp_frac = (self.adm1_current_hosp / adm1_hosp)[self.adm1_id]
             adm0_hosp_frac = xp.nansum(self.adm1_current_hosp) / xp.nansum(adm1_hosp)
+            # print(adm0_hosp_frac)
             adm2_hosp_frac[xp.isnan(adm2_hosp_frac)] = adm0_hosp_frac
             self.params.H = xp.clip(H_fac * self.params.H * adm2_hosp_frac[None, :], self.params.F, 1.0)
 
             # TODO this .85 should be in param file...
-            self.params["F_eff"] = xp.clip(0.85 * self.params["F"] / self.params["H"], 0.0, 1.0)
+            self.params["F_eff"] = xp.clip(0.7 * self.params["F"] / self.params["H"], 0.0, 1.0)
 
             y[Ii] = (1.0 - self.params.H) * I_init / len(Ii)
             # y[Ici] = ic_frac * self.params.H * I_init / (len(Ici))
             # y[Rhi] = hosp_frac * self.params.H * I_init / (Rhn)
             y[Ici] = self.params.CASE_REPORT * self.params.H * I_init / (len(Ici))
             y[Rhi] = (
-                self.params.CASE_REPORT * self.params.H * I_init * self.params.GAMMA_H / self.params.THETA / Rhn * 0.85
+                0.7 * self.params.CASE_REPORT * self.params.H * I_init * self.params.GAMMA_H / self.params.THETA / Rhn
             )
 
         y[Si] -= xp.sum(y[Ii], axis=0) + xp.sum(y[Ici], axis=0) + xp.sum(y[Rhi], axis=0)
