@@ -13,6 +13,13 @@ xp.optimize_kernels = contextlib.nullcontext
 xp.to_cpu = lambda x, **kwargs: x  # one arg noop
 
 
+class ExperimentalWarning(Warning):
+    pass
+
+
+xp.ExperimentalWarning = ExperimentalWarning
+
+
 def use_cupy(optimize=False):
     """Perform imports for libraries with APIs matching numpy, scipy.integrate.ivp, scipy.sparse.
 
@@ -104,14 +111,17 @@ def use_cupy(optimize=False):
     if spec is None:
         logging.info("Optuna not installed, kernel opt is disabled")
         cp.optimize_kernels = contextlib.nullcontext
+        cp.ExperimentalWarning = ExperimentalWarning
     elif optimize:
         import optuna
 
         optuna.logging.set_verbosity(optuna.logging.WARN)
         logging.info("Using optuna to optimize kernels, the first calls will be slowwwww")
         cp.optimize_kernels = cupyx.optimizing.optimize
+        cp.ExperimentalWarning = optuna.exceptions.ExperimentalWarning
     else:
         cp.optimize_kernels = contextlib.nullcontext
+        cp.ExperimentalWarning = ExperimentalWarning
 
     def cp_to_cpu(x, stream=None, out=None):
         if "cupy" in type(x).__module__:
@@ -123,5 +133,7 @@ def use_cupy(optimize=False):
 
     xp = cp
     import cupyx.scipy.sparse as sparse
+
+    # TODO need to check cupy version is >9.0.0a1 in order to use sparse
 
     return 0
