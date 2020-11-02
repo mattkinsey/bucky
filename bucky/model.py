@@ -975,7 +975,7 @@ if __name__ == "__main__":
             run_time = (datetime.datetime.now() - start_time).total_seconds()
             times.append(run_time)
 
-            logging.info(f"{seed}: {datetime.datetime.now() - start}")
+            logging.info(f"{mc_seed}: {datetime.datetime.now() - start_time}")
     except (KeyboardInterrupt, SystemExit):
         logging.warning("Caught SIGINT, cleaning up")
         to_write.put(None)
