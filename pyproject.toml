@@ -21,7 +21,7 @@ ensure_newline_before_comments = true
 line_length = 120
 
 [tool.pylint.messages_control]
-disable = "C0330, C0326, C0103, W0511"
+disable = "C0330, C0326, C0103, E0602, W0511"
 
 [tool.pylint.format]
 max-line-length = "120"
