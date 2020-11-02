@@ -251,11 +251,12 @@ class SEIR_covid(object):
             A_diag = edges[2][edges[0] == edges[1]]
 
             A_norm = 1.0 / A.sum(axis=0)
+            A_norm = xp.array(A_norm)  # bring it back to an ndarray
             if self.sparse:
                 self.baseline_A = A.multiply(A_norm)
             else:
                 self.baseline_A = A * A_norm
-            self.baseline_A_diag = xp.squeeze(A_diag * A_norm)
+            self.baseline_A_diag = xp.squeeze(xp.multiply(A_diag, A_norm))
 
             self.adm0_cfr_reported = None
             self.adm1_cfr_reported = None
@@ -496,11 +497,12 @@ class SEIR_covid(object):
         # new_R0_fracij = xp.clip(new_R0_fracij, 1e-6, None)
         A = self.baseline_A  # * new_R0_fracij
         A_norm = 1.0  # / new_R0_fracij.sum(axis=0)
+        A_norm = xp.array(A_norm)  # Make sure we're an ndarray and not a matrix
         if self.sparse:
             self.A = A.multiply(A_norm)  # / 2. + xp.identity(self.A.shape[-1])/2.
         else:
             self.A = A * A_norm
-        self.A_diag = self.baseline_A_diag * A_norm
+        self.A_diag = xp.squeeze(self.baseline_A_diag * A_norm)
 
     # TODO these rollups to higher adm levels should be a util (it might make sense as a decorator)
     # it shows up here, the CRR, the CHR rescaling, and in postprocess...
