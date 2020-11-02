@@ -1,6 +1,7 @@
-name: test-pre-commit-hooks
+name: black-flake8-isort-hooks
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
 
