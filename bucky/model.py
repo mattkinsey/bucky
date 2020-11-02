@@ -149,7 +149,7 @@ class SEIR_covid(object):
 
             logging.info("loading graph")
             with open(self.graph_file, "rb") as f:
-                G = pickle.load(f)
+                G = pickle.load(f)  # noqa: B301
 
             # Get case history from graph
             cum_case_hist = xp.vstack(list(nx.get_node_attributes(G, "case_hist").values())).T
