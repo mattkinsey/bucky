@@ -5,7 +5,7 @@ Data Updating Utility (:mod:`bucky.util.update_data_repos`)
 
 A utility for fetching updated data for mobility and case data from public repositories.
 
-This module pulls from public git repositories and preprocessed the 
+This module pulls from public git repositories and preprocessed the
 data if necessary. For case data, unallocated or unassigned cases are
 distributed as necessary.
 
@@ -511,9 +511,9 @@ def update_covid_tracking_data():
     url = "https://api.covidtracking.com/v1/states/daily.csv"
     filename = bucky_cfg["data_dir"] + "/cases/covid_tracking_raw.csv"
     # Download data
-    context = ssl._create_unverified_context()
+    context = ssl._create_unverified_context()  # nosec noqa: W0212
     # Create filename
-    with urllib.request.urlopen(url, context=context) as testfile, open(filename, "w") as f:
+    with urllib.request.urlopen(url, context=context) as testfile, open(filename, "w") as f:  # nosec
         f.write(testfile.read().decode())
 
     # Read file
@@ -631,11 +631,11 @@ def update_usafacts_data():
     ]
 
     # Download case and death data
-    context = ssl._create_unverified_context()
+    context = ssl._create_unverified_context()  # nosec noqa: W0212
     for i, url in enumerate(urls):
 
         # Create filename
-        with urllib.request.urlopen(url, context=context) as testfile, open(filenames[i], "w") as f:
+        with urllib.request.urlopen(url, context=context) as testfile, open(filenames[i], "w") as f:  # nosec
             f.write(testfile.read().decode())
 
     # Merge datasets
