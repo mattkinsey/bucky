@@ -48,6 +48,7 @@ class SEIR_covid(object):
     def __init__(self, seed=None, randomize_params_on_reset=True):
         self.rseed = seed
         self.randomize = randomize_params_on_reset
+        self.debug = debug
 
         # Integrator params
         self.t = 0.0
@@ -182,7 +183,8 @@ class SEIR_covid(object):
 
             # Make contact mats sym and normalized
             self.contact_mats = G.graph["contact_mats"]
-            logging.debug(f"graph contact mats: {G.graph['contact_mats'].keys()}")
+            if self.debug:
+                logging.debug(f"graph contact mats: {G.graph['contact_mats'].keys()}")
             for mat in self.contact_mats:
                 c_mat = xp.array(self.contact_mats[mat])
                 c_mat = (c_mat + c_mat.T) / 2.0
@@ -256,7 +258,8 @@ class SEIR_covid(object):
                 hosp_data_count = hosp_data["hospitalizedCurrently"].to_numpy()
                 self.adm1_current_hosp = xp.zeros((self.adm1_max + 1,), dtype=float)
                 self.adm1_current_hosp[hosp_data_adm1] = hosp_data_count
-                logging.debug("Current hosp: " + pformat(self.adm1_current_hosp))
+                if self.debug:
+                    logging.debug("Current hosp: " + pformat(self.adm1_current_hosp))
                 df = G.graph["covid_tracking_data"]
                 self.adm1_current_cfr = xp.zeros((self.adm1_max + 1,), dtype=float)
                 cfr_delay = 12  # TODO this should be calced from D_REPORT_TIME*Nij
@@ -276,7 +279,9 @@ class SEIR_covid(object):
                     hist_cfr = new_deaths[cfr_delay:] / new_cases[:-cfr_delay]
                     cfr = np.nanmean(hist_cfr[-7:])
                     self.adm1_current_cfr[adm1] = cfr
-                logging.debug("Current CFR: " + pformat(self.adm1_current_cfr))
+
+                if self.debug:
+                    logging.debug("Current CFR: " + pformat(self.adm1_current_cfr))
 
             else:
                 self.rescale_chr = False
@@ -295,7 +300,8 @@ class SEIR_covid(object):
         if params is not None:
             self.params = copy.deepcopy(params)
 
-        logging.debug("params: " + pformat(self.params, width=120))
+        if self.debug:
+            logging.debug("params: " + pformat(self.params, width=120))
 
         for k in self.params:
             if type(self.params[k]).__module__ == np.__name__:
@@ -328,7 +334,8 @@ class SEIR_covid(object):
             F_RR_fac = truncnorm(xp, 1.0, self.consts.reroll_variance, size=adm1_F_fac.size, a_min=1e-6)
             adm1_F_fac = adm1_F_fac * F_RR_fac
             adm1_F_fac = xp.clip(adm1_F_fac, a_min=0.1, a_max=10.0)  # prevent extreme values
-            logging.debug("adm1 cfr rescaling factor: " + pformat(adm1_F_fac))
+            if self.debug:
+                logging.debug("adm1 cfr rescaling factor: " + pformat(adm1_F_fac))
             self.params.F = self.params.F * adm1_F_fac[self.adm1_id]
             self.params.F = xp.clip(self.params.F, a_min=1.0e-10, a_max=1.0)
             self.params.H = xp.clip(self.params.H, a_min=self.params.F, a_max=1.0)
@@ -353,8 +360,9 @@ class SEIR_covid(object):
 
         if xp.any(~xp.isfinite(self.doubling_t)):
             logging.info("non finite doubling times, is there enough case data?")
-            logging.debug(self.doubling_t)
-            logging.debug(self.adm1_id[~xp.isfinite(self.doubling_t)])
+            if self.debug:
+                logging.debug(self.doubling_t)
+                logging.debug(self.adm1_id[~xp.isfinite(self.doubling_t)])
             raise SimulationException
 
         if self.consts.reroll_variance > 0.0:
@@ -378,7 +386,8 @@ class SEIR_covid(object):
         # Init S=1 everywhere
         y[Si, :, :] = 1.0
 
-        logging.debug("case init")
+        if self.debug:
+            logging.debug("case init")
         Ti = self.params.Ti
         current_I = (
             xp.sum(self.inc_case_hist[-int(Ti) :], axis=0) + (Ti % 1) * self.inc_case_hist[-int(Ti + 1)]
@@ -464,7 +473,8 @@ class SEIR_covid(object):
             logging.info("nonfinite values in the state vector, something is wrong with init")
             raise SimulationException
 
-        logging.debug("done reset()")
+        if self.debug:
+            logging.debug("done reset()")
 
         return y
 
@@ -495,10 +505,12 @@ class SEIR_covid(object):
         # adm0
         adm0_doubling_t = doubling_time_window / xp.log2(xp.nansum(cases, axis=1) / xp.nansum(cases_old, axis=1))
 
-        logging.debug("Adm0 doubling time: " + str(adm0_doubling_t))
+        if self.debug:
+            logging.debug("Adm0 doubling time: " + str(adm0_doubling_t))
         if xp.any(~xp.isfinite(adm0_doubling_t)):
-            logging.debug(xp.nansum(cases, axis=1))
-            logging.debug(xp.nansum(cases_old, axis=1))
+            if self.debug:
+                logging.debug(xp.nansum(cases, axis=1))
+                logging.debug(xp.nansum(cases_old, axis=1))
             raise SimulationException
 
         doubling_t = xp.repeat(adm0_doubling_t[:, None], cases.shape[-1], axis=1)
@@ -559,11 +571,13 @@ class SEIR_covid(object):
             self.adm0_cfr_reported = xp.sum(self.cum_death_hist[-days_back:], axis=1) / xp.sum(cases_lagged, axis=1)
         adm0_case_report = adm0_cfr_param / self.adm0_cfr_reported
 
-        logging.debug("Adm0 case reporting rate: " + pformat(adm0_case_report))
+        if self.debug:
+            logging.debug("Adm0 case reporting rate: " + pformat(adm0_case_report))
         if xp.any(~xp.isfinite(adm0_case_report)):
-            logging.debug("adm0 case report not finite")
-            logging.debug(adm0_cfr_param)
-            logging.debug(self.adm0_cfr_reported)
+            if self.debug:
+                logging.debug("adm0 case report not finite")
+                logging.debug(adm0_cfr_param)
+                logging.debug(self.adm0_cfr_reported)
             raise SimulationException
 
         case_report = xp.repeat(adm0_case_report[:, None], cases_lagged.shape[-1], axis=1)
@@ -871,6 +885,8 @@ if __name__ == "__main__":
         format="%(asctime)s - %(levelname)s - %(filename)s:%(funcName)s:%(lineno)d - %(message)s",
         handlers=[TqdmLoggingHandler()],
     )
+    debug_mode = loglevel < 20
+
     # TODO we should output the logs to output_dir too...
     _banner()
 
