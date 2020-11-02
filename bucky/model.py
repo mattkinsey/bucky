@@ -47,7 +47,7 @@ def get_runid():  # TODO move to util and rename to timeid or something
     return str(dt_now).replace(" ", "__").replace(":", "_").split(".")[0]
 
 
-class SEIR_covid(object):
+class SEIR_covid:
     def __init__(self, seed=None, randomize_params_on_reset=True, debug=False, sparse_aij=False):
         self.rseed = seed
         self.randomize = randomize_params_on_reset
