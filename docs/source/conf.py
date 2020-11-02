@@ -54,6 +54,12 @@ extensions = [
     "sphinx_copybutton",
 ]
 
+# Be picky about warnings
+nitpicky = True
+
+# Ignores stuff we can't easily resolve on other project's sphinx manuals
+nitpick_ignore = []
+
 # Turn on sphinx.ext.autosummary
 autosummary_generate = True
 
