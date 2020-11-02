@@ -108,7 +108,7 @@ def use_cupy(optimize=False):
         import optuna
 
         optuna.logging.set_verbosity(optuna.logging.WARN)
-        logging.warning("Using optuna to optimize kernels, the first calls will be slowwwww")
+        logging.info("Using optuna to optimize kernels, the first calls will be slowwwww")
         cp.optimize_kernels = cupyx.optimizing.optimize
     else:
         cp.optimize_kernels = contextlib.nullcontext
