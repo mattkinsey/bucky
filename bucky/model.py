@@ -33,6 +33,9 @@ if __name__ == "__main__":
 
 from .numerical_libs import xp, ivp, sparse  # noqa: E402 isort:skip
 
+# silence optuna warnings
+warnings.simplefilter(action="ignore", category=xp.ExperimentalWarning)
+
 # TODO move to a new file and add some more exception types
 class SimulationException(Exception):
     pass
