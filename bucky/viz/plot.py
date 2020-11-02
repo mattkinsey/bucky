@@ -1,10 +1,4 @@
-"""
-===================================================
-Bucky Plotting Tools (:mod:`bucky.viz.plot`)
-===================================================
-
-Creates line plots with confidence intervals at the ADM0, ADM1, or ADM2 level.
-"""
+"""Creates line plots with confidence intervals at the ADM0, ADM1, or ADM2 level."""
 import argparse
 import glob
 import logging
@@ -171,22 +165,22 @@ def plot(
 
     Parameters
     ----------
-    out_dir : string
+    out_dir : str
         Location to place created plots.
-    lookup_df : Pandas DataFrame
+    lookup_df : DataFrame
         Dataframe containing information relating different geographic
         areas
-    key : string
+    key : str
         Key to use to relate simulation data and geographic areas. Must
         appear in lookup and simulation data (and historical data if
         applicable)
-    sim_data : Pandas DataFrame
+    sim_data : DataFrame
         Simulation data to plot
-    hist_data : Pandas DataFrame
+    hist_data : DataFrame
         Historical data to add to plot
-    plot_columns : list of strings
+    plot_columns : list of str
         Columns to plot
-    quantiles : list of floats (or None)
+    quantiles : list of float, or None
         List of quantiles to plot. If None, will plot all available
         quantiles in data.
     """
@@ -336,37 +330,38 @@ def make_plots(
 
     Parameters
     ----------
-    adm_levels : list of strings
+    adm_levels : list of str
         List of ADM levels to make plots for
-    input_directory : string
+    input_directory : str
         Location of simulation data
-    output_directory : string
+    output_directory : str
         Parent directory to place created plots.
-    lookup : Pandas DataFrame
+    lookup : DataFrame
         Lookup table for geographic mapping information
-    plot_hist : boolean
-        If true, will plot historical data
-    plot_columns : list of strings
-        List of columns to plot from data
-    quantiles : list of floats (or None)
+    plot_hist : bool
+        If True, will plot historical data.
+    plot_columns : list of str
+        List of columns to plot from data.
+    quantiles : list of float, or None
         List of quantiles to plot. If None, will plot all available
         quantiles in data.
     window_size : int
-        Size of window (in days) to apply to historical data
-    end_date : string, formatted as YYYY-MM-DD
-        Plot data until this date. If None, uses last date in simulation
+        Size of window (in days) to apply to historical data.
+    end_date : str
+        Plot data until this date. Must be formatted as YYYY-MM-DD.
+        If None, uses last date in simulation.
     hist_file : string
         Path to historical data file. If None, uses either CSSE or
         Covid Tracking data depending on columns requested.
     min_hist_points : int
         Minimum number of historical data points to plot.
-    admin1 : list of strings, or None
+    admin1 : list of str, or None
         List of admin1 values to make plots for. If None, a plot will be
-        created for every unique admin1 values. Otherwise, plots are only
-        made for those requested.
-    hist_start : string, formatted as YYYY-MM-DD
-        Plot historical data from this point. If None, aligns with
-        simulation start date
+        created for every unique admin1 values. Otherwise, plots are
+        only made for those requested.
+    hist_start : str
+        Plot historical data from this point (formatted as YYYY-MM-DD).
+        If None, aligns with simulation start date.
     """
     # Loop over requested levels
     for level in adm_levels:
