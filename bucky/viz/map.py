@@ -155,9 +155,7 @@ parser.add_argument(
 
 
 def get_dates(df, frequency="weekly"):
-    """Given a DataFrame of simulation data, this method returns dates
-    based on the requested frequency.
-
+    """Given a DataFrame of simulation data, this method returns dates based on the requested frequency.
 
     Parameters
     ----------
@@ -361,8 +359,7 @@ def make_map(
 
 
 def get_state_outline(adm2_data, adm1_data):
-    """Given admin2 shape data, finds matching admin1 shape data in order
-    to get the admin1 outline.
+    """Given admin2 shape data, finds matching admin1 shape data in order to get the admin1 outline.
 
     Parameters
     ----------
