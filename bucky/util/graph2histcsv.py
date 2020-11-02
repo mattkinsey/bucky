@@ -10,30 +10,32 @@ parser = argparse.ArgumentParser(
 parser.add_argument("graph", type=str, help="graph to read from")
 parser.add_argument("output_file", type=str, help="output file (it will be a csv)")
 
-args = parser.parse_args()
+if __name__ == "__main__":
 
-with open(args.graph, "rb") as f:
-    g = pickle.load(f)
+    args = parser.parse_args()
 
-adm2 = nx.get_node_attributes(g, "adm2_int")
-cases = nx.get_node_attributes(g, "case_hist")
-deaths = nx.get_node_attributes(g, "death_hist")
-end_date = g.graph["start_date"]
+    with open(args.graph, "rb") as f:
+        g = pickle.load(f)
 
-case_df = pd.DataFrame.from_dict(cases).stack()
-case_df.index = case_df.index.rename(["date", "adm2"])
-case_df = case_df.rename("cumulative_reported_cases")
+    adm2 = nx.get_node_attributes(g, "adm2_int")
+    cases = nx.get_node_attributes(g, "case_hist")
+    deaths = nx.get_node_attributes(g, "death_hist")
+    end_date = g.graph["start_date"]
 
-death_df = pd.DataFrame.from_dict(deaths).stack()
-death_df.index = case_df.index.rename(["date", "adm2"])
-death_df = death_df.rename("cumulative_deaths")
+    case_df = pd.DataFrame.from_dict(cases).stack()
+    case_df.index = case_df.index.rename(["date", "adm2"])
+    case_df = case_df.rename("cumulative_reported_cases")
 
-df = pd.DataFrame({"cumulative_reported_cases": case_df, "cumulative_deaths": death_df}).reset_index()
-df["adm2"] = df.adm2.map(adm2)
+    death_df = pd.DataFrame.from_dict(deaths).stack()
+    death_df.index = case_df.index.rename(["date", "adm2"])
+    death_df = death_df.rename("cumulative_deaths")
 
-dates = pd.date_range(end=end_date, periods=df.date.nunique(), freq="1d")
-df["date"] = df.date.map({i: v for i, v in enumerate(dates)})
+    df = pd.DataFrame({"cumulative_reported_cases": case_df, "cumulative_deaths": death_df}).reset_index()
+    df["adm2"] = df.adm2.map(adm2)
 
-df.to_csv(args.output_file, index=False)
+    dates = pd.date_range(end=end_date, periods=df.date.nunique(), freq="1d")
+    df["date"] = df.date.map({i: v for i, v in enumerate(dates)})
 
-# print(df.groupby('date').sum().diff().tail())
+    df.to_csv(args.output_file, index=False)
+
+    # print(df.groupby('date').sum().diff().tail())
