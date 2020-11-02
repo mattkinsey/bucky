@@ -1,10 +1,4 @@
-"""
-====================================================
-Postprocess (:mod:`bucky.postprocess`)
-====================================================
-
-Postprocesses data across dates and simulation runs before aggregating at geographic levels (ADM0, ADM1, or ADM2).
-"""
+"""Postprocesses data across dates and simulation runs before aggregating at geographic levels (ADM0, ADM1, or ADM2)."""
 import argparse
 import gc
 import glob
@@ -27,14 +21,14 @@ def divide_by_pop(dataframe, cols):
 
     Parameters
     ----------
-    dataframe : Pandas DataFrame
+    dataframe : DataFrame
         Simulation data
-    cols : list of strings
+    cols : list of str
         Column names to scale by population
 
     Returns
     -------
-    dataframe : Pandas DataFrame
+    dataframe : DataFrame
         Original dataframe with the requested columns scaled
 
     """
@@ -212,7 +206,6 @@ if __name__ == "__main__":
 
     admin2_key = "adm2_id"
 
-    write_header = True
     all_files = glob.glob(args.file + "/*.feather")
     all_files_df = pd.DataFrame(
         [x.split("/")[-1].split(".")[0].split("_") for x in all_files],
@@ -238,7 +231,7 @@ if __name__ == "__main__":
     write_thread.deamon = True
     write_thread.start()
 
-    def _process_date(date, write_header=False, write_queue=to_write):
+    def _process_date(date, write_queue=to_write):
         date_files = glob.glob(args.file + "/*_" + str(date) + ".feather")  # [:NFILES]
 
         # Read feather files
@@ -296,7 +289,7 @@ if __name__ == "__main__":
         # see e.g. https://github.com/chainer/chainer/issues/1087
         if use_gpu:
             use_cupy(optimize=True)
-        from .numerical_libs import xp  # isort:skip
+        from .numerical_libs import xp  # isort:skip  # pylint: disable=import-outside-toplevel
 
         for level in agg_levels:
 
@@ -392,17 +385,17 @@ if __name__ == "__main__":
 
     # sort output csvs
     if not args.no_sort:
-        for level in args.levels:
-            fname = os.path.join(output_dir, level + "_quantiles.csv")
-            logging.info("Sorting output file " + fname + "...")
-            df = pd.read_csv(fname)
+        for a_level in args.levels:
+            filename = os.path.join(output_dir, a_level + "_quantiles.csv")
+            logging.info("Sorting output file " + filename + "...")
+            out_df = pd.read_csv(filename)
 
             # TODO we can avoid having to set index here once readable_column names is complete
             # set index and sort them
-            df = df.set_index([level, "date", "quantile"]).sort_index()
+            out_df = out_df.set_index([a_level, "date", "quantile"]).sort_index()
             # sort columns alphabetically
-            df = df.reindex(sorted(df.columns), axis=1)
+            out_df = out_df.reindex(sorted(out_df.columns), axis=1)
             # write out sorted csv
-            df = df.drop(columns="index")  # TODO where did we pick this col up?
-            df.to_csv(fname, index=True)
+            out_df = out_df.drop(columns="index")  # TODO where did we pick this col up?
+            out_df.to_csv(filename, index=True)
             logging.info("Done sort")
