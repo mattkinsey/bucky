@@ -139,7 +139,7 @@ disable=print-statement,
         deprecated-sys-function,
         exception-escape,
         comprehension-escape,
-	C0330, C0326 # for black
+	C0330, C0326, # for black
 	C0103, E0602, # b/c of the way we're handling global in model
 
 # Enable the message, report, category or checker with the given id(s). You can
