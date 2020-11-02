@@ -1,10 +1,4 @@
-"""
-====================================================
-Input Graph Creation (:mod:`bucky.make_input_graph`)
-====================================================
-
-Makes input graphs for the model using case, demographic, and mobility data.
-"""
+"""Makes input graphs for the model using case, demographic, and mobility data."""
 import argparse
 import csv
 import datetime
@@ -149,24 +143,24 @@ def compute_population_density(age_df, shape_df):
 
     Returns
     -------
-    popdens : DataFrame
+    pop_density : DataFrame
         DataFrame with population density by FIPS
 
     """
     # Use age data and shape file to compute population density
     pop_df = pd.DataFrame(age_df.sum(axis=1))
     pop_df = pop_df.rename(columns={0: "total"})
-    popdens = pop_df.merge(
+    pop_density = pop_df.merge(
         shape_df.set_index("adm2")["ALAND"].to_frame(),
         left_index=True,
         right_index=True,
     )
-    popdens = (popdens["total"] / popdens["ALAND"]).to_frame(name="pop_dens")
+    pop_density = (pop_density["total"] / pop_density["ALAND"]).to_frame(name="pop_dens")
 
     # Scale so values are relative
-    popdens["pop_dens_scaled"] = popdens["pop_dens"] / popdens["pop_dens"].max()
+    pop_density["pop_dens_scaled"] = pop_density["pop_dens"] / pop_density["pop_dens"].max()
 
-    return popdens
+    return pop_density
 
 
 def read_descartes_data(end_date):
@@ -262,8 +256,10 @@ def read_lex_data(date):
         )
 
         logging.info(str(date) + " not in cache")
-        counties = df.columns.values[1:]
-        col_names = dict(zip(counties, ["a" + lab for lab in counties]))
+
+        # First in column is key COUNTY_PRE, skip
+        county_codes = df.columns.values[1:]
+        col_names = dict(zip(county_codes, ["a" + lab for lab in county_codes]))
         df = df.rename(columns=col_names)
         df_long = pd.wide_to_long(df, stubnames="a", i=["COUNTY_PRE"], j="col")
         df_long = df_long.reset_index(drop=False)
@@ -278,12 +274,12 @@ def read_lex_data(date):
     return df_long
 
 
-def get_lex(last_date, window_size=7):
+def get_lex(last_requested_date, window_size=7):
     """Reads county-level location exposure indices from PlaceIQ location data and applies a window.
 
     Parameters
     ----------
-    last_date : str
+    last_requested_date : str
         Fetches data for requested date
     window_size : int, default 7
         Size of window, in days, to apply to data
@@ -296,14 +292,14 @@ def get_lex(last_date, window_size=7):
     """
     lex_df = None
     success = 0
-    d = 0
+    days = 0
     pbar = tqdm.tqdm(total=window_size, desc="Getting historical LEX", dynamic_ncols=True)
     while success < window_size:
-        date = datetime.date.fromisoformat(last_date) - datetime.timedelta(days=d)
+        date = datetime.date.fromisoformat(last_requested_date) - datetime.timedelta(days=days)
         date_str = date.isoformat()
         logging.info(date_str)
 
-        d += 1
+        days += 1
         try:
             if lex_df is None:
                 lex_df = read_lex_data(date_str).set_index(["StartId", "EndId"])
@@ -325,12 +321,12 @@ def get_lex(last_date, window_size=7):
     return frac_df.to_frame(name="frac_count").reset_index()
 
 
-def get_safegraph(last_date, window_size=7):
+def get_safegraph(last_requested_date, window_size=7):
     """Reads SafeGraph mobility data and applies a window.
 
     Parameters
     ----------
-    last_date : str
+    last_requested_date : str
         Fetches data for requested date
     window_size : int, default 7
         Size of window, in days, to apply to data
@@ -343,13 +339,13 @@ def get_safegraph(last_date, window_size=7):
     """
     sg_df = None
     success = 0
-    d = 0
+    days = 0
     pbar = tqdm.tqdm(total=window_size, desc="Getting historical SG", dynamic_ncols=True)
     while success < window_size:
 
-        date = datetime.date.fromisoformat(last_date) - datetime.timedelta(days=d)
+        date = datetime.date.fromisoformat(last_requested_date) - datetime.timedelta(days=days)
         date_str = date.isoformat()
-        d += 1
+        days += 1
         try:
             if sg_df is None:
                 sg_df = pd.read_csv(bucky_cfg["data_dir"] + "/safegraph_processed/" + date_str + "_county.csv.gz")
@@ -374,36 +370,34 @@ def get_safegraph(last_date, window_size=7):
     return frac_df
 
 
-def get_mobility_data(popdens, end_date, age_data, add_territories=True):
+def get_mobility_data(pop_density, end_date, county_df):
     """Fetches mobility data.
 
     Parameters
     ----------
-    popdens : DataFrame
+    pop_density : DataFrame
         Population density indexed by FIPS
     end_date : str
         Last date of historical data
-    age_data : DataFrame
-        County-level age-stratified population data
-    add_territories : bool
-        Adds territory data if True
+    county_df : DataFrame
+        County-level shape data
 
     Returns
     -------
-    mean_edge_weights : DataFrame
+    edge_weights : DataFrame
         TODO
-    move_dict : dict
+    movement_dict : dict
         TODO
 
     """
-    # lex = read_lex_data(last_date)
-    lex = get_lex(last_date)
+    # lex = read_lex_data(end_date)
+    lex = get_lex(end_date)
 
-    national_frac_move, dl_state, dl_county = read_descartes_data(last_date)
+    national_frac_move, dl_state, dl_county = read_descartes_data(end_date)
 
     if os.path.exists(os.path.join(bucky_cfg["data_dir"], "safegraph_processed")):
 
-        sg_df = get_safegraph(last_date)
+        sg_df = get_safegraph(end_date)
         tmp = lex.set_index(["StartId", "EndId"]).frac_count.sort_index()
         sg_df.index = sg_df.index.rename(["StartId", "EndId"])
         merged_df = tmp.to_frame().merge(sg_df.to_frame(), left_index=True, right_index=True, how="outer")
@@ -411,9 +405,9 @@ def get_mobility_data(popdens, end_date, age_data, add_territories=True):
         lex = mean_df.to_frame(name="frac_count").reset_index()
 
     # Combine Teralytics, Descartes data
-    state_map = counties[["adm2", "adm1"]].set_index("adm2")
+    state_county_map = county_df[["adm2", "adm1"]].set_index("adm2")
     lex = lex.reset_index().set_index("StartId")
-    lex = lex.merge(state_map, left_index=True, right_index=True, how="left")
+    lex = lex.merge(state_county_map, left_index=True, right_index=True, how="left")
 
     # Merge state movement
     lex = lex.merge(dl_state, left_on="adm1", right_index=True, how="left")
@@ -428,18 +422,18 @@ def get_mobility_data(popdens, end_date, age_data, add_territories=True):
     # Fix index
     lex = lex.reset_index().rename(columns={"level_0": "StartId"})  # .set_index(['StartId', 'EndId'])
 
-    lex = lex.merge(popdens, left_on="EndId", right_index=True, how="left")
+    lex = lex.merge(pop_density, left_on="EndId", right_index=True, how="left")
     lex["frac_count"] = lex["frac_count"] * np.sqrt(np.maximum(0.02, lex["pop_dens_scaled"]) ** 2)
 
     # Use data to make mean edge weights
-    mean_edge_weights = lex.groupby(["StartId", "EndId"]).mean().dropna()
+    edge_weights = lex.groupby(["StartId", "EndId"]).mean().dropna()
 
     # Compare the difference between before & after
     movement = lex.set_index(["StartId", "EndId"])["frac_move"]
     # TODO this takes forever:
-    move_dict = {ind: {"R0_frac": movement.loc[ind]} for ind in movement.index}
+    movement_dict = {ind: {"R0_frac": movement.loc[ind]} for ind in movement.index}
 
-    return mean_edge_weights, move_dict
+    return edge_weights, movement_dict
 
 
 if __name__ == "__main__":
@@ -576,7 +570,7 @@ if __name__ == "__main__":
     # MOBILITY DATA
 
     # Get mobility data
-    mean_edge_weights, move_dict = get_mobility_data(popdens, last_date, age_data)
+    mean_edge_weights, move_dict = get_mobility_data(popdens, last_date, counties)
 
     # Create list of edges
     edge_list = mean_edge_weights.reset_index()[["StartId", "EndId", "frac_count"]]
