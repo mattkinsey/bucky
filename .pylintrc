@@ -141,7 +141,7 @@ disable=print-statement,
         comprehension-escape,
 	C0330, C0326, # for black
 	C0103, E0602, # b/c of the way we're handling global in model
-        too-many-locals,
+        too-many-locals, too-many-statements,
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
