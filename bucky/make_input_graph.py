@@ -74,9 +74,9 @@ def get_case_history(historical_data, end_date, num_days=DAYS_OF_HIST):
 
     Parameters
     ----------
-    historical_data : Pandas DataFrame
+    historical_data : DataFrame
         Dataframe with case, death data indexed by date, FIPS
-    end_date : date string
+    end_date : str
         Last date to get data for
     num_days : int
         Number of days of history requested
@@ -142,14 +142,14 @@ def compute_population_density(age_df, shape_df):
 
     Parameters
     ----------
-    age_df : Pandas DataFrame
+    age_df : DataFrame
         age-stratified population data
-    shape_df : Geopandas GeoDataFrame
+    shape_df : geopandas.GeoDataFrame
         GeoDataFrame with shape information indexed by FIPS
 
     Returns
     -------
-    popdens : Pandas DataFrame
+    popdens : DataFrame
         DataFrame with population density by FIPS
 
     """
@@ -174,16 +174,16 @@ def read_descartes_data(end_date):
 
     Parameters
     ----------
-    end_date : string
+    end_date : str
         Last date to get Descartes data
 
     Returns
     -------
-    nat_frac_move : Pandas DataFrame
+    nat_frac_move : DataFrame
         TODO
-    dl_state : Pandas DataFrame
+    dl_state : DataFrame
         TODO
-    dl_county : Pandas DataFrame
+    dl_county : DataFrame
         TODO
 
     Notes
@@ -240,12 +240,12 @@ def read_lex_data(date):
 
     Parameters
     ----------
-    date : string
+    date : str
         Fetches data for requested date
 
     Returns
     -------
-    df_long : Pandas DataFrame
+    df_long : DataFrame
         Preprocessed LEX data
 
     """
@@ -283,14 +283,14 @@ def get_lex(last_date, window_size=7):
 
     Parameters
     ----------
-    last_date : last_date
+    last_date : str
         Fetches data for requested date
-    window_size : int (default: 7)
+    window_size : int, default 7
         Size of window, in days, to apply to data
 
     Returns
     -------
-    frac_df : Pandas DataFrame
+    frac_df : DataFrame
         TODO
 
     """
@@ -330,14 +330,14 @@ def get_safegraph(last_date, window_size=7):
 
     Parameters
     ----------
-    last_date : last_date
+    last_date : str
         Fetches data for requested date
-    window_size : int (default: 7)
+    window_size : int, default 7
         Size of window, in days, to apply to data
 
     Returns
     -------
-    frac_df : Pandas DataFrame
+    frac_df : DataFrame
         TODO
 
     """
@@ -379,18 +379,18 @@ def get_mobility_data(popdens, end_date, age_data, add_territories=True):
 
     Parameters
     ----------
-    popdens : Pandas DataFrame
+    popdens : DataFrame
         Population density indexed by FIPS
-    end_date : string
+    end_date : str
         Last date of historical data
-    age_data : Pandas DataFrame
+    age_data : DataFrame
         County-level age-stratified population data
-    add_territories : boolean
+    add_territories : bool
         Adds territory data if True
 
     Returns
     -------
-    mean_edge_weights : Pandas DataFrame
+    mean_edge_weights : DataFrame
         TODO
     move_dict : dict
         TODO
