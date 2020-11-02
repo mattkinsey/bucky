@@ -511,7 +511,7 @@ def update_covid_tracking_data():
     url = "https://api.covidtracking.com/v1/states/daily.csv"
     filename = bucky_cfg["data_dir"] + "/cases/covid_tracking_raw.csv"
     # Download data
-    context = ssl._create_unverified_context()  # nosec noqa: W0212
+    context = ssl._create_unverified_context()  # pylint: disable=W0212  # nosec
     # Create filename
     with urllib.request.urlopen(url, context=context) as testfile, open(filename, "w") as f:  # nosec
         f.write(testfile.read().decode())
@@ -631,7 +631,7 @@ def update_usafacts_data():
     ]
 
     # Download case and death data
-    context = ssl._create_unverified_context()  # nosec noqa: W0212
+    context = ssl._create_unverified_context()  # pylint: disable=W0212  # nosec
     for i, url in enumerate(urls):
 
         # Create filename
