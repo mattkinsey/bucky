@@ -17,7 +17,7 @@ import tqdm
 # https://stackoverflow.com/questions/38543506/change-logging-print-function-to-tqdm-write-so-logging-doesnt-interfere-wit
 class TqdmLoggingHandler(logging.Handler):
     def __init__(self, level=logging.NOTSET):
-        super().__init__(level)
+        super().__init__(level)  # pylint: disable=useless-super-delegation
 
     def emit(self, record):
         try:
@@ -25,8 +25,8 @@ class TqdmLoggingHandler(logging.Handler):
             tqdm.tqdm.write(msg)
             self.flush()
         except (KeyboardInterrupt, SystemExit):
-            raise
-        except Exception:
+            raise  # pylint: disable=try-except-raise
+        except Exception:  # pylint: broad-except
             self.handleError(record)
 
 
@@ -45,8 +45,8 @@ def remove_chars(seq):
     seq_type = type(seq)
     if seq_type != str:
         return seq
-    else:
-        return seq_type().join(filter(seq_type.isdigit, seq))
+
+    return seq_type().join(filter(seq_type.isdigit, seq))
 
 
 def map_np_array(a, d):
