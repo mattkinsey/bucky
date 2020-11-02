@@ -18,8 +18,6 @@ Welcome to Bucky's documentation!
    autosummary
    references
 
-#.. image:: ../../logo.png
-
 Indices and tables
 ==================
 
