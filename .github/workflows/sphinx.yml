@@ -40,7 +40,7 @@ jobs:
         run: python3 -m pip install -r ./requirements.txt
 
       - name: Build sphinx html
-        run: make html
+        run: make html SPHINXOPTS="-W --keep-going -n"
         working-directory: ./docs
 
       #- name: Deploy
