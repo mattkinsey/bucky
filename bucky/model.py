@@ -247,8 +247,8 @@ class SEIR_covid(object):
             A = A.tocsr()  # just b/c it will do this for almost every op on the array anyway...
             # TODO threshold low values to zero to make it even more sparse?
             if not self.sparse:
-                A = A.toarray()  # TODO make going dense a cli param
-            A_diag = xp.array([e[2] for e in edges if e[0] == e[1]])
+                A = A.toarray()
+            A_diag = edges[2][edges[0] == edges[1]]
 
             A_norm = 1.0 / A.sum(axis=0)
             if self.sparse:
