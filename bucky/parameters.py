@@ -114,7 +114,7 @@ class buckyParams(object):
         return np.interp(x_mean_new, x_mean, y)
 
     @staticmethod
-    def rescale_doubling_rate(D, params, xp, A=None):
+    def rescale_doubling_rate(D, params, xp, A=None, A_diag=None):
         # TODO rename D to Td everwhere for consistency
         r = xp.log(2.0) / D
         params["R0"] = calc_Reff(
@@ -125,9 +125,9 @@ class buckyParams(object):
             r,
         )
         params["BETA"] = params["R0"] * params["GAMMA"]
-        if A is not None:
+        if A_diag is not None:
             # params['BETA'] /= xp.sum(A,axis=1)
-            params["BETA"] /= xp.diag(A)
+            params["BETA"] /= A_diag
         return params
 
     @staticmethod

@@ -45,10 +45,12 @@ def get_runid(pid=0):  # TODO move to util and rename to timeid or something
 
 
 class SEIR_covid(object):
-    def __init__(self, seed=None, randomize_params_on_reset=True):
+    def __init__(self, seed=None, randomize_params_on_reset=True, debug=False, sparse=False):
         self.rseed = seed
         self.randomize = randomize_params_on_reset
         self.debug = debug
+        self.sparse = sparse  # we can default to none and autodetect w/ override (maybe when #adm2 > 5k and some sparsity critera?)
+        # TODO we could make a adj mat class that provides a standard api (stuff like .multiply, overloaded __mul__, etc) so that we dont need to constantly check 'if self.sparse'. It could also store that diag info and provide the row norm...
 
         # Integrator params
         self.t = 0.0
@@ -207,7 +209,7 @@ class SEIR_covid(object):
             self.n_age_grps = self.Nij.shape[0]
 
             self.G = G
-            n_nodes = len(self.G.nodes())
+            n_nodes = self.Nij.shape[-1]  # len(self.G.nodes())
 
             self.first_date = datetime.date.fromisoformat(G.graph["start_date"])
 
@@ -242,9 +244,17 @@ class SEIR_covid(object):
             edges = xp.array(list(G.edges(data="weight"))).T
 
             A = sparse.coo_matrix((edges[2], (edges[0].astype(int), edges[1].astype(int))))
-            A = A.toarray()
+            A = A.tocsr()  # just b/c it will do this for almost every op on the array anyway...
+            # TODO threshold low values to zero to make it even more sparse?
+            if not self.sparse:
+                A = A.toarray()  # TODO make going dense a cli param
 
-            self.baseline_A = A / xp.sum(A, axis=0)
+            A_norm = 1.0 / A.sum(axis=0)
+            if self.sparse:
+                self.baseline_A = A.multiply(A_norm)
+            else:
+                self.baseline_A = A * A_norm
+            self.baseline_A_diag = xp.squeeze(A_diag * A_norm)
 
             self.adm0_cfr_reported = None
             self.adm1_cfr_reported = None
@@ -288,6 +298,7 @@ class SEIR_covid(object):
 
         # make sure we always reset to baseline
         self.A = self.baseline_A
+        self.A_diag = self.baseline_A_diag
 
         # randomize model params if we're doing that kind of thing
         if self.randomize:
@@ -369,9 +380,9 @@ class SEIR_covid(object):
             self.doubling_t *= truncnorm(xp, 1.0, self.consts.reroll_variance, size=self.doubling_t.shape, a_min=1e-6)
             self.doubling_t = xp.clip(self.doubling_t, 1.0, None) / 2.0
 
-        self.params = self.bucky_params.rescale_doubling_rate(self.doubling_t, self.params, xp, self.A)
+        self.params = self.bucky_params.rescale_doubling_rate(self.doubling_t, self.params, xp, self.A, self.A_diag)
 
-        n_nodes = len(self.G.nodes())  # TODO this should be refactored out...
+        n_nodes = self.Nij.shape[-1]  # len(self.G.nodes())  # TODO this should be refactored out...
 
         mean_case_reporting = xp.mean(self.case_reporting[-self.consts.case_reporting_N_historical_days :], axis=0)
 
@@ -479,10 +490,16 @@ class SEIR_covid(object):
         return y
 
     def reset_A(self, var):
-        new_R0_fracij = truncnorm(xp, 1.0, var, size=self.A.shape, a_min=1e-6)
-        new_R0_fracij = xp.clip(new_R0_fracij, 1e-6, None)
-        A = self.baseline_A * new_R0_fracij
-        self.A = A / xp.sum(A, axis=0)  # / 2. + xp.identity(self.A.shape[-1])/2.
+        # TODO rename the R0_frac stuff...
+        # new_R0_fracij = truncnorm(xp, 1.0, var, size=self.A.shape, a_min=1e-6)
+        # new_R0_fracij = xp.clip(new_R0_fracij, 1e-6, None)
+        A = self.baseline_A  # * new_R0_fracij
+        A_norm = 1.0  # / new_R0_fracij.sum(axis=0)
+        if self.sparse:
+            self.A = A.multiply(A_norm)  # / 2. + xp.identity(self.A.shape[-1])/2.
+        else:
+            self.A = A * A_norm
+        self.A_diag = self.baseline_A_diag * A_norm
 
     # TODO these rollups to higher adm levels should be a util (it might make sense as a decorator)
     # it shows up here, the CRR, the CHR rescaling, and in postprocess...
@@ -629,7 +646,7 @@ class SEIR_covid(object):
     #
 
     @staticmethod
-    def RHS_func(t, y, Nij, contact_mats, Aij, par, npi):
+    def RHS_func(t, y, Nij, contact_mats, Aij, par, npi, aij_sparse):
         # constraint on values
         lower, upper = (0.0, 1.0)  # bounds for state vars
 
@@ -663,8 +680,10 @@ class SEIR_covid(object):
         Cij = xp.sum(Cij, axis=1)
         Cij /= xp.sum(Cij, axis=2, keepdims=True)
 
-        Aij_eff = npi["mobility_reduct"][t_index][..., None] * Aij.T
-
+        if aij_sparse:
+            Aij_eff = Aij.multiply(npi["mobility_reduct"][t_index])
+        else:
+            Aij_eff = npi["mobility_reduct"][t_index] * Aij
         # perturb Aij
         # new_R0_fracij = truncnorm(xp, 1.0, .1, size=Aij.shape, a_min=1e-6)
         # new_R0_fracij = xp.clip(new_R0_fracij, 1e-6, None)
@@ -675,7 +694,10 @@ class SEIR_covid(object):
         I_tot = xp.sum(Nij * s[Iai], axis=0) - (1.0 - par["rel_inf_asym"]) * xp.sum(Nij * s[Iasi], axis=0)
 
         # I_tmp = (Aij.T @ I_tot.T).T
-        I_tmp = I_tot @ Aij_eff  # using identity (A@B).T = B.T @ A.T
+        if aij_sparse:
+            I_tmp = (Aij_eff.T * I_tot.T).T
+        else:
+            I_tmp = I_tot @ Aij  # using identity (A@B).T = B.T @ A.T
 
         beta_mat = s[Si] * xp.squeeze((Cij @ I_tmp.T[..., None]), axis=-1).T
         beta_mat /= Nij
@@ -737,7 +759,7 @@ class SEIR_covid(object):
             t_span=(0.0, self.t_max),
             y0=self.y.reshape(-1),
             t_eval=t_eval,
-            args=(self.Nij, self.Cij, self.A, self.params, self.npi_params),
+            args=(self.Nij, self.Cij, self.A, self.params, self.npi_params, self.sparse),
         )
         logging.debug("Done integration")
         y = sol.y.reshape(N_compartments, self.n_age_grps, -1, len(t_eval))
@@ -840,7 +862,7 @@ class SEIR_covid(object):
             "case_reporting_rate": np.broadcast_to(self.params.CASE_REPORT[:, None], adm2_ids.shape).reshape(-1),
             "R_eff": (
                 self.npi_params["r0_reduct"].T
-                * np.broadcast_to((self.params.R0 * (np.diag(self.A)))[:, None], adm2_ids.shape)
+                * np.broadcast_to((self.params.R0 * self.A_diag)[:, None], adm2_ids.shape)
             ).reshape(-1),
             "doubling_t": np.broadcast_to(self.doubling_t[:, None], adm2_ids.shape).reshape(-1),
         }
@@ -918,7 +940,7 @@ if __name__ == "__main__":
         env = SEIR_covid(randomize_params_on_reset=False)
         n_mc = 1
     else:
-        env = SEIR_covid(randomize_params_on_reset=True)
+        env = SEIR_covid(randomize_params_on_reset=True, debug=debug_mode, sparse=(not args.dense))
         n_mc = args.n_mc
 
     seed_seq = np.random.SeedSequence(args.seed)
