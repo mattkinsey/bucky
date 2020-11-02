@@ -18,8 +18,8 @@ from .arg_parser_model import parser
 from .npi import read_npi_file
 from .numerical_libs import use_cupy
 from .parameters import buckyParams
-from .util import TqdmLoggingHandler, _banner, cache_files
 from .util.distributions import mPERT_sample, truncnorm
+from .util.util import TqdmLoggingHandler, _banner, cache_files
 
 # supress pandas warning caused by pyarrow
 warnings.simplefilter(action="ignore", category=FutureWarning)
@@ -52,8 +52,11 @@ class SEIR_covid(object):
         self.rseed = seed
         self.randomize = randomize_params_on_reset
         self.debug = debug
-        self.sparse = sparse_aij  # we can default to none and autodetect w/ override (maybe when #adm2 > 5k and some sparsity critera?)
-        # TODO we could make a adj mat class that provides a standard api (stuff like .multiply, overloaded __mul__, etc) so that we dont need to constantly check 'if self.sparse'. It could also store that diag info and provide the row norm...
+        self.sparse = sparse_aij  # we can default to none and autodetect
+        # w/ override (maybe when #adm2 > 5k and some sparsity critera?)
+        # TODO we could make a adj mat class that provides a standard api (stuff like .multiply,
+        # overloaded __mul__, etc) so that we dont need to constantly check 'if self.sparse'.
+        # It could also store that diag info and provide the row norm...
 
         # Integrator params
         self.t = 0.0
@@ -891,9 +894,10 @@ class SEIR_covid(object):
 
         # Append data to the hdf5 file
         output_folder = os.path.join(outdir, self.run_id)
-        os.makedirs(output_folder, exist_ok=True)
 
-        output_queue.put((os.path.join(output_folder, str(seed)), df_data))
+        if output:
+            os.makedirs(output_folder, exist_ok=True)
+            output_queue.put((os.path.join(output_folder, str(seed)), df_data))
         # TODO we should output the per monte carlo param rolls, this got lost when we switched from hdf5
 
 
