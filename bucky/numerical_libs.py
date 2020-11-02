@@ -1,4 +1,8 @@
-"""Provides an interface to import numerical libraries using the GPU (if available)."""
+"""Provides an interface to import numerical libraries using the GPU (if available).
+
+.. note:: Linters **HATE** this module because it's really abusing the import system (by design).
+
+"""
 
 import contextlib
 
@@ -50,21 +54,20 @@ def use_cupy(optimize=False):
         fully implemented.
 
     """
-    import importlib
-    import logging
+    import importlib  # pylint: disable=import-outside-toplevel
+    import logging  # pylint: disable=import-outside-toplevel
+    import sys  # pylint: disable=import-outside-toplevel
 
     cupy_spec = importlib.util.find_spec("cupy")
     if cupy_spec is None:
         logging.info("CuPy not found, reverting to cpu/numpy")
         return 1
 
-    global xp, ivp, sparse
+    global xp, ivp, sparse  # pylint: disable=global-statement
 
     if xp.__name__ == "cupy":
         logging.info("CuPy already loaded, skipping")
         return 0
-
-    import sys
 
     # modify src before importing
     def modify_and_import(module_name, package, modification_func):
@@ -73,11 +76,11 @@ def use_cupy(optimize=False):
         new_source = modification_func(source)
         module = importlib.util.module_from_spec(spec)
         codeobj = compile(new_source, module.__spec__.origin, "exec")
-        exec(codeobj, module.__dict__)
+        exec(codeobj, module.__dict__)  # pylint: disable=exec-used
         sys.modules[module_name] = module
         return module
 
-    import cupy as cp
+    import cupy as cp  # pylint: disable=import-outside-toplevel
 
     cp.cuda.set_allocator(cp.cuda.MemoryPool(cp.cuda.memory.malloc_managed).malloc)
 
@@ -103,7 +106,7 @@ def use_cupy(optimize=False):
             lambda src: src.replace("import numpy", "import cupy"),
         )
 
-    import cupyx
+    import cupyx  # pylint: disable=import-outside-toplevel
 
     cp.scatter_add = cupyx.scatter_add
 
@@ -113,7 +116,7 @@ def use_cupy(optimize=False):
         cp.optimize_kernels = contextlib.nullcontext
         cp.ExperimentalWarning = ExperimentalWarning
     elif optimize:
-        import optuna
+        import optuna  # pylint: disable=import-outside-toplevel
 
         optuna.logging.set_verbosity(optuna.logging.WARN)
         logging.info("Using optuna to optimize kernels, the first calls will be slowwwww")
@@ -126,13 +129,12 @@ def use_cupy(optimize=False):
     def cp_to_cpu(x, stream=None, out=None):
         if "cupy" in type(x).__module__:
             return x.get(stream=stream, out=out)
-        else:
-            return x
+        return x
 
     cp.to_cpu = cp_to_cpu  # lambda x, **kwargs: x.get(**kwargs) if "cupy" in type(x).__module__ else x
 
     xp = cp
-    import cupyx.scipy.sparse as sparse
+    import cupyx.scipy.sparse as sparse  # pylint: disable=import-outside-toplevel
 
     # TODO need to check cupy version is >9.0.0a1 in order to use sparse
 
