@@ -39,6 +39,9 @@ jobs:
         working-directory: ./docs
         run: python3 -m pip install -r ./requirements.txt
 
+      - name: Update sphinx apidocs
+        run: sphinx-apidoc --no-toc -f -o docs/source/ bucky/
+
       - name: Build sphinx html
         run: make html SPHINXOPTS="-W --keep-going -n"
         working-directory: ./docs
