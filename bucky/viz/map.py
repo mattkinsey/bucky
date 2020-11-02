@@ -155,20 +155,18 @@ parser.add_argument(
 
 
 def get_dates(df, frequency="weekly"):
-    """Given a DataFrame of simulation data, this method returns dates
-    based on the requested frequency.
-
+    """Given a DataFrame of simulation data, this method returns dates based on the requested frequency.
 
     Parameters
     ----------
-    df : Pandas DataFrame
+    df : DataFrame
         Dataframe of simulation data
-    frequency : {'daily', 'monthly', 'weekly' (default)}
+    frequency : {"weekly", "daily", "monthly"}
         Frequency of selected dates
 
     Returns
     -------
-    date_list : list of strings
+    date_list : list of str
         List of dates
 
     """
@@ -213,14 +211,14 @@ def get_map_data(data_dir, adm_level):
 
     Parameters
     ----------
-    data_dir : string
+    data_dir : str
         Location of preprocessed simulation data
-    adm_level : {'adm0', adm1'}
+    adm_level : {"adm0", "adm1"}
         Admin level of requested map
 
     Returns
     -------
-    df : Pandas DataFrame
+    df : DataFrame
         Requested preprocessed simulation data
 
     """
@@ -253,23 +251,23 @@ def make_map(
 
     Parameters
     ----------
-    shape_df : Geopandas GeoDataFrame
+    shape_df : geopandas.GeoDataFrame
         Shapefile information at the required admin level
-    df : Pandas DataFrame
+    df : DataFrame
         Simulation data to plot
-    dates : list of strings
+    dates : list of str
         List of dates to make maps for
-    cols : list of strings
+    cols : list of str
         List of columns to make maps for
-    output_dir : string
+    output_dir : str
         Directory to place created maps
-    title_prefix : string or None
+    title_prefix : str, or None
         String to add to map prefix
-    log_scale : boolean
+    log_scale : bool
         If true, uses log scaling
-    colormap : string (default: 'Reds')
+    colormap : str, default "Reds"
         Colormap to use; must be a valid Matplotlib colormap
-    outline_df : Geopandas GeoDataFrame or None
+    outline_df : geopandas.GeoDataFrame, or None
         Shapefile for outline
     """
     # Maps are joined one level down from the map-level
@@ -361,20 +359,19 @@ def make_map(
 
 
 def get_state_outline(adm2_data, adm1_data):
-    """Given admin2 shape data, finds matching admin1 shape data in order
-    to get the admin1 outline.
+    """Given admin2 shape data, finds matching admin1 shape data in order to get the admin1 outline.
 
     Parameters
     ----------
-    adm2_data : Geopandas GeoDataFrame
+    adm2_data : geopandas.GeoDataFrame
         Admin2-level shape data
 
-    adm1_data : Geopandas GeoDataFrame
+    adm1_data : geopandas.GeoDataFrame
         Admin1-level shape data
 
     Returns
     -------
-    outline_df : Geopandas GeoDataFrame
+    outline_df : geopandas.GeoDataFrame
         Admin1-level shape data that match values in admin2
 
     """
@@ -404,28 +401,28 @@ def make_adm1_maps(
 
     Parameters
     ----------
-    adm2_shape_df : Geopandas GeoDataFrame
+    adm2_shape_df : geopandas.GeoDataFrame
         Shapefile information at the admin2 level
-    adm1_shape_df : Geopandas GeoDataFrame
+    adm1_shape_df : geopandas.GeoDataFrame
         Shapefile information at the admin1 level
-    df : Pandas DataFrame
+    df : DataFrame
         Simulation data to plot
-    lookup_df : Pandas DataFrame
+    lookup_df : DataFrame
         Dataframe containing mapping between admin levels
-    dates : list of strings
+    dates : list of str
         List of dates to make maps for
-    cols : list of strings
+    cols : list of str
         List of columns to make maps for
-    adm1_list : list of strings or None
+    adm1_list : list of str, or None
         List of explicit admin1 names to create names for. If None, a map
         is made for each unique admin1 in the lookup table
-    output_dir : string
+    output_dir : str
         Directory to place created maps
-    log_scale : boolean (default: True)
+    log_scale : bool, default True
         If true, uses log scaling
-    colormap : string, (default: 'Reds')
+    colormap : str, default "Reds"
         Colormap to use; must be a valid Matplotlib colormap
-    add_outline : boolean (default: False)
+    add_outline : bool, default False
         Add a thicker outline to the map
 
     """
@@ -552,6 +549,7 @@ if __name__ == "__main__":
 
     if args.adm1 or args.all_adm1:
 
+        # TODO: add_state_outline currently always true, remove as param?
         if args.lookup is not None:
             lookup_table = read_lookup(args.lookup)
             add_state_outline = True
