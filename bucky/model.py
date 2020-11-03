@@ -79,7 +79,7 @@ class SEIR_covid:
             cache_files(files, self.run_id)
 
         # disease params
-        self.bucky_params = buckyParams(args.par_file, args.gpu)
+        self.bucky_params = buckyParams(args.par_file)
         self.consts = self.bucky_params.consts
 
         # global Si, Ei, Ii, Ici, Iasi, Ri, Rhi, Di, Iai, Hi, Ci, N_compartments, En, Im, Rhn, incH, incC
@@ -458,7 +458,7 @@ class SEIR_covid:
             self.doubling_t *= truncnorm(xp, 1.0, self.consts.reroll_variance, size=self.doubling_t.shape, a_min=1e-6)
             self.doubling_t = xp.clip(self.doubling_t, 1.0, None) / 2.0
 
-        self.params = self.bucky_params.rescale_doubling_rate(self.doubling_t, self.params, xp, self.A, self.A_diag)
+        self.params = self.bucky_params.rescale_doubling_rate(self.doubling_t, self.params, xp, self.A_diag)
 
         n_nodes = self.Nij.shape[-1]  # len(self.G.nodes())  # TODO this should be refactored out...
 
