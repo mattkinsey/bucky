@@ -40,6 +40,7 @@ repos:
     hooks:
       - id: interrogate
         files: 'bucky/'
+        verbose: true
 
 #
 #  - repo: https://github.com/pre-commit/mirrors-pylint
