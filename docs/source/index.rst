@@ -15,9 +15,8 @@ Welcome to Bucky's documentation!
    model_tree
    cli
    modules
+   autosummary
    references
-
-#.. image:: ../../logo.png
 
 Indices and tables
 ==================

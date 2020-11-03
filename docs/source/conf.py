@@ -30,7 +30,7 @@ repo_root_url = "http://gitlab.com/kinsemc/bucky/"
 # -- Project information -----------------------------------------------------
 
 project = "Bucky"
-copyright = "2020, The Johns Hopkins University Applied Physics Laboratory LLC"
+copyright = "2020, The Johns Hopkins University Applied Physics Laboratory LLC"  # pylint: disable=redefined-builtin
 author = "Matt Kinsey, Kate Tallaksen, Freddy Obrecht"
 
 # The full version, including alpha/beta/rc tags
@@ -43,6 +43,7 @@ master_doc = "index"
 
 extensions = [
     "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx_rtd_theme",
     "sphinx.ext.mathjax",
@@ -51,7 +52,17 @@ extensions = [
     "sphinxarg.ext",
     "sphinxcontrib.bibtex",
     "sphinx_copybutton",
+    "numpydoc",
 ]
+
+# Be picky about warnings
+nitpicky = True
+
+# Ignores stuff we can't easily resolve on other project's sphinx manuals
+nitpick_ignore = []
+
+# Turn on sphinx.ext.autosummary
+autosummary_generate = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]

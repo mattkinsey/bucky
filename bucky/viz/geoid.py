@@ -1,3 +1,4 @@
+"""Creates lookup tables relating geographic administrative divisions for use in visualization tools."""
 import glob
 import logging
 import os
@@ -18,15 +19,15 @@ def read_geoid_from_graph(graph_file=None):
 
     Parameters
     ----------
-    graph_file : string or None
+    graph_file : str, or None
         Location of graph file. If None, uses most recently created graph
-        in data/input_graphs/
+        in data/input_graphs/.
 
     Returns
     -------
-    df : Pandas DataFrame
+    df : DataFrame
         Dataframe with names and values for admin0, admin1, and admin2
-        levels
+        levels.
 
     """
     # Use most recently created graph file if one was not provided
@@ -39,7 +40,7 @@ def read_geoid_from_graph(graph_file=None):
     logging.info(f"Using {graph_file} for admin level mappings.")
 
     with open(graph_file, "rb") as f:
-        G = pickle.load(f)
+        G = pickle.load(f)  # nosec
 
     # Get admin0 name
     admin0_name = G.graph["adm0_name"]
@@ -87,18 +88,18 @@ def read_geoid_from_graph(graph_file=None):
 
 
 def read_lookup(geofile, country="US"):
-    """Creates a dataframe relating geographic administration levels e.g. admin2 values in a given admin1 based on a lookup table.
+    """Creates a dataframe relating geographic admin levels e.g. admin2 values in an admin1 based on a lookup table.
 
     Parameters
     ----------
-    geofile : string
+    geofile : str
         Location of lookup table
-    country : string (default: 'US')
+    country : str, default "US"
         Country name
 
     Returns
     -------
-    df : Pandas DataFrame
+    df : DataFrame
         Dataframe with names and values for admin0, admin1, and admin2
 
     """

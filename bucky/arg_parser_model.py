@@ -15,7 +15,7 @@ from .util.read_config import bucky_cfg
 cupy_spec = importlib.util.find_spec("cupy")
 cupy_found = cupy_spec is not None
 
-if os.getenv("BUCKY_CPU", 0):
+if bool(os.getenv("BUCKY_CPU")) or False:
     logging.info("BUCKY_CPU found, forcing cpu usage")
     cupy_found = False
 
@@ -44,6 +44,13 @@ parser.add_argument(
 )
 parser.add_argument("--n_mc", "-n", default=100, type=int, help="Number of runs to do for Monte Carlo")
 parser.add_argument("--days", "-d", default=40, type=int, help="Length of the runs in days")
+parser.add_argument(
+    "--seed",
+    "-s",
+    default=42,
+    type=int,
+    help="Initial seed to generate PRNG seeds from (doesn't need to be high entropy)",
+)
 parser.add_argument(
     "-v",
     "--verbose",
@@ -74,13 +81,21 @@ parser.add_argument(
     help="Just do one run with the mean param values",
 )  # TODO rename to --mean or something
 
-# TODO this doesnt do anything
+# TODO this doesnt do anything other than let you throw and error if there's no cupy...
 parser.add_argument(
     "-gpu",
     "--gpu",
     action="store_true",
     default=cupy_found,
     help="Use cupy instead of numpy",
+)
+
+parser.add_argument(
+    "-den",
+    "--dense",
+    action="store_true",
+    help="Don't store the adj matrix as a sparse matrix. \
+    This will be faster with a small number of regions or a very dense adj matrix.",
 )
 
 parser.add_argument(

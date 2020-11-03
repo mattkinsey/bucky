@@ -18,8 +18,8 @@ from .arg_parser_model import parser
 from .npi import read_npi_file
 from .numerical_libs import use_cupy
 from .parameters import buckyParams
-from .util import TqdmLoggingHandler, _banner, cache_files, remove_chars
 from .util.distributions import mPERT_sample, truncnorm
+from .util.util import TqdmLoggingHandler, _banner, cache_files, remove_chars
 
 # supress pandas warning caused by pyarrow
 warnings.simplefilter(action="ignore", category=FutureWarning)
@@ -33,21 +33,30 @@ if __name__ == "__main__":
 
 from .numerical_libs import xp, ivp, sparse  # noqa: E402 isort:skip
 
+# silence optuna warnings
+warnings.simplefilter(action="ignore", category=xp.ExperimentalWarning)
 
+# TODO move to a new file and add some more exception types
 class SimulationException(Exception):
     pass
 
 
 @lru_cache(maxsize=None)
-def get_runid(pid=0):
-    start = datetime.datetime.now()
-    return str(start).replace(" ", "__").replace(":", "_").split(".")[0]
+def get_runid():  # TODO move to util and rename to timeid or something
+    dt_now = datetime.datetime.now()
+    return str(dt_now).replace(" ", "__").replace(":", "_").split(".")[0]
 
 
-class SEIR_covid(object):
-    def __init__(self, seed=None, randomize_params_on_reset=True):
+class SEIR_covid:
+    def __init__(self, seed=None, randomize_params_on_reset=True, debug=False, sparse_aij=False):
         self.rseed = seed
         self.randomize = randomize_params_on_reset
+        self.debug = debug
+        self.sparse = sparse_aij  # we can default to none and autodetect
+        # w/ override (maybe when #adm2 > 5k and some sparsity critera?)
+        # TODO we could make a adj mat class that provides a standard api (stuff like .multiply,
+        # overloaded __mul__, etc) so that we dont need to constantly check 'if self.sparse'.
+        # It could also store that diag info and provide the row norm...
 
         # Integrator params
         self.t = 0.0
@@ -143,7 +152,7 @@ class SEIR_covid(object):
 
             logging.info("loading graph")
             with open(self.graph_file, "rb") as f:
-                G = pickle.load(f)
+                G = pickle.load(f)  # nosec
 
             # Get case history from graph
             cum_case_hist = xp.vstack(list(nx.get_node_attributes(G, "case_hist").values())).T
@@ -186,7 +195,8 @@ class SEIR_covid(object):
 
             # Make contact mats sym and normalized
             self.contact_mats = G.graph["contact_mats"]
-            logging.debug(f"graph contact mats: {G.graph['contact_mats'].keys()}")
+            if self.debug:
+                logging.debug(f"graph contact mats: {G.graph['contact_mats'].keys()}")
             for mat in self.contact_mats:
                 c_mat = xp.array(self.contact_mats[mat])
                 c_mat = (c_mat + c_mat.T) / 2.0
@@ -219,7 +229,7 @@ class SEIR_covid(object):
                 self.vulnerability_frac = xp.full(self.adm2_id.shape, 0.0)
 
             self.G = G
-            n_nodes = len(self.G.nodes())
+            n_nodes = self.Nij.shape[-1]  # len(self.G.nodes())
 
             self.first_date = datetime.date.fromisoformat(G.graph["start_date"])
 
@@ -254,9 +264,19 @@ class SEIR_covid(object):
             edges = xp.array(list(G.edges(data="weight"))).T
 
             A = sparse.coo_matrix((edges[2], (edges[0].astype(int), edges[1].astype(int))))
-            A = A.toarray()
+            A = A.tocsr()  # just b/c it will do this for almost every op on the array anyway...
+            # TODO threshold low values to zero to make it even more sparse?
+            if not self.sparse:
+                A = A.toarray()
+            A_diag = edges[2][edges[0] == edges[1]]
 
-            self.baseline_A = A / xp.sum(A, axis=0)
+            A_norm = 1.0 / A.sum(axis=0)
+            A_norm = xp.array(A_norm)  # bring it back to an ndarray
+            if self.sparse:
+                self.baseline_A = A.multiply(A_norm)
+            else:
+                self.baseline_A = A * A_norm
+            self.baseline_A_diag = xp.squeeze(xp.multiply(A_diag, A_norm))
 
             self.adm0_cfr_reported = None
             self.adm1_cfr_reported = None
@@ -270,7 +290,8 @@ class SEIR_covid(object):
                 hosp_data_count = hosp_data["hospitalizedCurrently"].to_numpy()
                 self.adm1_current_hosp = xp.zeros((self.adm1_max + 1,), dtype=float)
                 self.adm1_current_hosp[hosp_data_adm1] = hosp_data_count
-                logging.debug("Current hosp: " + pformat(self.adm1_current_hosp))
+                if self.debug:
+                    logging.debug("Current hosp: " + pformat(self.adm1_current_hosp))
                 df = G.graph["covid_tracking_data"]
                 self.adm1_current_cfr = xp.zeros((self.adm1_max + 1,), dtype=float)
                 cfr_delay = 20  # TODO this should be calced from D_REPORT_TIME*Nij
@@ -290,7 +311,9 @@ class SEIR_covid(object):
                     hist_cfr = new_deaths[cfr_delay:] / new_cases[:-cfr_delay]
                     cfr = np.nanmean(hist_cfr[-7:])
                     self.adm1_current_cfr[adm1] = cfr
-                logging.debug("Current CFR: " + pformat(self.adm1_current_cfr))
+
+                if self.debug:
+                    logging.debug("Current CFR: " + pformat(self.adm1_current_cfr))
 
             else:
                 self.rescale_chr = False
@@ -341,6 +364,7 @@ class SEIR_covid(object):
 
         # make sure we always reset to baseline
         self.A = self.baseline_A
+        self.A_diag = self.baseline_A_diag
 
         # randomize model params if we're doing that kind of thing
         if self.randomize:
@@ -353,7 +377,8 @@ class SEIR_covid(object):
         if params is not None:
             self.params = copy.deepcopy(params)
 
-        logging.debug("params: " + pformat(self.params, width=120))
+        if self.debug:
+            logging.debug("params: " + pformat(self.params, width=120))
 
         for k in self.params:
             if type(self.params[k]).__module__ == np.__name__:
@@ -395,10 +420,11 @@ class SEIR_covid(object):
             adm1_F_fac = self.adm1_current_cfr / adm1_F
             adm1_F_fac[xp.isnan(adm1_F_fac)] = 1.0
 
-            F_RR_fac = truncnorm(xp, 1.0, self.consts.reroll_variance, size=adm1_F_fac.size, a_min=1e-6)
-            adm1_F_fac = adm1_F_fac * F_RR_fac
+            # F_RR_fac = truncnorm(xp, 1.0, self.consts.reroll_variance, size=adm1_F_fac.size, a_min=1e-6)
+            adm1_F_fac = adm1_F_fac  # * F_RR_fac
             adm1_F_fac = xp.clip(adm1_F_fac, a_min=0.1, a_max=10.0)  # prevent extreme values
-            logging.debug("adm1 cfr rescaling factor: " + pformat(adm1_F_fac))
+            if self.debug:
+                logging.debug("adm1 cfr rescaling factor: " + pformat(adm1_F_fac))
             self.params.F = self.params.F * adm1_F_fac[self.adm1_id]
             self.params.F = xp.clip(self.params.F, a_min=1.0e-10, a_max=1.0)
             self.params.H = xp.clip(self.params.H, a_min=self.params.F, a_max=1.0)
@@ -423,17 +449,18 @@ class SEIR_covid(object):
 
         if xp.any(~xp.isfinite(self.doubling_t)):
             logging.info("non finite doubling times, is there enough case data?")
-            logging.debug(self.doubling_t)
-            logging.debug(self.adm1_id[~xp.isfinite(self.doubling_t)])
+            if self.debug:
+                logging.debug(self.doubling_t)
+                logging.debug(self.adm1_id[~xp.isfinite(self.doubling_t)])
             raise SimulationException
 
         if self.consts.reroll_variance > 0.0:
             self.doubling_t *= truncnorm(xp, 1.0, self.consts.reroll_variance, size=self.doubling_t.shape, a_min=1e-6)
             self.doubling_t = xp.clip(self.doubling_t, 1.0, None) / 2.0
 
-        self.params = self.bucky_params.rescale_doubling_rate(self.doubling_t, self.params, xp, self.A)
+        self.params = self.bucky_params.rescale_doubling_rate(self.doubling_t, self.params, xp, self.A, self.A_diag)
 
-        n_nodes = len(self.G.nodes())  # TODO this should be refactored out...
+        n_nodes = self.Nij.shape[-1]  # len(self.G.nodes())  # TODO this should be refactored out...
 
         mean_case_reporting = xp.mean(self.case_reporting[-self.consts.case_reporting_N_historical_days :], axis=0)
 
@@ -448,7 +475,8 @@ class SEIR_covid(object):
         # Init S=1 everywhere
         y[Si, :, :] = 1.0
 
-        logging.debug("case init")
+        if self.debug:
+            logging.debug("case init")
         Ti = self.params.Ti
         current_I = (
             xp.sum(self.inc_case_hist[-int(Ti) :], axis=0) + (Ti % 1) * self.inc_case_hist[-int(Ti + 1)]
@@ -458,8 +486,8 @@ class SEIR_covid(object):
         current_I *= 1.0 / (self.params["CASE_REPORT"])
 
         # TODO should be in param file
-        R_fac = xp.array(mPERT_sample(mu=0.5, a=0.25, b=0.75, gamma=50.0))
-        E_fac = xp.array(mPERT_sample(mu=1.4, a=1.15, b=1.65, gamma=50.0))
+        R_fac = xp.array(mPERT_sample(mu=0.25, a=0.2, b=0.3, gamma=50.0))
+        E_fac = xp.array(mPERT_sample(mu=1.5, a=1.25, b=1.75, gamma=50.0))
         H_fac = xp.array(mPERT_sample(mu=1.0, a=0.9, b=1.1, gamma=100.0))
 
         I_init = current_I[None, :] / self.Nij / self.n_age_grps
@@ -496,18 +524,19 @@ class SEIR_covid(object):
             xp.scatter_add(adm1_hosp, self.adm1_id, xp.sum(y[Hi] * self.Nij, axis=(0, 1)))
             adm2_hosp_frac = (self.adm1_current_hosp / adm1_hosp)[self.adm1_id]
             adm0_hosp_frac = xp.nansum(self.adm1_current_hosp) / xp.nansum(adm1_hosp)
+            # print(adm0_hosp_frac)
             adm2_hosp_frac[xp.isnan(adm2_hosp_frac)] = adm0_hosp_frac
             self.params.H = xp.clip(H_fac * self.params.H * adm2_hosp_frac[None, :], self.params.F, 1.0)
 
             # TODO this .85 should be in param file...
-            self.params["F_eff"] = xp.clip(0.85 * self.params["F"] / self.params["H"], 0.0, 1.0)
+            self.params["F_eff"] = xp.clip(0.7 * self.params["F"] / self.params["H"], 0.0, 1.0)
 
             y[Ii] = (1.0 - self.params.H) * I_init / len(Ii)
             # y[Ici] = ic_frac * self.params.H * I_init / (len(Ici))
             # y[Rhi] = hosp_frac * self.params.H * I_init / (Rhn)
             y[Ici] = self.params.CASE_REPORT * self.params.H * I_init / (len(Ici))
             y[Rhi] = (
-                self.params.CASE_REPORT * self.params.H * I_init * self.params.GAMMA_H / self.params.THETA / Rhn * 0.85
+                0.7 * self.params.CASE_REPORT * self.params.H * I_init * self.params.GAMMA_H / self.params.THETA / Rhn
             )
 
         y[Si] -= xp.sum(y[Ii], axis=0) + xp.sum(y[Ici], axis=0) + xp.sum(y[Rhi], axis=0)
@@ -534,15 +563,23 @@ class SEIR_covid(object):
             logging.info("nonfinite values in the state vector, something is wrong with init")
             raise SimulationException
 
-        logging.debug("done reset()")
+        if self.debug:
+            logging.debug("done reset()")
 
         return y
 
     def reset_A(self, var):
-        new_R0_fracij = truncnorm(xp, 1.0, var, size=self.A.shape, a_min=1e-6)
-        new_R0_fracij = xp.clip(new_R0_fracij, 1e-6, None)
-        A = self.baseline_A * new_R0_fracij
-        self.A = A / xp.sum(A, axis=0) / 2.0 + xp.identity(self.A.shape[-1]) / 2.0
+        # TODO rename the R0_frac stuff...
+        # new_R0_fracij = truncnorm(xp, 1.0, var, size=self.A.shape, a_min=1e-6)
+        # new_R0_fracij = xp.clip(new_R0_fracij, 1e-6, None)
+        A = self.baseline_A  # * new_R0_fracij
+        A_norm = 1.0  # / new_R0_fracij.sum(axis=0)
+        A_norm = xp.array(A_norm)  # Make sure we're an ndarray and not a matrix
+        if self.sparse:
+            self.A = A.multiply(A_norm)  # / 2. + xp.identity(self.A.shape[-1])/2.
+        else:
+            self.A = A * A_norm
+        self.A_diag = xp.squeeze(self.baseline_A_diag * A_norm)
 
     # TODO this needs to be cleaned up
     def estimate_doubling_time_WHO(
@@ -580,10 +617,12 @@ class SEIR_covid(object):
         # adm0
         adm0_doubling_t = doubling_time_window / xp.log2(xp.nansum(cases, axis=1) / xp.nansum(cases_old, axis=1))
 
-        logging.debug("Adm0 doubling time: " + str(adm0_doubling_t))
+        if self.debug:
+            logging.debug("Adm0 doubling time: " + str(adm0_doubling_t))
         if xp.any(~xp.isfinite(adm0_doubling_t)):
-            logging.debug(xp.nansum(cases, axis=1))
-            logging.debug(xp.nansum(cases_old, axis=1))
+            if self.debug:
+                logging.debug(xp.nansum(cases, axis=1))
+                logging.debug(xp.nansum(cases_old, axis=1))
             raise SimulationException
 
         doubling_t = xp.repeat(adm0_doubling_t[:, None], cases.shape[-1], axis=1)
@@ -644,11 +683,13 @@ class SEIR_covid(object):
             self.adm0_cfr_reported = xp.sum(self.cum_death_hist[-days_back:], axis=1) / xp.sum(cases_lagged, axis=1)
         adm0_case_report = adm0_cfr_param / self.adm0_cfr_reported
 
-        logging.debug("Adm0 case reporting rate: " + pformat(adm0_case_report))
+        if self.debug:
+            logging.debug("Adm0 case reporting rate: " + pformat(adm0_case_report))
         if xp.any(~xp.isfinite(adm0_case_report)):
-            logging.debug("adm0 case report not finite")
-            logging.debug(adm0_cfr_param)
-            logging.debug(self.adm0_cfr_reported)
+            if self.debug:
+                logging.debug("adm0 case report not finite")
+                logging.debug(adm0_cfr_param)
+                logging.debug(self.adm0_cfr_reported)
             raise SimulationException
 
         case_report = xp.repeat(adm0_case_report[:, None], cases_lagged.shape[-1], axis=1)
@@ -700,7 +741,7 @@ class SEIR_covid(object):
     #
 
     @staticmethod
-    def RHS_func(t, y, Nij, contact_mats, Aij, par, npi):
+    def RHS_func(t, y, Nij, contact_mats, Aij, par, npi, aij_sparse):
         # constraint on values
         lower, upper = (0.0, 1.0)  # bounds for state vars
 
@@ -734,7 +775,10 @@ class SEIR_covid(object):
         Cij = xp.sum(Cij, axis=1)
         Cij /= xp.sum(Cij, axis=2, keepdims=True)
 
-        Aij_eff = npi["mobility_reduct"][t_index][..., None] * Aij.T
+        if aij_sparse:
+            Aij_eff = Aij.multiply(npi["mobility_reduct"][t_index])
+        else:
+            Aij_eff = npi["mobility_reduct"][t_index] * Aij
 
         # perturb Aij
         # new_R0_fracij = truncnorm(xp, 1.0, .1, size=Aij.shape, a_min=1e-6)
@@ -746,7 +790,10 @@ class SEIR_covid(object):
         I_tot = xp.sum(Nij * s[Iai], axis=0) - (1.0 - par["rel_inf_asym"]) * xp.sum(Nij * s[Iasi], axis=0)
 
         # I_tmp = (Aij.T @ I_tot.T).T
-        I_tmp = I_tot @ Aij_eff  # using identity (A@B).T = B.T @ A.T
+        if aij_sparse:
+            I_tmp = (Aij_eff.T * I_tot.T).T
+        else:
+            I_tmp = I_tot @ Aij  # using identity (A@B).T = B.T @ A.T
 
         beta_mat = s[Si] * xp.squeeze((Cij @ I_tmp.T[..., None]), axis=-1).T
         beta_mat /= Nij
@@ -808,7 +855,7 @@ class SEIR_covid(object):
             t_span=(0.0, self.t_max),
             y0=self.y.reshape(-1),
             t_eval=t_eval,
-            args=(self.Nij, self.Cij, self.A, self.params, self.npi_params),
+            args=(self.Nij, self.Cij, self.A, self.params, self.npi_params, self.sparse),
         )
         logging.debug("Done integration")
         y = sol.y.reshape(N_compartments, self.n_age_grps, -1, len(t_eval))
@@ -863,7 +910,7 @@ class SEIR_covid(object):
         init_inc_case_mean = xp.mean(xp.sum(daily_cases_reported[:, 1:4], axis=0))
         hist_inc_case_mean = xp.mean(xp.sum(self.inc_case_hist[-7:], axis=-1))
 
-        inc_case_rejection_fac = 2.0  # TODO These should come from the cli arg -r
+        inc_case_rejection_fac = 1.5  # TODO These should come from the cli arg -r
         if (
             (init_inc_case_mean > inc_case_rejection_fac * hist_inc_case_mean)
             or (inc_case_rejection_fac * init_inc_case_mean < hist_inc_case_mean)
@@ -911,7 +958,7 @@ class SEIR_covid(object):
             "case_reporting_rate": np.broadcast_to(self.params.CASE_REPORT[:, None], adm2_ids.shape).reshape(-1),
             "R_eff": (
                 self.npi_params["r0_reduct"].T
-                * np.broadcast_to((self.params.R0 * (np.diag(self.A)))[:, None], adm2_ids.shape)
+                * np.broadcast_to((self.params.R0 * self.A_diag)[:, None], adm2_ids.shape)
             ).reshape(-1),
             "doubling_t": np.broadcast_to(self.doubling_t[:, None], adm2_ids.shape).reshape(-1),
         }
@@ -934,9 +981,10 @@ class SEIR_covid(object):
 
         # Append data to the hdf5 file
         output_folder = os.path.join(outdir, self.run_id)
-        os.makedirs(output_folder, exist_ok=True)
 
-        output_queue.put((os.path.join(output_folder, str(seed)), df_data))
+        if output:
+            os.makedirs(output_folder, exist_ok=True)
+            output_queue.put((os.path.join(output_folder, str(seed)), df_data))
         # TODO we should output the per monte carlo param rolls, this got lost when we switched from hdf5
 
 
@@ -956,6 +1004,8 @@ if __name__ == "__main__":
         format="%(asctime)s - %(levelname)s - %(filename)s:%(funcName)s:%(lineno)d - %(message)s",
         handlers=[TqdmLoggingHandler()],
     )
+    debug_mode = loglevel < 20
+
     # TODO we should output the logs to output_dir too...
     _banner()
 
@@ -983,35 +1033,43 @@ if __name__ == "__main__":
         logging.info("Using GPU backend")
 
     logging.info(f"command line args: {args}")
-    if args.no_mc:
+    if args.no_mc:  # can we just remove this already?
         env = SEIR_covid(randomize_params_on_reset=False)
         n_mc = 1
     else:
-        env = SEIR_covid(randomize_params_on_reset=True)
+        env = SEIR_covid(randomize_params_on_reset=True, debug=debug_mode, sparse_aij=(not args.dense))
         n_mc = args.n_mc
 
+    seed_seq = np.random.SeedSequence(args.seed)
+
     total_start = datetime.datetime.now()
-    seed = 0  # TODO make init seed a cli arg
     success = 0
+    n_runs = 0
     times = []
     pbar = tqdm.tqdm(total=n_mc, desc="Performing Monte Carlos", dynamic_ncols=True)
     try:
         while success < n_mc:
-            start = datetime.datetime.now()
-            pbar.set_postfix({"seed": seed})
-            pbar.refresh()
+            start_time = datetime.datetime.now()
+            mc_seed = seed_seq.spawn(1)[0].generate_state(1)[0]  # inc spawn key then grab next seed
+            pbar.set_postfix_str(
+                "seed="
+                + str(mc_seed)
+                + ", rej%="  # TODO disable rej% if not -r
+                + str(np.around(float(n_runs - success) / (n_runs + 0.00001) * 100, 1)),
+                refresh=True,
+            )
             try:
+                n_runs += 1
                 with xp.optimize_kernels():
-                    env.run_once(seed=seed, outdir=args.output_dir, output_queue=to_write)
+                    env.run_once(seed=mc_seed, outdir=args.output_dir, output_queue=to_write)
                 success += 1
                 pbar.update(1)
             except SimulationException:
                 pass
-            seed += 1  # TODO add last seed to pbar
-            run_time = (datetime.datetime.now() - start).total_seconds()
+            run_time = (datetime.datetime.now() - start_time).total_seconds()
             times.append(run_time)
 
-            logging.info(f"{seed}: {datetime.datetime.now() - start}")
+            logging.info(f"{mc_seed}: {datetime.datetime.now() - start_time}")
     except (KeyboardInterrupt, SystemExit):
         logging.warning("Caught SIGINT, cleaning up")
         to_write.put(None)

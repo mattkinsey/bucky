@@ -19,9 +19,9 @@ repos:
         args: ['--config=tox.ini', '--exit-zero']
         additional_dependencies: [
           flake8-docstrings,
-          flake8-builtins, 
-          flake8-commas, 
-          flake8-comprehensions, 
+          flake8-builtins,
+          flake8-commas,
+          flake8-comprehensions,
           flake8-logging-format,
           flake8-print,
           flake8-simplify,
@@ -29,7 +29,8 @@ repos:
           flake8-rst-docstrings,
           flake8-bugbear,
           #flake8-eradicate,
-          pandas-vet,
+          flake8-use_fstring,
+          pandas-vet, # need to disable once we enforce flake8, there are tons of false positives
         ]
         verbose: true
         #language_version: python3.8

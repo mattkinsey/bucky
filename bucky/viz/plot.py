@@ -1,27 +1,19 @@
-"""
-===================================================
-Bucky Plotting Tools (:mod:`bucky.viz.plot`)
-===================================================
-
-TODO
-"""
+"""Creates line plots with confidence intervals at the ADM0, ADM1, or ADM2 level."""
 import argparse
 import glob
 import logging
 import os
 import sys
 
+import matplotlib
+import matplotlib.pyplot as plt
 import pandas as pd
-import scipy.stats
 import tqdm
 
 from ..util.get_historical_data import get_historical_data
 from ..util.read_config import bucky_cfg
 from ..util.readable_col_names import readable_col_names
 from .geoid import read_geoid_from_graph, read_lookup
-
-import matplotlib  # isort:skip
-import matplotlib.pyplot as plt  # isort:skip
 
 # from matplotlib.ticker import StrMethodFormatter  # isort:skip
 
@@ -154,13 +146,8 @@ parser.add_argument(
 )
 
 
-def interval(mean, sem, conf, N):
-    z = scipy.stats.t.ppf((1 + conf) / 2.0, N - 1)
-    return (mean - sem * z).clip(lower=0.0), mean + sem * z
-
-
 def plot(
-    output_dir,
+    out_dir,
     lookup_df,
     key,
     sim_data,
@@ -177,22 +164,22 @@ def plot(
 
     Parameters
     ----------
-    output_dir : string
+    out_dir : str
         Location to place created plots.
-    lookup_df : Pandas DataFrame
+    lookup_df : DataFrame
         Dataframe containing information relating different geographic
         areas
-    key : string
+    key : str
         Key to use to relate simulation data and geographic areas. Must
         appear in lookup and simulation data (and historical data if
         applicable)
-    sim_data : Pandas DataFrame
+    sim_data : DataFrame
         Simulation data to plot
-    hist_data : Pandas DataFrame
+    hist_data : DataFrame
         Historical data to add to plot
-    plot_columns : list of strings
+    plot_columns : list of str
         Columns to plot
-    quantiles : list of floats (or None)
+    quantiles : list of float, or None
         List of quantiles to plot. If None, will plot all available
         quantiles in data.
     """
@@ -312,22 +299,22 @@ def plot(
             axs[i].set_ylabel("Count")
             # axs[i].yaxis.set_major_formatter(StrMethodFormatter('{x:,.0f}'))
 
-        plot_filename = os.path.join(output_dir, readable_col_names[plot_columns[0]] + "_" + name + ".png")
+        plot_filename = os.path.join(out_dir, readable_col_names[plot_columns[0]] + "_" + name + ".png")
         plot_filename = plot_filename.replace(" : ", "_")
         plot_filename = plot_filename.replace(" ", "")
         plt.savefig(plot_filename)
         plt.close()
 
         # Save CSV
-        csv_filename = os.path.join(output_dir, name + ".csv")
+        csv_filename = os.path.join(out_dir, name + ".csv")
         area_data.to_csv(csv_filename)
 
 
 def make_plots(
     adm_levels,
-    input_dir,
-    output_dir,
-    lookup,
+    input_directory,
+    output_directory,
+    lookup_df,
     plot_hist,
     plot_columns,
     quantiles,
@@ -338,42 +325,42 @@ def make_plots(
     admin1=None,
     hist_start=None,
 ):
-    """Wrapper function around plot. Creates plots, aggregating data
-    if necessary.
+    """Wrapper function around plot. Creates plots, aggregating data if necessary.
 
     Parameters
     ----------
-    adm_levels : list of strings
+    adm_levels : list of str
         List of ADM levels to make plots for
-    input_dir : string
+    input_directory : str
         Location of simulation data
-    output_dir : string
+    output_directory : str
         Parent directory to place created plots.
-    lookup : Pandas DataFrame
+    lookup : DataFrame
         Lookup table for geographic mapping information
-    plot_hist : boolean
-        If true, will plot historical data
-    plot_columns : list of strings
-        List of columns to plot from data
-    quantiles : list of floats (or None)
+    plot_hist : bool
+        If True, will plot historical data.
+    plot_columns : list of str
+        List of columns to plot from data.
+    quantiles : list of float, or None
         List of quantiles to plot. If None, will plot all available
         quantiles in data.
     window_size : int
-        Size of window (in days) to apply to historical data
-    end_date : string, formatted as YYYY-MM-DD
-        Plot data until this date. If None, uses last date in simulation
+        Size of window (in days) to apply to historical data.
+    end_date : str
+        Plot data until this date. Must be formatted as YYYY-MM-DD.
+        If None, uses last date in simulation.
     hist_file : string
         Path to historical data file. If None, uses either CSSE or
         Covid Tracking data depending on columns requested.
     min_hist_points : int
         Minimum number of historical data points to plot.
-    admin1 : list of strings, or None
+    admin1 : list of str, or None
         List of admin1 values to make plots for. If None, a plot will be
-        created for every unique admin1 values. Otherwise, plots are only
-        made for those requested.
-    hist_start : string, formatted as YYYY-MM-DD
-        Plot historical data from this point. If None, aligns with
-        simulation start date
+        created for every unique admin1 values. Otherwise, plots are
+        only made for those requested.
+    hist_start : str
+        Plot historical data from this point (formatted as YYYY-MM-DD).
+        If None, aligns with simulation start date.
     """
     # Loop over requested levels
     for level in adm_levels:
@@ -381,7 +368,7 @@ def make_plots(
         filename = level + "_quantiles.csv"
 
         # Read the requested file from the input dir
-        data = pd.read_csv(os.path.join(input_dir, filename))
+        data = pd.read_csv(os.path.join(input_directory, filename))
         data = data.assign(date=pd.to_datetime(data["date"]))
 
         # Get dates for data
@@ -395,7 +382,7 @@ def make_plots(
         data = data.loc[(data["date"] < end_date) & (data["date"] > start_date)]
 
         # Determine if sub-folder is necessary (state or county-level)
-        plot_dir = output_dir
+        plot_dir = output_directory
         if level in ["adm2", "adm1"]:
 
             plot_dir = os.path.join(plot_dir, level.upper())
@@ -419,7 +406,7 @@ def make_plots(
 
             # Check if historical data was not successfully fetched
             if hist_data is None:
-                logging.warning("No historical data could be found for: " + str(hist_columns))
+                logging.warning("No historical data could be found for: " + str(plot_columns))
 
             else:
                 hist_data = hist_data.reset_index()
@@ -440,7 +427,7 @@ def make_plots(
 
                 hist_data = hist_data.loc[(hist_data["date"] < end_date) & (hist_data["date"] > start_date)]
         plot(
-            output_dir=plot_dir,
+            out_dir=plot_dir,
             lookup_df=lookup_df,
             key=level,
             sim_data=data,
@@ -482,24 +469,24 @@ if __name__ == "__main__":
     plot_cols = args.plot_columns
 
     if args.lookup is not None:
-        lookup_df = read_lookup(args.lookup)
+        lookup_table = read_lookup(args.lookup)
     else:
-        lookup_df = read_geoid_from_graph(args.graph_file)
+        lookup_table = read_geoid_from_graph(args.graph_file)
 
     # Historical data start
-    hist_start = args.hist_start
+    hist_start_date = args.hist_start
 
     # Parse optional flags
     window = args.window_size
     plot_historical = args.hist
     verbose = args.verbose
-    end_date = args.end_date
-    quantiles = args.quantiles
-    hist_file = args.hist_file
+    plot_end_date = args.end_date
+    list_quantiles = args.quantiles
+    hist_data_file = args.hist_file
     min_hist = args.min_hist
 
     # If a historical file was passed in, make sure hist is also true
-    if hist_file is not None:
+    if hist_data_file is not None:
         plot_historical = True
 
     # Plot
@@ -507,14 +494,14 @@ if __name__ == "__main__":
         levels,
         input_dir,
         output_dir,
-        lookup_df,
+        lookup_table,
         plot_historical,
         plot_cols,
-        quantiles,
+        list_quantiles,
         window,
-        end_date,
-        hist_file,
+        plot_end_date,
+        hist_data_file,
         min_hist,
         args.adm1_name,
-        hist_start,
+        hist_start_date,
     )
