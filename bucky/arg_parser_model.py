@@ -15,7 +15,7 @@ from .util.read_config import bucky_cfg
 cupy_spec = importlib.util.find_spec("cupy")
 cupy_found = cupy_spec is not None
 
-if os.getenv("BUCKY_CPU", 0):
+if bool(os.getenv("BUCKY_CPU")) or False:
     logging.info("BUCKY_CPU found, forcing cpu usage")
     cupy_found = False
 
