@@ -1,3 +1,4 @@
+"""Parser for the yaml path config file"""
 import logging
 import pathlib
 import sys
