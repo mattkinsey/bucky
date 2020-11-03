@@ -25,3 +25,6 @@ disable = "C0330, C0326, C0103, E0602, W0511"
 
 [tool.pylint.format]
 max-line-length = "120"
+
+[tool.interrogate]
+verbose = 2
