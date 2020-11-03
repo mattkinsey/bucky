@@ -39,8 +39,8 @@ def CI_to_std(CI):
     return (upper + lower) / 2.0, (upper - lower) / std95 / 2.0
 
 
-class buckyParams(object):
-    def __init__(self, par_file=None, gpu=False):
+class buckyParams:
+    def __init__(self, par_file=None):
 
         self.par_file = par_file
         if par_file is not None:
@@ -63,8 +63,7 @@ class buckyParams(object):
             params = self.calc_derived_params(params)
             if (params.Te > 1.0 and params.Tg > params.Te and params.Ti > 1.0) or var == 0.0:
                 return params
-            else:
-                logging.debug("Rejected params: " + pformat(params))
+            logging.debug("Rejected params: " + pformat(params))
 
     def reroll_params(self, base_params, var):
         params = dotdict({})
@@ -114,7 +113,7 @@ class buckyParams(object):
         return np.interp(x_mean_new, x_mean, y)
 
     @staticmethod
-    def rescale_doubling_rate(D, params, xp, A=None, A_diag=None):
+    def rescale_doubling_rate(D, params, xp, A_diag=None):
         # TODO rename D to Td everwhere for consistency
         r = xp.log(2.0) / D
         params["R0"] = calc_Reff(

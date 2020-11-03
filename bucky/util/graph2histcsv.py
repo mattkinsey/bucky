@@ -1,3 +1,4 @@
+"""Creates a CSSE formated case/death history file from the data on an input graph"""
 import argparse
 import pickle
 
@@ -34,7 +35,7 @@ if __name__ == "__main__":
     df["adm2"] = df.adm2.map(adm2)
 
     dates = pd.date_range(end=end_date, periods=df.date.nunique(), freq="1d")
-    df["date"] = df.date.map({i: v for i, v in enumerate(dates)})
+    df["date"] = df.date.map(dict(enumerate(dates)))
 
     df.to_csv(args.output_file, index=False)
 
