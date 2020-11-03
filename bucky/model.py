@@ -824,7 +824,7 @@ class SEIR_covid:
         init_inc_case_mean = xp.mean(xp.sum(daily_cases_reported[:, 1:4], axis=0))
         hist_inc_case_mean = xp.mean(xp.sum(self.inc_case_hist[-7:], axis=-1))
 
-        inc_case_rejection_fac = 2.0  # TODO These should come from the cli arg -r
+        inc_case_rejection_fac = 1.5  # TODO These should come from the cli arg -r
         if (
             (init_inc_case_mean > inc_case_rejection_fac * hist_inc_case_mean)
             or (inc_case_rejection_fac * init_inc_case_mean < hist_inc_case_mean)
@@ -958,14 +958,22 @@ if __name__ == "__main__":
 
     total_start = datetime.datetime.now()
     success = 0
+    n_runs = 0
     times = []
     pbar = tqdm.tqdm(total=n_mc, desc="Performing Monte Carlos", dynamic_ncols=True)
     try:
         while success < n_mc:
             start_time = datetime.datetime.now()
             mc_seed = seed_seq.spawn(1)[0].generate_state(1)[0]  # inc spawn key then grab next seed
-            pbar.set_postfix_str("seed=" + str(mc_seed), refresh=True)
+            pbar.set_postfix_str(
+                "seed="
+                + str(mc_seed)
+                + ", rej%="  # TODO disable rej% if not -r
+                + str(np.around(float(n_runs - success) / (n_runs + 0.00001) * 100, 1)),
+                refresh=True,
+            )
             try:
+                n_runs += 1
                 with xp.optimize_kernels():
                     env.run_once(seed=mc_seed, outdir=args.output_dir, output_queue=to_write)
                 success += 1

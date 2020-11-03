@@ -20,8 +20,6 @@ xp.to_cpu = lambda x, **kwargs: x  # one arg noop
 class ExperimentalWarning(Warning):
     """Simple class to mock the optuna warning if we don't have optuna"""
 
-    pass
-
 
 xp.ExperimentalWarning = ExperimentalWarning
 
