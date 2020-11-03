@@ -1,3 +1,4 @@
+"""Module to parse npi csv files"""
 import datetime
 import logging
 

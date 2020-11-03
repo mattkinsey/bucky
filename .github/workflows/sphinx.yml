@@ -3,7 +3,7 @@ name: sphinx-build
 on:
   workflow_dispatch:
   push:
-    branches:    
+    branches:
       - master
       - devel
 

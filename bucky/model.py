@@ -79,7 +79,7 @@ class SEIR_covid:
             cache_files(files, self.run_id)
 
         # disease params
-        self.bucky_params = buckyParams(args.par_file, args.gpu)
+        self.bucky_params = buckyParams(args.par_file)
         self.consts = self.bucky_params.consts
 
         # global Si, Ei, Ii, Ici, Iasi, Ri, Rhi, Di, Iai, Hi, Ci, N_compartments, En, Im, Rhn, incH, incC
@@ -388,7 +388,7 @@ class SEIR_covid:
             self.doubling_t *= truncnorm(xp, 1.0, self.consts.reroll_variance, size=self.doubling_t.shape, a_min=1e-6)
             self.doubling_t = xp.clip(self.doubling_t, 1.0, None) / 2.0
 
-        self.params = self.bucky_params.rescale_doubling_rate(self.doubling_t, self.params, xp, self.A, self.A_diag)
+        self.params = self.bucky_params.rescale_doubling_rate(self.doubling_t, self.params, xp, self.A_diag)
 
         n_nodes = self.Nij.shape[-1]  # len(self.G.nodes())  # TODO this should be refactored out...
 
@@ -824,7 +824,7 @@ class SEIR_covid:
         init_inc_case_mean = xp.mean(xp.sum(daily_cases_reported[:, 1:4], axis=0))
         hist_inc_case_mean = xp.mean(xp.sum(self.inc_case_hist[-7:], axis=-1))
 
-        inc_case_rejection_fac = 2.0  # TODO These should come from the cli arg -r
+        inc_case_rejection_fac = 1.5  # TODO These should come from the cli arg -r
         if (
             (init_inc_case_mean > inc_case_rejection_fac * hist_inc_case_mean)
             or (inc_case_rejection_fac * init_inc_case_mean < hist_inc_case_mean)
@@ -958,14 +958,22 @@ if __name__ == "__main__":
 
     total_start = datetime.datetime.now()
     success = 0
+    n_runs = 0
     times = []
     pbar = tqdm.tqdm(total=n_mc, desc="Performing Monte Carlos", dynamic_ncols=True)
     try:
         while success < n_mc:
             start_time = datetime.datetime.now()
             mc_seed = seed_seq.spawn(1)[0].generate_state(1)[0]  # inc spawn key then grab next seed
-            pbar.set_postfix_str("seed=" + str(mc_seed), refresh=True)
+            pbar.set_postfix_str(
+                "seed="
+                + str(mc_seed)
+                + ", rej%="  # TODO disable rej% if not -r
+                + str(np.around(float(n_runs - success) / (n_runs + 0.00001) * 100, 1)),
+                refresh=True,
+            )
             try:
+                n_runs += 1
                 with xp.optimize_kernels():
                     env.run_once(seed=mc_seed, outdir=args.output_dir, output_queue=to_write)
                 success += 1

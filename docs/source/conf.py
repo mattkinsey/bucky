@@ -30,7 +30,7 @@ repo_root_url = "http://gitlab.com/kinsemc/bucky/"
 # -- Project information -----------------------------------------------------
 
 project = "Bucky"
-copyright = "2020, The Johns Hopkins University Applied Physics Laboratory LLC"
+copyright = "2020, The Johns Hopkins University Applied Physics Laboratory LLC"  # pylint: disable=redefined-builtin
 author = "Matt Kinsey, Kate Tallaksen, Freddy Obrecht"
 
 # The full version, including alpha/beta/rc tags
@@ -52,6 +52,7 @@ extensions = [
     "sphinxarg.ext",
     "sphinxcontrib.bibtex",
     "sphinx_copybutton",
+    "numpydoc",
 ]
 
 # Be picky about warnings
