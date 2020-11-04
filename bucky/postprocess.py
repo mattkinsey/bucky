@@ -285,6 +285,9 @@ if __name__ == "__main__":
             if (tot_df.drop(columns=["date"]).lt(0).sum() > 0).any():  # TODO same here
                 logging.warning("Floating point errors are present in output data.")
 
+        # remove any slight negatives from the integration
+        tot_df = tot_df.clip(lower=0.0)
+
         # NB: this has to happen after we fork the process
         # see e.g. https://github.com/chainer/chainer/issues/1087
         if use_gpu:
