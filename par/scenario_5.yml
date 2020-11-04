@@ -11,13 +11,13 @@ consts:
   case_reporting_min_deaths: 100.
   case_reporting_N_historical_days: 14
 
-Tg: 
+Tg:
   # Mean generation interval
   mean: 7.
   CI: [5.5,8.5]
   clip: [1, null]
 
-Ts: 
+Ts:
   # Mean serial interval
   mean: 6.
   CI: [5.,7.]

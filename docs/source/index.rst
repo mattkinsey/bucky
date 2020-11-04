@@ -16,9 +16,9 @@ Welcome to OCHA-Bucky's documentation!
    model_tree
    cli
    modules
+   autosummary
    faq
    references
-
 
 Indices and tables
 ==================

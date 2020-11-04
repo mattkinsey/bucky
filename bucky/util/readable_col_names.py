@@ -1,3 +1,4 @@
+"""Defines the dict readable_col_names that maps output columsn to plain english"""
 readable_col_names = {
     "cumulative_cases": "Cumulative Cases",
     "cumulative_deaths": "Cumulative Deaths",

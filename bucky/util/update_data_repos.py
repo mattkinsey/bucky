@@ -5,7 +5,7 @@ Data Updating Utility (:mod:`bucky.util.update_data_repos`)
 
 A utility for fetching updated data for mobility and case data from public repositories.
 
-This module pulls from public git repositories and preprocessed the 
+This module pulls from public git repositories and preprocessed the
 data if necessary. For case data, unallocated or unassigned cases are
 distributed as necessary.
 
@@ -61,7 +61,7 @@ def get_timeseries_data(col_name, filename, fips_key="FIPS", is_csse=True):
         mi_data = df.loc[df["UID"].isin(MI_PRISON_UIDS)]
         mi_data = mi_data.assign(FIPS=mi_data["UID"])
 
-        df.loc[mi_data.index] = mi_data.values
+        df.loc[mi_data.index] = mi_data.values  # noqa: PD011
 
     # Get dates and FIPS columns only
     cols = list(df.columns)
@@ -168,7 +168,7 @@ def distribute_unallocated_csse(confirmed_file, deaths_file, hist_df):
 
     # Iterate over states in historical data
     for state_fips in tqdm.tqdm(
-        extra_cases.index.values,
+        extra_cases.index.array,
         desc="Distributing unallocated state data",
         dynamic_ncols=True,
     ):
@@ -397,7 +397,7 @@ def distribute_territory_data(df, add_american_samoa):
 
     # Create nan dataframe for territories (easier to update than append)
     tfips = pop_df["FIPS"].unique()
-    dates = df.index.unique(level=1).values
+    dates = df.index.unique(level=1).array
     fips_col = []
     date_col = []
     for fips in tfips:
@@ -469,7 +469,7 @@ def process_csse_data():
     deaths = deaths.rename(columns={"Deaths": "cumulative_deaths"})
 
     # Merge datasets
-    data = pd.merge(confirmed, deaths, on=["FIPS", "date"], how="left").fillna(0)
+    data = confirmed.merge(deaths, on=["FIPS", "date"], how="left").fillna(0)
 
     # Remove missing FIPS
     data = data[data.FIPS != 0]
@@ -511,9 +511,9 @@ def update_covid_tracking_data():
     url = "https://api.covidtracking.com/v1/states/daily.csv"
     filename = bucky_cfg["data_dir"] + "/cases/covid_tracking_raw.csv"
     # Download data
-    context = ssl._create_unverified_context()
+    context = ssl._create_unverified_context()  # pylint: disable=W0212  # nosec
     # Create filename
-    with urllib.request.urlopen(url, context=context) as testfile, open(filename, "w") as f:
+    with urllib.request.urlopen(url, context=context) as testfile, open(filename, "w") as f:  # nosec
         f.write(testfile.read().decode())
 
     # Read file
@@ -613,7 +613,7 @@ def process_usafacts(case_file, deaths_file):
         processed_frames.append(ts)
 
     # Combine
-    combined_df = pd.merge(processed_frames[0], processed_frames[1], on=["FIPS", "date"], how="left").fillna(0)
+    combined_df = processed_frames[0].merge(processed_frames[1], on=["FIPS", "date"], how="left").fillna(0)
     return combined_df
 
 
@@ -631,11 +631,11 @@ def update_usafacts_data():
     ]
 
     # Download case and death data
-    context = ssl._create_unverified_context()
+    context = ssl._create_unverified_context()  # pylint: disable=W0212  # nosec
     for i, url in enumerate(urls):
 
         # Create filename
-        with urllib.request.urlopen(url, context=context) as testfile, open(filenames[i], "w") as f:
+        with urllib.request.urlopen(url, context=context) as testfile, open(filenames[i], "w") as f:  # nosec
             f.write(testfile.read().decode())
 
     # Merge datasets

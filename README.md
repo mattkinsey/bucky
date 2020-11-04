@@ -3,7 +3,9 @@
 
 
 [![Documentation Status](https://readthedocs.org/projects/docs/badge/?version=latest)](https://ocha-bucky.readthedocs.io/en/latest/getting_started.html)
-![Lint Passing (master)](https://github.com/mattkinsey/bucky/workflows/test-pre-commit-hooks/badge.svg?branch=master)
+![black-flake8-isort-hooks](https://github.com/OCHA-DAP/pa-ocha-bucky/workflows/black-flake8-isort-hooks/badge.svg)
+[![CodeFactor](https://www.codefactor.io/repository/github/OCHA-DAP/pa-ocha-bucky/badge/ocha)](https://www.codefactor.io/repository/github/OCHA-DAP/pa-ocha-bucky/overview/ocha)
+
 
 The documentation of the model, including how to get started, can be accessed **[here](https://ocha-bucky.readthedocs.io/en/latest/)** 
 

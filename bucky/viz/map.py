@@ -1,3 +1,10 @@
+"""
+===================================================
+Bucky Mapping Tools (:mod:`bucky.viz.map`)
+===================================================
+
+Creates maps at the ADM0, ADM1, or ADM2 level.
+"""
 import argparse
 import glob
 import logging
@@ -52,20 +59,13 @@ parser.add_argument(
 )
 
 # Data columns
-default_plot_cols = ["daily_cases_reported", "daily_deaths"]
+default_plot_cols = ["daily_reported_cases", "daily_deaths"]
 parser.add_argument(
     "--columns",
     default=default_plot_cols,
     nargs="+",
     type=str,
     help="Data columns to plot. Maps are created separately for each requested column",
-)
-
-# Use mean or median values (median default)
-parser.add_argument(
-    "--mean",
-    action="store_true",
-    help="Use mean value instead of median value for map",
 )
 
 # Use log or linear (log default)
@@ -155,20 +155,18 @@ parser.add_argument(
 
 
 def get_dates(df, frequency="weekly"):
-    """Given a DataFrame of simulation data, this method returns dates
-    based on the requested frequency.
-
+    """Given a DataFrame of simulation data, this method returns dates based on the requested frequency.
 
     Parameters
     ----------
-    df : Pandas DataFrame
+    df : DataFrame
         Dataframe of simulation data
-    frequency : {'daily', 'monthly', 'weekly' (default)}
+    frequency : {"weekly", "daily", "monthly"}
         Frequency of selected dates
 
     Returns
     -------
-    date_list : list of strings
+    date_list : list of str
         List of dates
 
     """
@@ -205,7 +203,7 @@ def get_dates(df, frequency="weekly"):
     return date_list
 
 
-def get_map_data(data_dir, adm_level, use_mean=False):
+def get_map_data(data_dir, adm_level):
     """Reads requested simulation data.
 
     Maps are created using one level down from the requested map level.
@@ -213,39 +211,26 @@ def get_map_data(data_dir, adm_level, use_mean=False):
 
     Parameters
     ----------
-    data_dir : string
+    data_dir : str
         Location of preprocessed simulation data
-    adm_level : {'adm0', adm1'}
+    adm_level : {"adm0", "adm1"}
         Admin level of requested map
-    use_mean : boolean
-        If true, uses mean data. Otherwise, uses median quantile
 
     Returns
     -------
-    df : Pandas DataFrame
+    df : DataFrame
         Requested preprocessed simulation data
 
     """
     # Determine filename
     file_prefix = "adm1" if adm_level == "adm0" else "adm2"
 
-    if use_mean:
+    # Read file
+    filename = os.path.join(data_dir, file_prefix + "_quantiles.csv")
+    df = pd.read_csv(filename)
 
-        # Read file
-        filename = os.path.join(input_dir, file_prefix + "_mean_std.csv")
-        df = pd.read_csv(filename)
-
-        # Keep mean only
-        df = df.loc[df["stat"] == "mean"]
-
-    else:
-
-        # Read file
-        filename = os.path.join(input_dir, file_prefix + "_quantiles.csv")
-        df = pd.read_csv(filename)
-
-        # Keep median
-        df = df.loc[df["quantile"] == 0.5]
+    # Keep median
+    df = df.loc[df["quantile"] == 0.5]
 
     return df
 
@@ -266,23 +251,23 @@ def make_map(
 
     Parameters
     ----------
-    shape_df : Geopandas GeoDataFrame
+    shape_df : geopandas.GeoDataFrame
         Shapefile information at the required admin level
-    df : Pandas DataFrame
+    df : DataFrame
         Simulation data to plot
-    dates : list of strings
+    dates : list of str
         List of dates to make maps for
-    cols : list of strings
+    cols : list of str
         List of columns to make maps for
-    output_dir : string
+    output_dir : str
         Directory to place created maps
-    title_prefix : string or None
+    title_prefix : str, or None
         String to add to map prefix
-    log_scale : boolean
+    log_scale : bool
         If true, uses log scaling
-    colormap : string (default: 'Reds')
+    colormap : str, default "Reds"
         Colormap to use; must be a valid Matplotlib colormap
-    outline_df : Geopandas GeoDataFrame or None
+    outline_df : geopandas.GeoDataFrame, or None
         Shapefile for outline
     """
     # Maps are joined one level down from the map-level
@@ -374,20 +359,19 @@ def make_map(
 
 
 def get_state_outline(adm2_data, adm1_data):
-    """Given admin2 shape data, finds matching admin1 shape data in order
-    to get the admin1 outline.
+    """Given admin2 shape data, finds matching admin1 shape data in order to get the admin1 outline.
 
     Parameters
     ----------
-    adm2_data : Geopandas GeoDataFrame
+    adm2_data : geopandas.GeoDataFrame
         Admin2-level shape data
 
-    adm1_data : Geopandas GeoDataFrame
+    adm1_data : geopandas.GeoDataFrame
         Admin1-level shape data
 
     Returns
     -------
-    outline_df : Geopandas GeoDataFrame
+    outline_df : geopandas.GeoDataFrame
         Admin1-level shape data that match values in admin2
 
     """
@@ -417,28 +401,28 @@ def make_adm1_maps(
 
     Parameters
     ----------
-    adm2_shape_df : Geopandas GeoDataFrame
+    adm2_shape_df : geopandas.GeoDataFrame
         Shapefile information at the admin2 level
-    adm1_shape_df : Geopandas GeoDataFrame
+    adm1_shape_df : geopandas.GeoDataFrame
         Shapefile information at the admin1 level
-    df : Pandas DataFrame
+    df : DataFrame
         Simulation data to plot
-    lookup_df : Pandas DataFrame
+    lookup_df : DataFrame
         Dataframe containing mapping between admin levels
-    dates : list of strings
+    dates : list of str
         List of dates to make maps for
-    cols : list of strings
+    cols : list of str
         List of columns to make maps for
-    adm1_list : list of strings or None
+    adm1_list : list of str, or None
         List of explicit admin1 names to create names for. If None, a map
         is made for each unique admin1 in the lookup table
-    output_dir : string
+    output_dir : str
         Directory to place created maps
-    log_scale : boolean (default: True)
+    log_scale : bool, default True
         If true, uses log scaling
-    colormap : string, (default: 'Reds')
+    colormap : str, default "Reds"
         Colormap to use; must be a valid Matplotlib colormap
-    add_outline : boolean (default: False)
+    add_outline : bool, default False
         Add a thicker outline to the map
 
     """
@@ -507,13 +491,13 @@ if __name__ == "__main__":
     # Parse other arguments
     input_dir = args.input_dir
 
-    output_dir = args.output
-    if output_dir is None:
-        output_dir = os.path.join(input_dir, "maps")
+    out_dir = args.output
+    if out_dir is None:
+        out_dir = os.path.join(input_dir, "maps")
 
     # Make sure output directory exists
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
 
     # Get colormap
     cmap = args.cmap
@@ -525,8 +509,7 @@ if __name__ == "__main__":
         cmap = default_cmap
 
     map_cols = args.columns
-    use_mean = args.mean
-    dates = args.dates
+    list_dates = args.dates
     use_log = not args.linear
     adm1_col_name = args.adm1_col
     adm2_col_name = args.adm2_col
@@ -535,11 +518,11 @@ if __name__ == "__main__":
     if args.adm0:
 
         # Get data
-        df = get_map_data(input_dir, "adm0", use_mean)
+        map_data = get_map_data(input_dir, "adm0")
 
         # Get dates
-        if dates is None:
-            dates = get_dates(df, args.freq)
+        if list_dates is None:
+            list_dates = get_dates(map_data, args.freq)
 
         # Read adm1 shapefile
         shape_data = gpd.read_file(args.adm1_shape)
@@ -554,11 +537,11 @@ if __name__ == "__main__":
         # Send to map
         make_map(
             shape_df=shape_data,
-            df=df,
-            dates=dates,
+            df=map_data,
+            dates=list_dates,
             adm_key="adm0",
             cols=map_cols,
-            output_dir=output_dir,
+            output_dir=out_dir,
             title_prefix="ADM0",
             log_scale=use_log,
             colormap=cmap,
@@ -566,19 +549,20 @@ if __name__ == "__main__":
 
     if args.adm1 or args.all_adm1:
 
+        # TODO: add_state_outline currently always true, remove as param?
         if args.lookup is not None:
-            lookup_df = read_lookup(args.lookup)
+            lookup_table = read_lookup(args.lookup)
             add_state_outline = True
         else:
-            lookup_df = read_geoid_from_graph(args.graph_file)
+            lookup_table = read_geoid_from_graph(args.graph_file)
             add_state_outline = True
 
         # Get data
-        df = get_map_data(input_dir, "adm1", use_mean)
+        map_data = get_map_data(input_dir, "adm1")
 
         # Get dates
-        if dates is None:
-            dates = get_dates(df, args.freq)
+        if list_dates is None:
+            list_dates = get_dates(map_data, args.freq)
 
         # Read adm1 shapefile
         adm2_shape_data = gpd.read_file(args.adm2_shape)
@@ -604,12 +588,12 @@ if __name__ == "__main__":
         make_adm1_maps(
             adm2_shape_df=adm2_shape_data,
             adm1_shape_df=adm1_shape_data,
-            df=df,
-            lookup_df=lookup_df,
-            dates=dates,
+            df=map_data,
+            lookup_df=lookup_table,
+            dates=list_dates,
             cols=map_cols,
             adm1_list=args.adm1,
-            output_dir=output_dir,
+            output_dir=out_dir,
             log_scale=use_log,
             colormap=cmap,
             add_outline=add_state_outline,

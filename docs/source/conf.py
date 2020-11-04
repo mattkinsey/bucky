@@ -43,6 +43,7 @@ master_doc = "index"
 
 extensions = [
     "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx_rtd_theme",
     "sphinx.ext.mathjax",
@@ -51,7 +52,17 @@ extensions = [
     "sphinxarg.ext",
     "sphinxcontrib.bibtex",
     "sphinx_copybutton",
+    "numpydoc",
 ]
+
+# Be picky about warnings
+nitpicky = True
+
+# Ignores stuff we can't easily resolve on other project's sphinx manuals
+nitpick_ignore = []
+
+# Turn on sphinx.ext.autosummary
+autosummary_generate = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
