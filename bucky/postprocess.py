@@ -276,6 +276,14 @@ if __name__ == "__main__":
 
         numerical_cols = tot_df.columns.difference(["date"])
 
+        if "weight" in lookup_df.columns:
+            logging.info("Applying weights from lookup table.")
+            scale_cols = tot_df.columns.difference(["date", admin2_key, "rid", *pop_mean_cols])
+            lookup_df.index.names = [admin2_key]
+            tot_df = tot_df.set_index([admin2_key, "date", "rid"])
+            tot_df[scale_cols] = tot_df[scale_cols].mul(lookup_df["weight"], axis=0, level=0)
+            tot_df = tot_df.reset_index()
+
         if args.verify:
             # Check all columns except date for negative values
             if (tot_df[numerical_cols].lt(-1).sum() > 0).any():  # TODO this drop does a deep copy and is super slow
