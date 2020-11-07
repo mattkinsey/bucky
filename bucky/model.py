@@ -99,13 +99,13 @@ class SEIR_covid:
                 state_indices["Ici"],
             ],
         )  # all compartments in hospitalization
-        state_indices["Ci"] = xp.hstack(
-            [
-                state_indices["Ii"],
-                state_indices["Ici"],
-                state_indices["Rhi"],
-            ],
-        )
+        # state_indices["Ci"] = xp.hstack(
+        #    [
+        #        state_indices["Ii"],
+        #        state_indices["Ici"],
+        #        state_indices["Rhi"],
+        #    ],
+        # )
 
         state_indices["incH"] = state_indices["Di"] + 1
         state_indices["incC"] = state_indices["incH"] + 1
@@ -779,8 +779,6 @@ class SEIR_covid:
 
         adm2_ids = np.broadcast_to(self.adm2_id[:, None], out.shape[1:])
 
-        # n_time_steps = out.shape[-1]
-
         if self.output_dates is None:
             t_output = xp.to_cpu(sol.t)
             dates = [pd.Timestamp(self.first_date + datetime.timedelta(days=np.round(t))) for t in t_output]
@@ -822,7 +820,7 @@ class SEIR_covid:
             logging.info("Inconsistent inc cases, rejecting run")
             raise SimulationException
 
-        daily_cases_total = daily_cases_reported / self.params.CASE_REPORT[:, None]  # /self.params.SYM_FRAC
+        daily_cases_total = daily_cases_reported / self.params.CASE_REPORT[:, None]
         cum_cases_total = cum_cases_reported / self.params.CASE_REPORT[:, None]
 
         out[incH, :, 0] = out[incH, :, 1]
@@ -838,33 +836,27 @@ class SEIR_covid:
 
         # Grab pretty much everything interesting
         df_data = {
-            "adm2_id": adm2_ids.reshape(-1),
-            "date": dates.reshape(-1),
-            "rid": np.broadcast_to(seed, out.shape[-1]).reshape(-1),
-            "total_population": N.reshape(-1),
-            "current_hospitalizations": hosps.reshape(-1),
-            # "S": out[Si],
-            # "E": out[Ei],
-            # "I": out[Ii],
-            # "Ic": out[Ici],
+            "adm2_id": adm2_ids.ravel(),
+            "date": dates.ravel(),
+            "rid": np.broadcast_to(seed, out.shape[-1]).ravel(),
+            "total_population": N.ravel(),
+            "current_hospitalizations": hosps.ravel(),
             "active_asymptomatic_cases": out[Iasi],  # TODO remove?
-            # "R": out[Ri],
-            # "Rh": out[Rhi],
             "cumulative_deaths": out[Di],
-            "daily_hospitalizations": daily_hosp.reshape(-1),
-            "daily_cases": daily_cases_total.reshape(-1),
-            "daily_reported_cases": daily_cases_reported.reshape(-1),
-            "daily_deaths": daily_deaths.reshape(-1),
-            "cumulative_cases": cum_cases_total.reshape(-1),
-            "cumulative_reported_cases": cum_cases_reported.reshape(-1),
-            "current_icu_usage": xp.sum(icu, axis=0).reshape(-1),
-            "current_vent_usage": xp.sum(vent, axis=0).reshape(-1),
-            "case_reporting_rate": np.broadcast_to(self.params.CASE_REPORT[:, None], adm2_ids.shape).reshape(-1),
+            "daily_hospitalizations": daily_hosp.ravel(),
+            "daily_cases": daily_cases_total.ravel(),
+            "daily_reported_cases": daily_cases_reported.ravel(),
+            "daily_deaths": daily_deaths.ravel(),
+            "cumulative_cases": cum_cases_total.ravel(),
+            "cumulative_reported_cases": cum_cases_reported.ravel(),
+            "current_icu_usage": xp.sum(icu, axis=0).ravel(),
+            "current_vent_usage": xp.sum(vent, axis=0).ravel(),
+            "case_reporting_rate": np.broadcast_to(self.params.CASE_REPORT[:, None], adm2_ids.shape).ravel(),
             "R_eff": (
                 self.npi_params["r0_reduct"].T
                 * np.broadcast_to((self.params.R0 * self.A_diag)[:, None], adm2_ids.shape)
-            ).reshape(-1),
-            "doubling_t": np.broadcast_to(self.doubling_t[:, None], adm2_ids.shape).reshape(-1),
+            ).ravel(),
+            "doubling_t": np.broadcast_to(self.doubling_t[:, None], adm2_ids.shape).ravel(),
         }
 
         # Collapse the gamma-distributed compartments and move everything to cpu
