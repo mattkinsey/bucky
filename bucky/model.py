@@ -26,16 +26,6 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 # TODO we do alot of allowing div by 0 and then checking for nans later, we should probably refactor that
 warnings.simplefilter(action="ignore", category=RuntimeWarning)
 
-if __name__ == "__main__":
-    args = parser.parse_args()
-    if args.gpu:
-        use_cupy(optimize=args.opt)
-
-from .numerical_libs import xp, ivp, sparse  # noqa: E402 isort:skip
-
-# silence optuna warnings
-warnings.simplefilter(action="ignore", category=xp.ExperimentalWarning)
-
 # TODO move to a new file and add some more exception types
 class SimulationException(Exception):
     pass
@@ -903,6 +893,14 @@ class SEIR_covid:
 
 
 if __name__ == "__main__":
+
+    args = parser.parse_args()
+    if args.gpu:
+        use_cupy(optimize=args.opt)
+
+    from .numerical_libs import xp, ivp, sparse  # noqa: E402  # isort:skip
+
+    warnings.simplefilter(action="ignore", category=xp.ExperimentalWarning)
 
     if not os.path.exists(args.output_dir):
         os.mkdir(args.output_dir)
