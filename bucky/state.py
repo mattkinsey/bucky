@@ -1,3 +1,5 @@
+""" Provides a class to hold the internal state vector to the compartment model (and track compartment indices)
+"""
 import inspect
 
 
