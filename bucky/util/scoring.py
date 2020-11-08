@@ -1,3 +1,5 @@
+""" Provides various scoring metrics for probabilistic forecasts.
+"""
 import numpy as np
 
 

@@ -29,6 +29,8 @@ warnings.simplefilter(action="ignore", category=RuntimeWarning)
 
 # TODO move to a new file and add some more exception types
 class SimulationException(Exception):
+    """A generic exception to throw when there's an error related to the simulation"""
+
     pass
 
 
