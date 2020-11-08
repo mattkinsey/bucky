@@ -1,5 +1,8 @@
 """Provides an interface to import numerical libraries using the GPU (if available).
 
+The main goal of this is to smooth over the differences between numpy and cupy so that
+the rest of the code can use them interchangably. We also need to  monkey patch scipy's ivp solver
+to work on cupy arrays.
 .. note:: Linters **HATE** this module because it's really abusing the import system (by design).
 
 """
@@ -81,6 +84,7 @@ def use_cupy(optimize=False):
         return module
 
     import cupy as cp  # pylint: disable=import-outside-toplevel
+    import numpy as np
 
     cp.cuda.set_allocator(cp.cuda.MemoryPool(cp.cuda.memory.malloc_managed).malloc)
 
@@ -131,7 +135,15 @@ def use_cupy(optimize=False):
             return x.get(stream=stream, out=out)
         return x
 
-    cp.to_cpu = cp_to_cpu  # lambda x, **kwargs: x.get(**kwargs) if "cupy" in type(x).__module__ else x
+    cp.to_cpu = cp_to_cpu
+
+    # Add a version of np.r_ to cupy that just calls numpy
+    # has to be a class b/c r_ uses sq brackets
+    class cp_r_:
+        def __getitem__(self, inds):
+            return cp.array(np.r_[inds])
+
+    cp.r_ = cp_r_()
 
     xp = cp
     import cupyx.scipy.sparse as sparse  # pylint: disable=import-outside-toplevel,redefined-outer-name
