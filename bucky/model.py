@@ -18,6 +18,7 @@ from .arg_parser_model import parser
 from .npi import read_npi_file
 from .numerical_libs import use_cupy
 from .parameters import buckyParams
+from .state import buckyState
 from .util.distributions import mPERT_sample, truncnorm
 from .util.util import TqdmLoggingHandler, _banner, cache_files
 
@@ -39,7 +40,7 @@ def get_runid():  # TODO move to util and rename to timeid or something
 
 class SEIR_covid:
     def __init__(self, seed=None, randomize_params_on_reset=True, debug=False, sparse_aij=False):
-        self.rseed = seed
+        self.rseed = seed  # TODO drop this and only set seed in reset
         self.randomize = randomize_params_on_reset
         self.debug = debug
         self.sparse = sparse_aij  # we can default to none and autodetect
@@ -72,55 +73,6 @@ class SEIR_covid:
         self.bucky_params = buckyParams(args.par_file)
         self.consts = self.bucky_params.consts
 
-        # global Si, Ei, Ii, Ici, Iasi, Ri, Rhi, Di, Iai, Hi, Ci, N_compartments, En, Im, Rhn, incH, incC
-        state_indices = {}
-        state_indices["En"] = self.consts["En"]
-        state_indices["Im"] = self.consts["Im"]
-        state_indices["Rhn"] = self.consts["Rhn"]
-        state_indices["Si"] = 0
-        state_indices["Ei"] = xp.array(state_indices["Si"] + 1 + xp.arange(state_indices["En"]), dtype=int)
-        state_indices["Ii"] = xp.array(state_indices["Ei"][-1] + 1 + xp.arange(state_indices["Im"]), dtype=int)
-        state_indices["Ici"] = xp.array(state_indices["Ii"][-1] + 1 + xp.arange(state_indices["Im"]), dtype=int)
-        state_indices["Iasi"] = xp.array(state_indices["Ici"][-1] + 1 + xp.arange(state_indices["Im"]), dtype=int)
-        state_indices["Ri"] = state_indices["Iasi"][-1] + 1
-        state_indices["Rhi"] = xp.array(state_indices["Ri"] + 1 + xp.arange(state_indices["Rhn"]), dtype=int)
-        state_indices["Di"] = state_indices["Rhi"][-1] + 1
-
-        state_indices["Iai"] = xp.hstack(
-            [
-                state_indices["Ii"],
-                state_indices["Iasi"],
-                state_indices["Ici"],
-            ],
-        )  # all I compartments
-        state_indices["Hi"] = xp.hstack(
-            [
-                state_indices["Rhi"],
-                state_indices["Ici"],
-            ],
-        )  # all compartments in hospitalization
-        # state_indices["Ci"] = xp.hstack(
-        #    [
-        #        state_indices["Ii"],
-        #        state_indices["Ici"],
-        #        state_indices["Rhi"],
-        #    ],
-        # )
-
-        state_indices["incH"] = state_indices["Di"] + 1
-        state_indices["incC"] = state_indices["incH"] + 1
-
-        state_indices["N_compartments"] = xp.to_cpu(state_indices["incC"] + 1)
-
-        self.state_indices = state_indices
-
-        self.get_state_indices()
-
-    # We really need to refactor things so we don't have to do this...
-    def get_state_indices(self):
-        for k in self.state_indices:
-            globals()[k] = self.state_indices[k]
-
     def reset(self, seed=None, params=None):
 
         # if you set a seed using the constructor, you're stuck using it forever
@@ -139,6 +91,8 @@ class SEIR_covid:
         self.done = False
 
         if self.G is None:
+            # TODO break this out into functions like read_Nij, etc
+            # maybe it belongs in a class
 
             logging.info("loading graph")
             with open(self.graph_file, "rb") as f:
@@ -385,15 +339,14 @@ class SEIR_covid:
         mean_case_reporting = xp.mean(self.case_reporting[-self.consts.case_reporting_N_historical_days :], axis=0)
 
         self.params["CASE_REPORT"] = mean_case_reporting
-        self.params["THETA"] = xp.broadcast_to(self.params["THETA"][:, None], (self.n_age_grps, n_nodes))
-        self.params["GAMMA_H"] = xp.broadcast_to(self.params["GAMMA_H"][:, None], (self.n_age_grps, n_nodes))
+        self.params["THETA"] = xp.broadcast_to(
+            self.params["THETA"][:, None], self.Nij.shape
+        )  # TODO move all the broadcast_to's to one place, they're all over reset()
+        self.params["GAMMA_H"] = xp.broadcast_to(self.params["GAMMA_H"][:, None], self.Nij.shape)
         self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0.0, 1.0)
 
         # init state vector (self.y)
-        y = xp.zeros((N_compartments, self.n_age_grps, n_nodes))
-
-        # Init S=1 everywhere
-        y[Si, :, :] = 1.0
+        yy = buckyState(self.consts, self.Nij)
 
         if self.debug:
             logging.debug("case init")
@@ -433,15 +386,13 @@ class SEIR_covid:
             / self.params.SIGMA
         )
 
-        y[Ii] = (1.0 - self.params.H) * I_init / len(Ii)
-        # y[Ici] = ic_frac * self.params.H * I_init / (len(Ici))
-        # y[Rhi] = hosp_frac * self.params.H * I_init / (Rhn)
-        y[Ici] = self.params.CASE_REPORT * self.params.H * I_init / (len(Ici))
-        y[Rhi] = self.params.CASE_REPORT * self.params.H * I_init * self.params.GAMMA_H / self.params.THETA / Rhn
+        yy.I = (1.0 - self.params.H) * I_init / yy.Im
+        yy.Ic = self.params.CASE_REPORT * self.params.H * I_init / yy.Im
+        yy.Rh = self.params.CASE_REPORT * self.params.H * I_init * self.params.GAMMA_H / self.params.THETA / yy.Rhn
 
         if self.rescale_chr:
             adm1_hosp = xp.zeros((self.adm1_max + 1,), dtype=float)
-            xp.scatter_add(adm1_hosp, self.adm1_id, xp.sum(y[Hi] * self.Nij, axis=(0, 1)))
+            xp.scatter_add(adm1_hosp, self.adm1_id, xp.sum(yy.H * self.Nij, axis=(0, 1)))
             adm2_hosp_frac = (self.adm1_current_hosp / adm1_hosp)[self.adm1_id]
             adm0_hosp_frac = xp.nansum(self.adm1_current_hosp) / xp.nansum(adm1_hosp)
             # print(adm0_hosp_frac)
@@ -451,42 +402,43 @@ class SEIR_covid:
             # TODO this .85 should be in param file...
             self.params["F_eff"] = xp.clip(0.7 * self.params["F"] / self.params["H"], 0.0, 1.0)
 
-            y[Ii] = (1.0 - self.params.H) * I_init / len(Ii)
+            yy.I = (1.0 - self.params.H) * I_init / yy.Im
             # y[Ici] = ic_frac * self.params.H * I_init / (len(Ici))
             # y[Rhi] = hosp_frac * self.params.H * I_init / (Rhn)
-            y[Ici] = self.params.CASE_REPORT * self.params.H * I_init / (len(Ici))
-            y[Rhi] = (
-                0.7 * self.params.CASE_REPORT * self.params.H * I_init * self.params.GAMMA_H / self.params.THETA / Rhn
+            yy.Ic = self.params.CASE_REPORT * self.params.H * I_init / yy.Im
+            yy.Rh = (
+                0.7
+                * self.params.CASE_REPORT
+                * self.params.H
+                * I_init
+                * self.params.GAMMA_H
+                / self.params.THETA
+                / yy.Rhn
             )
 
-        y[Si] -= xp.sum(y[Ii], axis=0) + xp.sum(y[Ici], axis=0) + xp.sum(y[Rhi], axis=0)
-        R_init -= xp.sum(y[Rhi], axis=0)
+        R_init -= xp.sum(yy.Rh, axis=0)
 
-        y[Si] -= self.params.ASYM_FRAC / self.params.SYM_FRAC * I_init
-        y[Iasi] = self.params.ASYM_FRAC / self.params.SYM_FRAC * I_init / len(Iasi)
-        y[Si] -= exp_frac[None, :] * I_init
-        y[Ei] = exp_frac[None, :] * I_init / len(Ei)
-        y[Si] -= R_init
-        y[Ri] = R_init
-        y[Si] -= D_init
-        y[Di] = D_init
+        yy.Ia = self.params.ASYM_FRAC / self.params.SYM_FRAC * I_init / yy.Im
+        yy.E = exp_frac[None, :] * I_init / yy.En
+        yy.R = R_init
+        yy.D = D_init
 
+        yy.init_S()
         # init the bin we're using to track incident cases (it's filled with cumulatives until we diff it later)
-        y[incC] = self.cum_case_hist[-1][None, :] / self.Nij / self.n_age_grps
-
-        self.y = y
+        yy.incC = self.cum_case_hist[-1][None, :] / self.Nij / self.n_age_grps
+        self.y = yy
 
         # TODO assert this is 1. (need to take mean and around b/c fp err)
         # if xp.sum(self.y, axis=0)
 
-        if xp.any(~xp.isfinite(self.y)):
+        if xp.any(~xp.isfinite(self.y.state)):
             logging.info("nonfinite values in the state vector, something is wrong with init")
             raise SimulationException
 
         if self.debug:
             logging.debug("done reset()")
 
-        return y
+        # return y
 
     def reset_A(self, var):
         # TODO rename the R0_frac stuff...
@@ -646,32 +598,33 @@ class SEIR_covid:
     #
 
     @staticmethod
-    def RHS_func(t, y, Nij, contact_mats, Aij, par, npi, aij_sparse):
+    def RHS_func(t, y_flat, Nij, contact_mats, Aij, par, npi, aij_sparse, y):
         # constraint on values
         lower, upper = (0.0, 1.0)  # bounds for state vars
 
         # grab index of OOB values so we can zero derivatives (stability...)
-        too_low = y <= lower
-        too_high = y >= upper
+        too_low = y_flat <= lower
+        too_high = y_flat >= upper
 
-        # reshape to a sane form (compartment, age, node)
-        s = y.reshape(N_compartments, Nij.shape[0], -1)
+        # TODO we're passing in y.state just to overwrite it, we probably need another class
+        # reshape to the usual state tensor (compartment, age, node)
+        y.state = y_flat.reshape(y.state_shape)
 
         # Clip state to be in bounds (except allocs b/c thats a counter)
-        xp.clip(s, a_min=lower, a_max=upper, out=s)
+        xp.clip(y.state, a_min=lower, a_max=upper, out=y.state)
 
         # init d(state)/dt
-        dG = xp.zeros(s.shape)
+        dy = buckyState(y.consts, Nij)  # TODO make a pseudo copy operator w/ zeros
 
         # effective params after damping w/ allocated stuff
         t_index = min(int(t), npi["r0_reduct"].shape[0] - 1)  # prevent OOB error when integrator overshoots
         BETA_eff = npi["r0_reduct"][t_index] * par["BETA"]
         F_eff = par["F_eff"]
-        H = par["H"]
-        THETA = Rhn * par["THETA"]
-        GAMMA = Im * par["GAMMA"]
-        GAMMA_H = Im * par["GAMMA_H"]
-        SIGMA = En * par["SIGMA"]
+        HOSP = par["H"]
+        THETA = y.Rhn * par["THETA"]
+        GAMMA = y.Im * par["GAMMA"]
+        GAMMA_H = y.Im * par["GAMMA_H"]
+        SIGMA = y.En * par["SIGMA"]
         SYM_FRAC = par["SYM_FRAC"]
         # ASYM_FRAC = par["ASYM_FRAC"]
         CASE_REPORT = par["CASE_REPORT"]
@@ -691,7 +644,7 @@ class SEIR_covid:
         # Aij_eff = A / xp.sum(A, axis=0)
 
         # Infectivity matrix (I made this name up, idk what its really called)
-        I_tot = xp.sum(Nij * s[Iai], axis=0) - (1.0 - par["rel_inf_asym"]) * xp.sum(Nij * s[Iasi], axis=0)
+        I_tot = xp.sum(Nij * y.Itot, axis=0) - (1.0 - par["rel_inf_asym"]) * xp.sum(Nij * y.Ia, axis=0)
 
         # I_tmp = (Aij.T @ I_tot.T).T
         if aij_sparse:
@@ -699,47 +652,48 @@ class SEIR_covid:
         else:
             I_tmp = I_tot @ Aij  # using identity (A@B).T = B.T @ A.T
 
-        beta_mat = s[Si] * xp.squeeze((Cij @ I_tmp.T[..., None]), axis=-1).T
+        beta_mat = y.S * xp.squeeze((Cij @ I_tmp.T[..., None]), axis=-1).T
         beta_mat /= Nij
 
         # dS/dt
-        dG[Si] = -BETA_eff * (beta_mat)
+        dy.S = -BETA_eff * (beta_mat)
         # dE/dt
-        dG[Ei[0]] = BETA_eff * (beta_mat) - SIGMA * s[Ei[0]]
-        dG[Ei[1:]] = SIGMA * (s[Ei[:-1]] - s[Ei[1:]])
+        dy.E[0] = BETA_eff * (beta_mat) - SIGMA * y.E[0]
+        dy.E[1:] = SIGMA * (y.E[:-1] - y.E[1:])
 
         # dI/dt
-        dG[Iasi[0]] = (1.0 - SYM_FRAC) * SIGMA * s[Ei[-1]] - GAMMA * s[Iasi[0]]
-        dG[Iasi[1:]] = GAMMA * (s[Iasi[:-1]] - s[Iasi[1:]])
+        dy.Ia[0] = (1.0 - SYM_FRAC) * SIGMA * y.E[-1] - GAMMA * y.Ia[0]
+        dy.Ia[1:] = GAMMA * (y.Ia[:-1] - y.Ia[1:])
 
-        dG[Ii[0]] = SYM_FRAC * (1.0 - H) * SIGMA * s[Ei[-1]] - GAMMA * s[Ii[0]]
-        dG[Ii[1:]] = GAMMA * (s[Ii[:-1]] - s[Ii[1:]])
+        # dIa/dt
+        dy.I[0] = SYM_FRAC * (1.0 - HOSP) * SIGMA * y.E[-1] - GAMMA * y.I[0]
+        dy.I[1:] = GAMMA * (y.I[:-1] - y.I[1:])
 
         # dIc/dt
-        dG[Ici[0]] = SYM_FRAC * H * SIGMA * s[Ei[-1]] - GAMMA_H * s[Ici[0]]
-        dG[Ici[1:]] = GAMMA_H * (s[Ici[:-1]] - s[Ici[1:]])
+        dy.Ic[0] = SYM_FRAC * HOSP * SIGMA * y.E[-1] - GAMMA_H * y.Ic[0]
+        dy.Ic[1:] = GAMMA_H * (y.Ic[:-1] - y.Ic[1:])
 
         # dRhi/dt
-        dG[Rhi[0]] = GAMMA_H * s[Ici[-1]] - THETA * s[Rhi[0]]
-        dG[Rhi[1:]] = THETA * (s[Rhi[:-1]] - s[Rhi[1:]])
+        dy.Rh[0] = GAMMA_H * y.Ic[-1] - THETA * y.Rh[0]
+        dy.Rh[1:] = THETA * (y.Rh[:-1] - y.Rh[1:])
 
         # dR/dt
-        dG[Ri] = GAMMA * (s[Ii[-1]] + s[Iasi[-1]]) + (1.0 - F_eff) * THETA * s[Rhi[-1]]
+        dy.R = GAMMA * (y.I[-1] + y.Ia[-1]) + (1.0 - F_eff) * THETA * y.Rh[-1]
 
         # dD/dt
-        dG[Di] = F_eff * THETA * s[Rhi[-1]]
+        dy.D = F_eff * THETA * y.Rh[-1]
 
-        dG[incH] = SYM_FRAC * CASE_REPORT * H * SIGMA * s[Ei[-1]]
-        dG[incC] = SYM_FRAC * CASE_REPORT * SIGMA * s[Ei[-1]]
+        dy.incH = SYM_FRAC * CASE_REPORT * HOSP * SIGMA * y.E[-1]
+        dy.incC = SYM_FRAC * CASE_REPORT * SIGMA * y.E[-1]
 
         # bring back to 1d for the ODE api
-        dG = dG.reshape(-1)
+        dy_flat = dy.state.ravel()
 
         # zero derivatives for things we had to clip if they are going further out of bounds
-        dG = xp.where(too_low & (dG < 0.0), 0.0, dG)
-        dG = xp.where(too_high & (dG > 0.0), 0.0, dG)
+        dy_flat = xp.where(too_low & (dy_flat < 0.0), 0.0, dy_flat)
+        dy_flat = xp.where(too_high & (dy_flat > 0.0), 0.0, dy_flat)
 
-        return dG
+        return dy_flat
 
     def run_once(self, seed=None, outdir="raw_output/", output=True, output_queue=None):
 
@@ -757,19 +711,21 @@ class SEIR_covid:
             self.RHS_func,
             method="RK23",
             t_span=(0.0, self.t_max),
-            y0=self.y.reshape(-1),
+            y0=self.y.state.ravel(),
             t_eval=t_eval,
-            args=(self.Nij, self.Cij, self.A, self.params, self.npi_params, self.sparse),
+            args=(self.Nij, self.Cij, self.A, self.params, self.npi_params, self.sparse, self.y),
         )
         logging.debug("Done integration")
-        y = sol.y.reshape(N_compartments, self.n_age_grps, -1, len(t_eval))
 
-        out = self.Nij[None, ..., None] * y
+        y = sol.y.reshape(self.y.state_shape + (len(t_eval),))
+
+        out = buckyState(self.consts, self.Nij)
+        out.state = self.Nij[None, ..., None] * y
 
         # collapse age groups
-        out = xp.sum(out, axis=1)
+        out.state = xp.sum(out.state, axis=1)
 
-        population_conserved = (xp.diff(xp.around(xp.sum(out[:incH], axis=(0, 1)), 1)) == 0.0).all()
+        population_conserved = (xp.diff(xp.around(xp.sum(out.N, axis=(0, 1)), 1)) == 0.0).all()
         if not population_conserved:
             pass  # TODO we're getting small fp errors here
             # print(xp.sum(xp.diff(xp.around(xp.sum(out[:incH], axis=(0, 1)), 1))))
@@ -777,21 +733,21 @@ class SEIR_covid:
             # print(xp.sum(xp.sum(y[:incH],axis=0)-1.))
             # raise SimulationException
 
-        adm2_ids = np.broadcast_to(self.adm2_id[:, None], out.shape[1:])
+        adm2_ids = np.broadcast_to(self.adm2_id[:, None], out.state.shape[1:])
 
         if self.output_dates is None:
             t_output = xp.to_cpu(sol.t)
             dates = [pd.Timestamp(self.first_date + datetime.timedelta(days=np.round(t))) for t in t_output]
-            self.output_dates = np.broadcast_to(dates, out.shape[1:])
+            self.output_dates = np.broadcast_to(dates, out.state.shape[1:])
 
         dates = self.output_dates
 
-        icu = self.Nij[..., None] * self.params["ICU_FRAC"][:, None, None] * xp.sum(y[Hi], axis=0)
+        icu = self.Nij[..., None] * self.params["ICU_FRAC"][:, None, None] * xp.sum(y[out.indices["H"]], axis=0)
         vent = self.params.ICU_VENT_FRAC[:, None, None] * icu
 
         # prepend the min cumulative cases over the last 2 days in case in the decreased
         prepend_deaths = xp.minimum(self.cum_death_hist[-2], self.cum_death_hist[-1])
-        daily_deaths = xp.diff(out[Di], prepend=prepend_deaths[:, None], axis=-1)
+        daily_deaths = xp.diff(out.D, prepend=prepend_deaths[:, None], axis=-1)
 
         init_inc_death_mean = xp.mean(xp.sum(daily_deaths[:, 1:4], axis=0))
         hist_inc_death_mean = xp.mean(xp.sum(self.inc_death_hist[-7:], axis=-1))
@@ -806,8 +762,8 @@ class SEIR_covid:
 
         # prepend the min cumulative cases over the last 2 days in case in the decreased
         prepend_cases = xp.minimum(self.cum_case_hist[-2], self.cum_case_hist[-1])
-        daily_cases_reported = xp.diff(out[incC], axis=-1, prepend=prepend_cases[:, None])
-        cum_cases_reported = out[incC]
+        daily_cases_reported = xp.diff(out.incC, axis=-1, prepend=prepend_cases[:, None])
+        cum_cases_reported = out.incC
 
         init_inc_case_mean = xp.mean(xp.sum(daily_cases_reported[:, 1:4], axis=0))
         hist_inc_case_mean = xp.mean(xp.sum(self.inc_case_hist[-7:], axis=-1))
@@ -823,26 +779,26 @@ class SEIR_covid:
         daily_cases_total = daily_cases_reported / self.params.CASE_REPORT[:, None]
         cum_cases_total = cum_cases_reported / self.params.CASE_REPORT[:, None]
 
-        out[incH, :, 0] = out[incH, :, 1]
-        daily_hosp = xp.diff(out[incH], axis=-1, prepend=out[incH, :, 0][..., None])
+        out.incH[:, 0] = out.incH[:, 1]
+        daily_hosp = xp.diff(out.incH, axis=-1, prepend=out.incH[:, 0][..., None])
         # if (daily_cases < 0)[..., 1:].any():
         #    logging.error('Negative daily cases')
         #    raise SimulationException
-        N = xp.broadcast_to(self.Nj[..., None], out.shape[1:])
+        N = xp.broadcast_to(self.Nj[..., None], out.state.shape[1:])
 
-        hosps = xp.sum(out[Ici], axis=0) + xp.sum(out[Rhi], axis=0)
+        hosps = xp.sum(out.Ic, axis=0) + xp.sum(out.Rh, axis=0)  # why not just using .H?
 
-        out = out.reshape(y.shape[0], -1)
+        out.state = out.state.reshape(y.shape[0], -1)
 
         # Grab pretty much everything interesting
         df_data = {
             "adm2_id": adm2_ids.ravel(),
             "date": dates.ravel(),
-            "rid": np.broadcast_to(seed, out.shape[-1]).ravel(),
+            "rid": np.broadcast_to(seed, out.state.shape[-1]).ravel(),
             "total_population": N.ravel(),
             "current_hospitalizations": hosps.ravel(),
-            "active_asymptomatic_cases": out[Iasi],  # TODO remove?
-            "cumulative_deaths": out[Di],
+            "active_asymptomatic_cases": out.Ia,  # TODO remove?
+            "cumulative_deaths": out.D,
             "daily_hospitalizations": daily_hosp.ravel(),
             "daily_cases": daily_cases_total.ravel(),
             "daily_reported_cases": daily_cases_reported.ravel(),
