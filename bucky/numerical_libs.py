@@ -84,7 +84,7 @@ def use_cupy(optimize=False):
         return module
 
     import cupy as cp  # pylint: disable=import-outside-toplevel
-    import numpy as np
+    import numpy as np  # pylint: disable=import-outside-toplevel, reimported
 
     cp.cuda.set_allocator(cp.cuda.MemoryPool(cp.cuda.memory.malloc_managed).malloc)
 

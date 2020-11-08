@@ -1,11 +1,12 @@
 import copy
 import datetime
-import glob
 import logging
 import os
 import pickle
+import queue
 import random
 import sys
+import threading
 import warnings
 from functools import lru_cache
 from pprint import pformat  # TODO set some defaults for width/etc with partial?
@@ -21,7 +22,7 @@ from .numerical_libs import use_cupy
 from .parameters import buckyParams
 from .state import buckyState
 from .util.distributions import mPERT_sample, truncnorm
-from .util.util import TqdmLoggingHandler, _banner, cache_files
+from .util.util import TqdmLoggingHandler, _banner  # , cache_files
 
 # supress pandas warning caused by pyarrow
 warnings.simplefilter(action="ignore", category=FutureWarning)
@@ -868,8 +869,8 @@ def main(args=None):
     if args.gpu:
         use_cupy(optimize=args.opt)
 
-    global xp, ivp, sparse
-    from .numerical_libs import xp, ivp, sparse  # noqa: E402  # isort:skip
+    global xp, ivp, sparse  # pylint: disable=global-variable-not-assigned
+    from .numerical_libs import xp, ivp, sparse  # noqa: E402  # pylint: disable=import-outside-toplevel  # isort:skip
 
     warnings.simplefilter(action="ignore", category=xp.ExperimentalWarning)
 
@@ -891,9 +892,6 @@ def main(args=None):
 
     # TODO we should output the logs to output_dir too...
     _banner()
-
-    import queue
-    import threading
 
     to_write = queue.Queue(maxsize=100)
 
@@ -918,8 +916,8 @@ def main(args=None):
     logging.info(f"command line args: {args}")
     if args.no_mc:  # TODO can we just remove this already?
         raise NotImplementedError
-        env = SEIR_covid(randomize_params_on_reset=False)
-        n_mc = 1
+        # env = SEIR_covid(randomize_params_on_reset=False)
+        # n_mc = 1
     else:
         env = SEIR_covid(
             randomize_params_on_reset=True,
