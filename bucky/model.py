@@ -5,6 +5,7 @@ import logging
 import os
 import pickle
 import random
+import sys
 import warnings
 from functools import lru_cache
 from pprint import pformat  # TODO set some defaults for width/etc with partial?
@@ -41,7 +42,19 @@ def get_runid():  # TODO move to util and rename to timeid or something
 
 
 class SEIR_covid:
-    def __init__(self, seed=None, randomize_params_on_reset=True, debug=False, sparse_aij=False):
+    def __init__(
+        self,
+        seed=None,
+        randomize_params_on_reset=True,
+        debug=False,
+        sparse_aij=False,
+        t_max=None,
+        graph_file=None,
+        par_file=None,
+        npi_file=None,
+        disable_npi=False,
+        reject_runs=False,
+    ):
         self.rseed = seed  # TODO drop this and only set seed in reset
         self.randomize = randomize_params_on_reset
         self.debug = debug
@@ -54,25 +67,29 @@ class SEIR_covid:
         # Integrator params
         self.t = 0.0
         self.dt = 1.0  # time step for model output (the internal step is adaptive...)
-        self.t_max = args.days
+        self.t_max = t_max
         self.done = False
         self.run_id = get_runid()
         logging.info(f"Run ID: {self.run_id}")
 
         self.G = None
-        self.graph_file = args.graph_file
+        self.graph_file = graph_file
+
+        self.npi_file = npi_file
+        self.disable_npi = disable_npi
+        self.reject_runs = reject_runs
 
         self.output_dates = None
 
         # save files to cache
-        if args.cache:
-            logging.warn("Cacheing is currently unsupported and probably doesnt work after the refactor")
-            files = glob.glob("*.py") + [self.graph_file, args.par_file]
-            logging.info(f"Cacheing: {files}")
-            cache_files(files, self.run_id)
+        # if args.cache:
+        #    logging.warn("Cacheing is currently unsupported and probably doesnt work after the refactor")
+        #    files = glob.glob("*.py") + [self.graph_file, args.par_file]
+        #    logging.info(f"Cacheing: {files}")
+        #    cache_files(files, self.run_id)
 
         # disease params
-        self.bucky_params = buckyParams(args.par_file)
+        self.bucky_params = buckyParams(par_file)
         self.consts = self.bucky_params.consts
 
     def reset(self, seed=None, params=None):
@@ -165,14 +182,14 @@ class SEIR_covid:
 
             self.first_date = datetime.date.fromisoformat(G.graph["start_date"])
 
-            if args.npi_file is not None:
-                logging.info(f"Using NPI from: {args.npi_file}")
+            if self.npi_file is not None:
+                logging.info(f"Using NPI from: {self.npi_file}")
                 self.npi_params = read_npi_file(
-                    args.npi_file,
+                    self.npi_file,
                     self.first_date,
                     self.t_max,
                     self.adm2_id,
-                    args.disable_npi,
+                    self.disable_npi,
                 )
                 for k in self.npi_params:
                     self.npi_params[k] = xp.array(self.npi_params[k])
@@ -758,7 +775,7 @@ class SEIR_covid:
         if (
             (init_inc_death_mean > inc_death_rejection_fac * hist_inc_death_mean)
             or (inc_death_rejection_fac * init_inc_death_mean < hist_inc_death_mean)
-        ) and args.reject_runs:
+        ) and self.reject_runs:
             logging.info("Inconsistent inc deaths, rejecting run")
             raise SimulationException
 
@@ -774,7 +791,7 @@ class SEIR_covid:
         if (
             (init_inc_case_mean > inc_case_rejection_fac * hist_inc_case_mean)
             or (inc_case_rejection_fac * init_inc_case_mean < hist_inc_case_mean)
-        ) and args.reject_runs:
+        ) and self.reject_runs:
             logging.info("Inconsistent inc cases, rejecting run")
             raise SimulationException
 
@@ -829,7 +846,7 @@ class SEIR_covid:
                 logging.info("Negative values present in " + k)
                 negative_values = True
 
-        if negative_values and args.reject_runs:
+        if negative_values and self.reject_runs:
             logging.info("Rejecting run b/c of negative values in output")
             raise SimulationException
 
@@ -842,12 +859,16 @@ class SEIR_covid:
         # TODO we should output the per monte carlo param rolls, this got lost when we switched from hdf5
 
 
-if __name__ == "__main__":
+def main(args=None):
 
-    args = parser.parse_args()
+    if args is None:
+        args = sys.argv[1:]
+    args = parser.parse_args(args=args)
+
     if args.gpu:
         use_cupy(optimize=args.opt)
 
+    global xp, ivp, sparse
     from .numerical_libs import xp, ivp, sparse  # noqa: E402  # isort:skip
 
     warnings.simplefilter(action="ignore", category=xp.ExperimentalWarning)
@@ -895,11 +916,22 @@ if __name__ == "__main__":
         logging.info("Using GPU backend")
 
     logging.info(f"command line args: {args}")
-    if args.no_mc:  # can we just remove this already?
+    if args.no_mc:  # TODO can we just remove this already?
+        raise NotImplementedError
         env = SEIR_covid(randomize_params_on_reset=False)
         n_mc = 1
     else:
-        env = SEIR_covid(randomize_params_on_reset=True, debug=debug_mode, sparse_aij=(not args.dense))
+        env = SEIR_covid(
+            randomize_params_on_reset=True,
+            debug=debug_mode,
+            sparse_aij=(not args.dense),
+            t_max=args.days,
+            graph_file=args.graph_file,
+            par_file=args.par_file,
+            npi_file=args.npi_file,
+            disable_npi=args.disable_npi,
+            reject_runs=args.reject_runs,
+        )
         n_mc = args.n_mc
 
     seed_seq = np.random.SeedSequence(args.seed)
@@ -941,3 +973,7 @@ if __name__ == "__main__":
         write_thread.join()
         pbar.close()
         logging.info(f"Total runtime: {datetime.datetime.now() - total_start}")
+
+
+if __name__ == "__main__":
+    main()
