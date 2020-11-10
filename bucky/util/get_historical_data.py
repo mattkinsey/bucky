@@ -129,6 +129,15 @@ def get_historical_data(columns, level, lookup_df, window_size, hist_file):
                 # Drop items that were not mappable
                 data = data.dropna(subset=[level])
 
+            # Apply weight if needed
+            if "weight" in lookup_df.columns:
+                logging.info("Applying weights from lookup table.")
+                scale_cols = data.columns.difference(["date", "adm2", "adm0"])
+                lookup_df.index.names = ["adm2"]
+                data = data.set_index(["adm2", "date"])
+                data[scale_cols] = data[scale_cols].mul(lookup_df["weight"], axis=0, level=0)
+                data = data.reset_index()
+
             # Aggregate on geographic level
             agg_data = data.groupby(["date", level]).sum()
             agg_data = agg_data.rename(columns={column_name: requested_col})

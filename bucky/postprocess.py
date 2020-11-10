@@ -274,16 +274,27 @@ if __name__ == "__main__":
         if nan_vals.sum() > 0:
             logging.error("NANs are present in output data: \n" + str(nan_vals))
 
+        numerical_cols = tot_df.columns.difference(["date"])
+
+        if "weight" in lookup_df.columns:
+            logging.info("Applying weights from lookup table.")
+            scale_cols = tot_df.columns.difference(["date", admin2_key, "rid", *pop_mean_cols])
+            lookup_df.index.names = [admin2_key]
+            tot_df = tot_df.set_index([admin2_key, "date", "rid"])
+            tot_df[scale_cols] = tot_df[scale_cols].mul(lookup_df["weight"], axis=0, level=0)
+            tot_df = tot_df.reset_index()
+
         if args.verify:
             # Check all columns except date for negative values
-            if (
-                tot_df.drop(columns=["date"]).lt(-1).sum() > 0
-            ).any():  # TODO this drop does a deep copy and is super slow
+            if (tot_df[numerical_cols].lt(-1).sum() > 0).any():  # TODO this drop does a deep copy and is super slow
                 logging.error("Negative values are present in output data.")
 
             # Check for floating point errors
-            if (tot_df.drop(columns=["date"]).lt(0).sum() > 0).any():  # TODO same here
+            if (tot_df[numerical_cols].lt(0).sum() > 0).any():  # TODO same here
                 logging.warning("Floating point errors are present in output data.")
+
+        # remove any slight negatives from the integration
+        tot_df[numerical_cols] = tot_df[numerical_cols].clip(lower=0.0)
 
         # NB: this has to happen after we fork the process
         # see e.g. https://github.com/chainer/chainer/issues/1087

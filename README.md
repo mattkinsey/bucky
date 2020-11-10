@@ -5,6 +5,7 @@
 [![Documentation Status](https://readthedocs.org/projects/docs/badge/?version=latest)](https://ocha-bucky.readthedocs.io/en/latest/getting_started.html)
 ![black-flake8-isort-hooks](https://github.com/OCHA-DAP/pa-ocha-bucky/workflows/black-flake8-isort-hooks/badge.svg)
 [![CodeFactor](https://www.codefactor.io/repository/github/OCHA-DAP/pa-ocha-bucky/badge/ocha)](https://www.codefactor.io/repository/github/OCHA-DAP/pa-ocha-bucky/overview/ocha)
+![Interrogate](docs/source/_static/interrogate_badge.svg)
 
 
 The documentation of the model, including how to get started, can be accessed **[here](https://ocha-bucky.readthedocs.io/en/latest/)** 

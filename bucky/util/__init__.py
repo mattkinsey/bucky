@@ -1,2 +1,3 @@
-# flake8: noqa  # pylint: disable=missing-module-docstring
-from .util import TqdmLoggingHandler, _banner, cache_files, dotdict, estimate_IFR
+# flake8: noqa
+"""Submodule containing various types of utility functions"""
+from .util import TqdmLoggingHandler, _banner, bin_age_csv, cache_files, dotdict, estimate_IFR, remove_chars
