@@ -182,7 +182,7 @@ class SEIR_covid:
             self.Nj = xp.asarray(np.sum(self.Nij, axis=0))
             self.n_age_grps = self.Nij.shape[0]
 
-            self.use_vuln = False
+            self.use_vuln = True
             if "vulnerable_frac" in G.nodes[0]:
                 self.vulnerability_factor = 1.5
                 self.use_vuln = True
