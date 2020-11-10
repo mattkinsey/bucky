@@ -1,3 +1,14 @@
+"""Fetches historical data for use in visualization tools.
+
+Attributes
+----------
+covid_tracking : str
+    Path to COVID Tracking Project data.
+csse : str
+    Path to CSSE COVID data.
+data_locations : dict
+    Dictionary defining file and column for each requested column.
+"""
 import logging
 import os
 

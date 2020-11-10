@@ -1,4 +1,5 @@
-""" Provides any probability distributions used by the model that aren't in numpy/cupy."""
+"""Provides any probability distributions used by the model that aren't in numpy/cupy.
+"""
 
 import numpy as np
 import scipy.special as sc
@@ -50,7 +51,17 @@ def truncnorm(xp, loc=0.0, scale=1.0, size=1, a_min=None, a_max=None):
     Parameters
     ----------
     xp : module
-
+        TODO: Description
+    loc : float, optional
+        TODO: Description
+    scale : float, optional
+        TODO: Description
+    size : int, optional
+        TODO: Description
+    a_min : None, optional
+        TODO: Description
+    a_max : None, optional
+        TODO: Description
 
     Returns
     -------

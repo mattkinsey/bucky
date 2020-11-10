@@ -1,4 +1,9 @@
-""" Provides a class to hold the internal state vector to the compartment model (and track compartment indices)
+"""Provides a class to hold the internal state vector to the compartment model (and track compartment indices)
+
+Attributes
+----------
+xp : TYPE
+TODO: Description
 """
 import inspect
 
@@ -6,8 +11,41 @@ xp = None
 
 
 class buckyState:  # pylint: disable=too-many-instance-attributes
-    def __init__(self, consts, Nij, state=None):
 
+    """TODO: Summary
+
+    Attributes
+    ----------
+    consts : TYPE
+    TODO: Description
+    En : TYPE
+    TODO: Description
+    Im : TYPE
+    TODO: Description
+    indices : TYPE
+    TODO: Description
+    n_compartments : TYPE
+    TODO: Description
+    Rhn : TYPE
+    TODO: Description
+    S : TYPE
+    TODO: Description
+    state : TYPE
+    TODO: Description
+    """
+
+    def __init__(self, consts, Nij, state=None):
+        """TODO: Summary
+
+        Parameters
+        ----------
+        consts : TYPE
+            TODO: Description
+        Nij : TYPE
+            TODO: Description
+        state : None, optional
+            TODO: Description
+        """
         # use xp from the calling module
         global xp
         if xp is None:
@@ -48,6 +86,18 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
             self.state = state
 
     def __getattribute__(self, attr):
+        """TODO: Summary
+
+        Parameters
+        ----------
+        attr : TYPE
+            TODO: Description
+
+        Returns
+        -------
+        TYPE
+            TODO: Description
+        """
         try:
             if attr in super().__getattribute__("indices"):
                 out = self.state[self.indices[attr]]
@@ -59,6 +109,15 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
         return super().__getattribute__(attr)
 
     def __setattr__(self, attr, x):
+        """TODO: Summary
+
+        Parameters
+        ----------
+        attr : TYPE
+            TODO: Description
+        x : TYPE
+            TODO: Description
+        """
         try:
             if attr in super().__getattribute__("indices"):
                 # TODO check that its a slice otherwise this wont work so we should warn
@@ -70,7 +129,15 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
 
     @property
     def state_shape(self):
+        """TODO: Summary
+
+        Returns
+        -------
+        TYPE
+            TODO: Description
+        """
         return (self.n_compartments, self.n_age_grps, self.n_nodes)
 
     def init_S(self):
+        """TODO: Summary"""
         self.S = 1.0 - xp.sum(self.state, axis=0)
