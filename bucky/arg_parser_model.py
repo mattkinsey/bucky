@@ -68,18 +68,13 @@ parser.add_argument(
     dest="verbosity",
     help="quiet output (only show ERROR and higher)",
 )
-parser.add_argument(
-    "-c",
-    "--cache",
-    action="store_true",
-    help="Cache python files/par file/graph pickle for the run",
-)
+
 parser.add_argument(
     "-nmc",
     "--no_mc",
     action="store_true",
     help="Just do one run with the mean param values",
-)  # TODO rename to --mean or something
+)  # TODO remove
 
 # TODO this doesnt do anything other than let you throw and error if there's no cupy...
 parser.add_argument(

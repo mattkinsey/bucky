@@ -82,13 +82,6 @@ class SEIR_covid:
 
         self.output_dates = None
 
-        # save files to cache
-        # if args.cache:
-        #    logging.warn("Cacheing is currently unsupported and probably doesnt work after the refactor")
-        #    files = glob.glob("*.py") + [self.graph_file, args.par_file]
-        #    logging.info(f"Cacheing: {files}")
-        #    cache_files(files, self.run_id)
-
         # disease params
         self.bucky_params = buckyParams(par_file)
         self.consts = self.bucky_params.consts

@@ -78,29 +78,6 @@ def date_to_t_int(dates, start_date):
     return np.array([(date - start_date).days for date in dates], dtype=int)
 
 
-def _cache_files(fname_list, cache_name):
-    tmp = {f: open(f, "rb").read() for f in fname_list}
-    with lzma.open("run_cache/" + cache_name + ".p.xz", "wb") as f:
-        pickle.dump(tmp, f)
-
-
-def cache_files(*argv):
-    thread = threading.Thread(target=_cache_files, args=argv)
-    thread.start()
-
-
-def unpack_cache(cache_file):
-    with lzma.open(cache_file, "rb") as f:
-        tmp = pickle.load(f)  # nosec
-
-    # os.mkdir(cache_file[:-5])
-    for fname in tmp:
-        new_file = cache_file[:-5] + "/" + fname
-        os.makedirs(os.path.dirname(new_file), exist_ok=True)
-        with open(new_file, "wb") as f:
-            f.write(tmp[fname])
-
-
 def _banner():
     print(r" ____             _          ")  # noqa: T001
     print(r"| __ ) _   _  ___| | ___   _ ")  # noqa: T001
