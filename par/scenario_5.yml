@@ -7,7 +7,7 @@ consts:
 
   reroll_variance: 0.12
   doubling_t_window: 14
-  doubling_t_N_historical_days: 7
+  doubling_t_N_historical_days: 14
   case_reporting_min_deaths: 100.
   case_reporting_N_historical_days: 14
 
