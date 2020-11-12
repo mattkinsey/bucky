@@ -16,7 +16,7 @@ import tqdm
 
 from .util import TqdmLoggingHandler, estimate_IFR
 from .util.read_config import bucky_cfg
-from .util.update_data_repos import update_repos
+from .util.update_data_repos import main as update_repos
 
 # TODO all these paths should be combined properly rather than just with str cat
 

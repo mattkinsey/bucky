@@ -649,7 +649,7 @@ def update_usafacts_data():
     data.to_csv(bucky_cfg["data_dir"] + "/cases/usafacts_hist.csv")
 
 
-def update_repos():
+def main():
     """Uses git to update public data repos."""
     # Repos to update
     repos = [
@@ -694,4 +694,4 @@ def git_pull(abs_path):
 
 
 if __name__ == "__main__":
-    update_repos()
+    main()

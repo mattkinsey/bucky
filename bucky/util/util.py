@@ -3,12 +3,6 @@
 import copy
 import logging
 
-# import lz4.frame
-import lzma  # lzma is slow but reallllly gets that file size down...
-import os
-import pickle
-import threading
-
 import numpy as np
 import pandas as pd
 import tqdm

@@ -84,7 +84,7 @@ class SEIR_covid:
 
         self.output_dates = None
 
-        # disease params
+        # COVID/model params from par file
         self.bucky_params = buckyParams(par_file)
         self.consts = self.bucky_params.consts
 
@@ -641,7 +641,6 @@ class SEIR_covid:
         GAMMA_H = y.Im * par["GAMMA_H"]
         SIGMA = y.En * par["SIGMA"]
         SYM_FRAC = par["SYM_FRAC"]
-        # ASYM_FRAC = par["ASYM_FRAC"]
         CASE_REPORT = par["CASE_REPORT"]
 
         Cij = npi["contact_weights"][t_index] * contact_mats
