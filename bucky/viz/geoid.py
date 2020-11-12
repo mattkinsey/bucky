@@ -116,4 +116,8 @@ def read_lookup(geofile, country="US"):
     if "fema_region" in df.columns:
         df = df.drop(columns="fema_region")
 
+    # If weight appears, make sure all entries have a value
+    if "weight" in df.columns:
+        df["weight"] = df["weight"].fillna(value=1.0)
+
     return df
