@@ -371,6 +371,9 @@ if __name__ == "__main__":
             if "adm0" in q_df.columns and level != "adm0":
                 del q_df["adm0"]
 
+            if "Unnamed: 0" in q_df.columns:
+                del q_df["Unnamed: 0"]
+
             if verbose:
                 logging.info("\nQuantiles dataframe:")
                 logging.info(q_df.head())
