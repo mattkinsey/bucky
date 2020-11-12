@@ -1,6 +1,5 @@
 """ Provides a class to hold the internal state vector to the compartment model (and track compartment indices)
 """
-import inspect
 
 xp = None
 
@@ -11,7 +10,7 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
         # use xp from the calling module
         global xp
         if xp is None:
-            xp = inspect.currentframe().f_back.f_globals["xp"]
+            from . import xp
 
         self.En = consts["En"]  # TODO rename these to like gamma shape or something
         self.Im = consts["Im"]

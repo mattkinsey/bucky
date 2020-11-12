@@ -9,15 +9,21 @@ to work on cupy arrays.
 
 import contextlib
 
+import numpy as xp
+import scipy.integrate._ivp.ivp as xp_ivp
+import scipy.sparse as xp_sparse
+
 # Default imports for cpu code
 # This will be overwritten with a call to .numerical_libs.use_cupy()
-import numpy as xp
-import scipy.integrate._ivp.ivp as ivp  # noqa: F401  # pylint: disable=unused-import
-import scipy.sparse as sparse  # noqa: F401  # pylint: disable=unused-import
+import bucky
 
 xp.scatter_add = xp.add.at
 xp.optimize_kernels = contextlib.nullcontext
 xp.to_cpu = lambda x, **kwargs: x  # one arg noop
+
+bucky.xp = xp
+bucky.xp_sparse = xp_sparse
+bucky.xp_ivp = xp_ivp
 
 
 class ExperimentalWarning(Warning):
@@ -66,8 +72,6 @@ def use_cupy(optimize=False):
         logging.info("CuPy not found, reverting to cpu/numpy")
         return 1
 
-    global xp, ivp, sparse  # pylint: disable=global-statement
-
     if xp.__name__ == "cupy":
         logging.info("CuPy already loaded, skipping")
         return 0
@@ -104,7 +108,7 @@ def use_cupy(optimize=False):
         cp.searchsorted = cp_searchsorted
 
     for name in ("common", "base", "rk", "ivp"):
-        ivp = modify_and_import(
+        bucky.xp_ivp = modify_and_import(
             "scipy.integrate._ivp." + name,
             None,
             lambda src: src.replace("import numpy", "import cupy"),
@@ -145,8 +149,11 @@ def use_cupy(optimize=False):
 
     cp.r_ = cp_r_()
 
-    xp = cp
-    import cupyx.scipy.sparse as sparse  # pylint: disable=import-outside-toplevel,redefined-outer-name
+    bucky.xp = cp
+
+    import cupyx.scipy.sparse as xp_sparse  # pylint: disable=import-outside-toplevel
+
+    bucky.xp_sparse = xp_sparse
 
     # TODO need to check cupy version is >9.0.0a1 in order to use sparse
 

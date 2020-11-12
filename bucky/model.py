@@ -16,7 +16,9 @@ import numpy as np
 import pandas as pd
 import tqdm
 
+from . import xp, xp_ivp
 from .arg_parser_model import parser
+from .graph import buckyGraphData
 from .npi import read_npi_file
 from .numerical_libs import use_cupy
 from .parameters import buckyParams
@@ -720,7 +722,7 @@ class SEIR_covid:
         # do integration
         logging.debug("Starting integration")
         t_eval = np.arange(0, self.t_max + self.dt, self.dt)
-        sol = ivp.solve_ivp(
+        sol = xp_ivp.solve_ivp(
             self.RHS_func,
             method="RK23",
             t_span=(0.0, self.t_max),
@@ -862,8 +864,8 @@ def main(args=None):
     if args.gpu:
         use_cupy(optimize=args.opt)
 
-    global xp, ivp, sparse  # pylint: disable=global-variable-not-assigned
-    from .numerical_libs import xp, ivp, sparse  # noqa: E402  # pylint: disable=import-outside-toplevel  # isort:skip
+    global xp, xp_ivp  # pylint: disable=global-variable-not-assigned
+    from . import xp, xp_ivp  # noqa: E402  # pylint: disable=import-outside-toplevel  # isort:skip
 
     warnings.simplefilter(action="ignore", category=xp.ExperimentalWarning)
 

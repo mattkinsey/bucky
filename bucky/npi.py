@@ -5,6 +5,8 @@ import logging
 import numpy as np
 import pandas as pd
 
+xp = None
+
 
 def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
     """TODO Description.
@@ -26,6 +28,10 @@ def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
     npi_params : dict
         TODO
     """
+    global xp
+    if xp is None:
+        from . import xp
+
     # filter by overlap with simulation date range
     df = pd.read_csv(fname)
     df["date"] = pd.to_datetime(df.date)  # force a parse in case it's an odd format
@@ -49,7 +55,7 @@ def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
     for _, group in df.sort_values(by=["date"]).groupby("date"):
         # convert adm2 id to int
         group["admin2"] = group.adm2.astype(int)
-        date_group = group.set_index("adm2").reindex(adm2_map)
+        date_group = group.set_index("adm2").reindex(xp.to_cpu(adm2_map))
         r0_reduction = np.array(date_group[["r0_reduction"]])
         mobility_reduction = np.array(date_group[["mobility_reduction"]])
         contact_weight = np.array(date_group[["home", "other_locations", "school", "work"]])
