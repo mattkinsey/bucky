@@ -1,3 +1,4 @@
+""" Class to read and store all the data from the bucky input graph."""
 import logging
 
 import networkx as nx

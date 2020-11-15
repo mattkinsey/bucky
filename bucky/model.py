@@ -44,7 +44,7 @@ def get_runid():  # TODO move to util and rename to timeid or something
     return str(dt_now).replace(" ", "__").replace(":", "_").split(".")[0]
 
 
-class SEIR_covid:
+class buckyModelCovid:
     def __init__(
         self,
         seed=None,
@@ -63,9 +63,6 @@ class SEIR_covid:
         self.debug = debug
         self.sparse = sparse_aij  # we can default to none and autodetect
         # w/ override (maybe when #adm2 > 5k and some sparsity critera?)
-        # TODO we could make a adj mat class that provides a standard api (stuff like .multiply,
-        # overloaded __mul__, etc) so that we dont need to constantly check 'if self.sparse'.
-        # It could also store that diag info and provide the row norm...
 
         # Integrator params
         self.t = 0.0
@@ -88,6 +85,120 @@ class SEIR_covid:
         self.bucky_params = buckyParams(par_file)
         self.consts = self.bucky_params.consts
 
+        self.load_graph(self.graph_file)
+
+    def load_graph(self, graph_file):
+        # TODO refactor to just ahve this return g_data (it's currently the code block that used to be at the top of reset)
+
+        logging.info("loading graph")
+        with open(graph_file, "rb") as f:
+            G = pickle.load(f)  # nosec
+
+        # Load data from input graph
+        # TODO we should go through an replace lots of math using self.g_data.* with function IN buckyGraphData
+        self.g_data = buckyGraphData(G, self.sparse)
+
+        if "IFR" in G.nodes[list(G.nodes.keys())[0]]:
+            logging.info("Using ifr from graph")
+            self.use_G_ifr = True
+            node_IFR = nx.get_node_attributes(G, "IFR")
+            self.ifr = xp.asarray((np.vstack(list(node_IFR.values()))).T)
+        else:
+            self.use_G_ifr = False
+
+        # Make contact mats sym and normalized
+        self.contact_mats = G.graph["contact_mats"]
+        if self.debug:
+            logging.debug(f"graph contact mats: {G.graph['contact_mats'].keys()}")
+        for mat in self.contact_mats:
+            c_mat = xp.array(self.contact_mats[mat])
+            c_mat = (c_mat + c_mat.T) / 2.0
+            self.contact_mats[mat] = c_mat
+        # remove all_locations so we can sum over the them ourselves
+        if "all_locations" in self.contact_mats:
+            del self.contact_mats["all_locations"]
+
+        # TODO tmp to remove unused contact mats in como comparison graph
+        # print(self.contact_mats.keys())
+        valid_contact_mats = ["home", "work", "other_locations", "school"]
+        self.contact_mats = {k: v for k, v in self.contact_mats.items() if k in valid_contact_mats}
+
+        self.Cij = xp.vstack([self.contact_mats[k][None, ...] for k in sorted(self.contact_mats)])
+
+        # Get stratified population (and total)
+        self.Nij = self.g_data.Nij
+        self.Nj = self.g_data.Nj
+        self.n_age_grps = self.Nij.shape[0]  # TODO factor out
+
+        n_nodes = self.Nij.shape[-1]  # TODO factor out
+
+        self.first_date = datetime.date.fromisoformat(G.graph["start_date"])
+
+        if self.npi_file is not None:
+            logging.info(f"Using NPI from: {self.npi_file}")
+            self.npi_params = read_npi_file(
+                self.npi_file,
+                self.first_date,
+                self.t_max,
+                self.g_data.adm2_id,
+                self.disable_npi,
+            )
+            for k in self.npi_params:
+                self.npi_params[k] = xp.array(self.npi_params[k])
+                if k == "contact_weights":
+                    self.npi_params[k] = xp.broadcast_to(self.npi_params[k], (self.t_max + 1, n_nodes, 4))
+                else:
+                    self.npi_params[k] = xp.broadcast_to(self.npi_params[k], (self.t_max + 1, n_nodes))
+        else:
+            self.npi_params = {
+                "r0_reduct": xp.broadcast_to(xp.ones(1), (self.t_max + 1, n_nodes)),
+                "contact_weights": xp.broadcast_to(xp.ones(1), (self.t_max + 1, n_nodes, 4)),
+                "mobility_reduct": xp.broadcast_to(xp.ones(1), (self.t_max + 1, n_nodes)),
+            }
+
+        self.Cij = xp.broadcast_to(self.Cij, (n_nodes,) + self.Cij.shape)
+        self.npi_params["contact_weights"] = self.npi_params["contact_weights"][..., None, None]
+
+        self.adm0_cfr_reported = None
+        self.adm1_cfr_reported = None
+        self.adm2_cfr_reported = None
+
+        if "covid_tracking_data" in G.graph:
+            self.rescale_chr = True
+            ct_data = G.graph["covid_tracking_data"].reset_index()
+            hosp_data = ct_data.loc[ct_data.date == str(self.first_date)][["adm1", "hospitalizedCurrently"]]
+            hosp_data_adm1 = hosp_data["adm1"].to_numpy()
+            hosp_data_count = hosp_data["hospitalizedCurrently"].to_numpy()
+            self.adm1_current_hosp = xp.zeros((self.g_data.max_adm1 + 1,), dtype=float)
+            self.adm1_current_hosp[hosp_data_adm1] = hosp_data_count
+            if self.debug:
+                logging.debug("Current hosp: " + pformat(self.adm1_current_hosp))
+            df = G.graph["covid_tracking_data"]
+            self.adm1_current_cfr = xp.zeros((self.g_data.max_adm1 + 1,), dtype=float)
+            cfr_delay = 12  # TODO this should be calced from D_REPORT_TIME*Nij
+            # TODO make a function that will take a 'floating point index' and return
+            # the fractional part of the non int (we do this multiple other places while
+            # reading over historical data, e.g. case_hist[-Ti:] during init)
+
+            for adm1, g in df.groupby("adm1"):
+                g_df = g.reset_index().set_index("date").sort_index()
+                g_df = g_df.rolling(7).mean().dropna(how="all")
+                g_df = g_df.clip(lower=0.0)
+                g_df = g_df.rolling(7).sum()
+                new_deaths = g_df.deathIncrease.to_numpy()
+                new_cases = g_df.positiveIncrease.to_numpy()
+                new_deaths = np.clip(new_deaths, a_min=0.0, a_max=None)
+                new_cases = np.clip(new_cases, a_min=0.0, a_max=None)
+                hist_cfr = new_deaths[cfr_delay:] / new_cases[:-cfr_delay]
+                cfr = np.nanmean(hist_cfr[-7:])
+                self.adm1_current_cfr[adm1] = cfr
+
+            if self.debug:
+                logging.debug("Current CFR: " + pformat(self.adm1_current_cfr))
+
+        else:
+            self.rescale_chr = False
+
     def reset(self, seed=None, params=None):
         # TODO we should refactor reset of the compartments to be real pop numbers then /Nij at the end
 
@@ -98,123 +209,9 @@ class SEIR_covid:
             xp.random.seed(seed)
             self.rseed = seed
 
-        #
-        # Init graph
-        #
-
         self.t = 0.0
         self.iter = 0
         self.done = False
-
-        if self.g_data is None:
-            logging.info("loading graph")
-            with open(self.graph_file, "rb") as f:
-                G = pickle.load(f)  # nosec
-
-            # Load data from input graph
-            # TODO we should go through an replace lots of math using self.g_data.* with function IN buckyGraphData
-            self.g_data = buckyGraphData(G, self.sparse)
-
-            if "IFR" in G.nodes[list(G.nodes.keys())[0]]:
-                logging.info("Using ifr from graph")
-                self.use_G_ifr = True
-                node_IFR = nx.get_node_attributes(G, "IFR")
-                self.ifr = xp.asarray((np.vstack(list(node_IFR.values()))).T)
-            else:
-                self.use_G_ifr = False
-
-            # Make contact mats sym and normalized
-            self.contact_mats = G.graph["contact_mats"]
-            if self.debug:
-                logging.debug(f"graph contact mats: {G.graph['contact_mats'].keys()}")
-            for mat in self.contact_mats:
-                c_mat = xp.array(self.contact_mats[mat])
-                c_mat = (c_mat + c_mat.T) / 2.0
-                self.contact_mats[mat] = c_mat
-            # remove all_locations so we can sum over the them ourselves
-            if "all_locations" in self.contact_mats:
-                del self.contact_mats["all_locations"]
-
-            # TODO tmp to remove unused contact mats in como comparison graph
-            # print(self.contact_mats.keys())
-            valid_contact_mats = ["home", "work", "other_locations", "school"]
-            self.contact_mats = {k: v for k, v in self.contact_mats.items() if k in valid_contact_mats}
-
-            self.Cij = xp.vstack([self.contact_mats[k][None, ...] for k in sorted(self.contact_mats)])
-
-            # Get stratified population (and total)
-            self.Nij = self.g_data.Nij
-            self.Nj = self.g_data.Nj
-            self.n_age_grps = self.Nij.shape[0]  # TODO factor out
-
-            n_nodes = self.Nij.shape[-1]  # TODO factor out
-
-            self.first_date = datetime.date.fromisoformat(G.graph["start_date"])
-
-            if self.npi_file is not None:
-                logging.info(f"Using NPI from: {self.npi_file}")
-                self.npi_params = read_npi_file(
-                    self.npi_file,
-                    self.first_date,
-                    self.t_max,
-                    self.g_data.adm2_id,
-                    self.disable_npi,
-                )
-                for k in self.npi_params:
-                    self.npi_params[k] = xp.array(self.npi_params[k])
-                    if k == "contact_weights":
-                        self.npi_params[k] = xp.broadcast_to(self.npi_params[k], (self.t_max + 1, n_nodes, 4))
-                    else:
-                        self.npi_params[k] = xp.broadcast_to(self.npi_params[k], (self.t_max + 1, n_nodes))
-            else:
-                self.npi_params = {
-                    "r0_reduct": xp.broadcast_to(xp.ones(1), (self.t_max + 1, n_nodes)),
-                    "contact_weights": xp.broadcast_to(xp.ones(1), (self.t_max + 1, n_nodes, 4)),
-                    "mobility_reduct": xp.broadcast_to(xp.ones(1), (self.t_max + 1, n_nodes)),
-                }
-
-            self.Cij = xp.broadcast_to(self.Cij, (n_nodes,) + self.Cij.shape)
-            self.npi_params["contact_weights"] = self.npi_params["contact_weights"][..., None, None]
-
-            self.adm0_cfr_reported = None
-            self.adm1_cfr_reported = None
-            self.adm2_cfr_reported = None
-
-            if "covid_tracking_data" in G.graph:
-                self.rescale_chr = True
-                ct_data = G.graph["covid_tracking_data"].reset_index()
-                hosp_data = ct_data.loc[ct_data.date == str(self.first_date)][["adm1", "hospitalizedCurrently"]]
-                hosp_data_adm1 = hosp_data["adm1"].to_numpy()
-                hosp_data_count = hosp_data["hospitalizedCurrently"].to_numpy()
-                self.adm1_current_hosp = xp.zeros((self.g_data.max_adm1 + 1,), dtype=float)
-                self.adm1_current_hosp[hosp_data_adm1] = hosp_data_count
-                if self.debug:
-                    logging.debug("Current hosp: " + pformat(self.adm1_current_hosp))
-                df = G.graph["covid_tracking_data"]
-                self.adm1_current_cfr = xp.zeros((self.g_data.max_adm1 + 1,), dtype=float)
-                cfr_delay = 12  # TODO this should be calced from D_REPORT_TIME*Nij
-                # TODO make a function that will take a 'floating point index' and return
-                # the fractional part of the non int (we do this multiple other places while
-                # reading over historical data, e.g. case_hist[-Ti:] during init)
-
-                for adm1, g in df.groupby("adm1"):
-                    g_df = g.reset_index().set_index("date").sort_index()
-                    g_df = g_df.rolling(7).mean().dropna(how="all")
-                    g_df = g_df.clip(lower=0.0)
-                    g_df = g_df.rolling(7).sum()
-                    new_deaths = g_df.deathIncrease.to_numpy()
-                    new_cases = g_df.positiveIncrease.to_numpy()
-                    new_deaths = np.clip(new_deaths, a_min=0.0, a_max=None)
-                    new_cases = np.clip(new_cases, a_min=0.0, a_max=None)
-                    hist_cfr = new_deaths[cfr_delay:] / new_cases[:-cfr_delay]
-                    cfr = np.nanmean(hist_cfr[-7:])
-                    self.adm1_current_cfr[adm1] = cfr
-
-                if self.debug:
-                    logging.debug("Current CFR: " + pformat(self.adm1_current_cfr))
-
-            else:
-                self.rescale_chr = False
 
         # randomize model params if we're doing that kind of thing
         if self.randomize:
@@ -234,6 +231,7 @@ class SEIR_covid:
             if type(self.params[k]).__module__ == np.__name__:
                 self.params[k] = xp.asarray(self.params[k])
 
+        # TODO consolidate all the broadcast_to calls
         self.params.H = xp.broadcast_to(self.params.H[:, None], self.Nij.shape)
         self.params.F = xp.broadcast_to(self.params.F[:, None], self.Nij.shape)
 
@@ -824,6 +822,7 @@ def main(args=None):
     # TODO we should output the logs to output_dir too...
     _banner()
 
+    # TODO move the write_thread stuff to a util (postprocess uses something similar)
     to_write = queue.Queue(maxsize=100)
 
     def writer():
@@ -847,10 +846,10 @@ def main(args=None):
     logging.info(f"command line args: {args}")
     if args.no_mc:  # TODO can we just remove this already?
         raise NotImplementedError
-        # env = SEIR_covid(randomize_params_on_reset=False)
+        # env = buckyModelCovid(randomize_params_on_reset=False)
         # n_mc = 1
     else:
-        env = SEIR_covid(
+        env = buckyModelCovid(
             randomize_params_on_reset=True,
             debug=debug_mode,
             sparse_aij=(not args.dense),

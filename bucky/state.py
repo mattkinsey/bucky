@@ -38,7 +38,6 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
 
         self.n_compartments = xp.to_cpu(indices["incC"].stop)
 
-        # self.Nij = Nij
         self.n_age_grps, self.n_nodes = Nij.shape
 
         if state is None:
