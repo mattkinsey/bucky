@@ -20,6 +20,9 @@ class buckyGraphData:
         self.Nij = _read_node_attr(G, "N_age_init", a_min=1e-5)
         self.Nj = xp.sum(self.Nij, axis=0)
 
+        self.rolling_cases = rolling_mean(self.inc_case_hist, 7, 0)
+        self.rolling_deaths = rolling_mean(self.inc_death_hist, 7, 0)
+
         # TODO add adm0 to support multiple countries
         self.adm2_id = _read_node_attr(G, G.graph["adm2_key"], dtype=int)[0]
         self.adm1_id = _read_node_attr(G, G.graph["adm1_key"], dtype=int)[0]
@@ -43,7 +46,6 @@ class buckyGraphData:
         return out
 
 
-# @staticmethod
 def _read_node_attr(G, name, diff=False, dtype=float, a_min=None, a_max=None):
     clipping = (a_min is not None) or (a_max is not None)
     node_list = list(nx.get_node_attributes(G, name).values())
@@ -60,17 +62,20 @@ def _read_node_attr(G, name, diff=False, dtype=float, a_min=None, a_max=None):
     return arr
 
 
-# @staticmethod
-# def _read_edge_mat(G, weight_attr="weight", sparse=True):
-#    edges = xp.array(list(G.edges(data=weight_attr))).T
-#    A = xp_sparse.coo_matrix((edges[2], (edges[0].astype(int), edges[1].astype(int))))
-#    A = A.tocsr()  # just b/c it will do this for almost every op on the array anyway...
-#    if not sparse:
-#        A = A.toarray()
-#    A_diag = edges[2][edges[0] == edges[1]]
-#    return A, A_diag
+# TODO move to util?
+def rolling_mean(arr, window_size=7, axis=0):
+    arr = xp.swapaxes(arr, axis, -1)
+    shp = arr.shape[:-1] + (arr.shape[-1] - window_size + 1,)
+    rolling_arr = xp.empty(shp)
+    window = xp.ones(window_size)
+    arr = arr.reshape(-1, arr.shape[-1])
+    for i in range(arr.shape[0]):
+        rolling_arr[i] = xp.convolve(arr[i], window, mode="valid") / window_size
+    rolling_arr = rolling_arr.reshape(shp)
+    rolling_arr = xp.swapaxes(rolling_arr, axis, -1)
+    return rolling_arr
 
-# @staticmethod
+
 def _mat_norm(mat, axis=0):
     mat_norm = 1.0 / mat.sum(axis=axis)  # this returns a np.matrix if mat is scipy.sparse
     mat_norm = xp.array(A_norm)
