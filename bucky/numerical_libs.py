@@ -12,6 +12,7 @@ import contextlib
 import numpy as xp
 import scipy.integrate._ivp.ivp as xp_ivp
 import scipy.sparse as xp_sparse
+import scipy.special
 
 # Default imports for cpu code
 # This will be overwritten with a call to .numerical_libs.use_cupy()
@@ -20,6 +21,7 @@ import bucky
 xp.scatter_add = xp.add.at
 xp.optimize_kernels = contextlib.nullcontext
 xp.to_cpu = lambda x, **kwargs: x  # one arg noop
+xp.special = scipy.special
 
 bucky.xp = xp
 bucky.xp_sparse = xp_sparse
@@ -148,6 +150,10 @@ def use_cupy(optimize=False):
             return cp.array(np.r_[inds])
 
     cp.r_ = cp_r_()
+
+    import cupyx.scipy.special
+
+    cp.special = cupyx.scipy.special
 
     bucky.xp = cp
 
