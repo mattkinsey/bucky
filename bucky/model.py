@@ -308,6 +308,11 @@ class buckyModelCovid:
         self.params["GAMMA_H"] = xp.broadcast_to(self.params["GAMMA_H"][:, None], self.Nij.shape)
         self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0.0, 1.0)
 
+        Rt = buckyModelCovid.estimate_Rt(self.g_data, self.params)
+        Rt *= truncnorm(xp, 1.0, 1.5 * self.consts.reroll_variance, size=Rt.shape, a_min=1e-6)
+        self.params["R0"] = Rt
+        self.params["BETA"] = Rt * self.params["GAMMA"] / self.g_data.Aij.diag
+
         # init state vector (self.y)
         yy = buckyState(self.consts, self.Nij)
 
@@ -402,6 +407,69 @@ class buckyModelCovid:
             logging.debug("done reset()")
 
         # return y
+
+    @staticmethod
+    def estimate_Rt(
+        g_data,
+        params,
+        days_back=1,
+    ):
+        """Estimate R_t from the recent case data"""
+        rolling_case_hist = g_data.rolling_cases / params["CASE_REPORT"]
+
+        tot_case_hist = (g_data.Aij.A.T * rolling_case_hist.T).T
+
+        t_max = rolling_case_hist.shape[0]
+        k = params.consts["En"]
+
+        mean = params["Tg"]
+        theta = mean / k
+        x = xp.arange(-1.0, t_max - 1.0)
+        x[0] = 0.0
+        w = 1.0 / (xp.special.gamma(k) * theta ** k) * x ** (k - 1) * xp.exp(-x / theta)
+        w = w / (1.0 - w)
+        w = w[::-1]
+        # adm0
+        rolling_case_hist_adm0 = xp.nansum(rolling_case_hist, axis=1)[:, None]
+        tot_case_hist_adm0 = xp.nansum(tot_case_hist, axis=1)[:, None]
+
+        n_loc = rolling_case_hist_adm0.shape[1]
+        Rt = xp.empty((days_back, n_loc))
+        for i in range(days_back):  # TODO we can vectorize by convolving w over case hist
+            d = i + 1
+            Rt[i] = rolling_case_hist_adm0[-d] / (xp.sum(w[d:, None] * tot_case_hist_adm0[:-d], axis=0))
+        # from IPython import embed
+        # embed()
+        Rt = xp.mean(Rt, axis=0)
+        print(Rt)
+
+        Rt_out = xp.full((rolling_case_hist.shape[1],), Rt)
+
+        # adm1
+        tot_case_hist_adm1 = g_data.sum_adm1(tot_case_hist.T).T
+        rolling_case_hist_adm1 = g_data.sum_adm1(rolling_case_hist.T).T
+
+        n_loc = rolling_case_hist_adm1.shape[1]
+        Rt = xp.empty((days_back, n_loc))
+        for i in range(days_back):
+            d = i + 1
+            Rt[i] = rolling_case_hist_adm1[-d] / (xp.sum(w[d:, None] * tot_case_hist_adm1[:-d], axis=0))
+        Rt = xp.mean(Rt, axis=0)
+        Rt = Rt[g_data.adm1_id]
+        valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist_adm1[-7], axis=0) > 10)
+        Rt_out[valid_mask] = Rt[valid_mask]
+
+        # adm2
+        n_loc = rolling_case_hist.shape[1]
+        Rt = xp.empty((days_back, n_loc))
+        for i in range(days_back):
+            d = i + 1
+            Rt[i] = rolling_case_hist[-d] / (xp.sum(w[d:, None] * tot_case_hist[:-d], axis=0))
+        Rt = xp.mean(Rt, axis=0)
+        valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist[-7], axis=0) > 10)
+        Rt_out[valid_mask] = Rt[valid_mask]
+
+        return Rt_out
 
     # TODO these rollups to higher adm levels should be a util (it might make sense as a decorator)
     # it shows up here, the CRR, the CHR rescaling, and in postprocess...
