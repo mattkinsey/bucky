@@ -275,7 +275,7 @@ class SEIR_covid:
                 mu=xp.clip(case_reporting, a_min=0.2, a_max=1.0),
                 a=xp.clip(0.8 * case_reporting, a_min=0.2, a_max=None),
                 b=xp.clip(1.2 * case_reporting, a_min=None, a_max=1.0),
-                gamma=500.0,
+                gamma=50.0,
             ),
         )
 
@@ -320,8 +320,8 @@ class SEIR_covid:
         current_I *= 1.0 / (self.params["CASE_REPORT"])
 
         # TODO should be in param file
-        R_fac = xp.array(mPERT_sample(mu=0.25, a=0.2, b=0.3, gamma=50.0))
-        E_fac = xp.array(mPERT_sample(mu=1.5, a=1.25, b=1.75, gamma=50.0))
+        R_fac = xp.array(mPERT_sample(mu=1.0, a=0.9, b=1.1, gamma=100.0))
+        E_fac = xp.array(mPERT_sample(mu=1.1, a=0.75, b=1.45, gamma=5.0))
         H_fac = xp.array(mPERT_sample(mu=1.0, a=0.9, b=1.1, gamma=100.0))
 
         I_init = current_I[None, :] / self.Nij / self.n_age_grps
