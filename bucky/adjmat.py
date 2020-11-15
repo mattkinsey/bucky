@@ -1,3 +1,4 @@
+""" Utility class to manage the adjacency matrix regardless of if its dense or sparse"""
 import logging
 
 import networkx as nx
@@ -26,6 +27,7 @@ class buckyAij:
         self._Aij, self._Aij_diag = self.normalize(self._base_Aij, self._base_Aij_diag, axis=0)
 
     def normalize(self, mat, mat_diag, axis=0):
+        """Normalize A along a given axis and keep the cache A_diag in sync"""
         mat_norm_fac = 1.0 / mat.sum(axis=axis)
         mat_norm_fac = xp.array(mat_norm_fac)
         if self.sparse:
@@ -40,13 +42,16 @@ class buckyAij:
 
     @property
     def A(self):
+        """property refering to the dense/sparse matrix"""
         return self._Aij
 
     @property
     def diag(self):
+        """property refering to the cache diagional of the matrix"""
         return self._Aij_diag
 
     def perturb(self, var):
+        """Apply a normal perturbation to the matrix (and keep its diag in sync)"""
         # Roll for perturbation in shape of Aij
         # we have to get tricky here b/c of lots of missing cupy methods
         if self.sparse:
@@ -79,9 +84,11 @@ def _read_edge_mat(G, weight_attr="weight", sparse=True):
 
 
 def _csr_diag(mat, out=None, indptr_sorted=False):
+    """Get the diagonal of a scipy/cupy CSR sparse matrix quickly"""
     if ~indptr_sorted:
         raise NotImplementedError
         # we'd just have to replace searchsorted with argmax but it will go from O(logN) to O(N)
+        # or just sort the indices
     if out is None:
         out = xp.empty(mat.shape[0])
     for i in range(out.size):
@@ -93,6 +100,7 @@ def _csr_diag(mat, out=None, indptr_sorted=False):
 
 
 def _csr_is_ind_sorted(mat):
+    """Check if a cupy/scipy CSR sparse matrix has its indices sorted"""
     out = xp.zeros(mat.shape[0])
     for i in range(mat.shape[0]):
         row_inds = mat.indices[mat.indptr[i] : mat.indptr[i + 1]]

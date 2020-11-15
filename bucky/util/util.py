@@ -32,6 +32,7 @@ class dotdict(dict):
     __delattr__ = dict.__delitem__
 
     def __deepcopy__(self, memo=None):
+        """return a deepcopy of the dict"""
         return dotdict({key: copy.deepcopy(value) for key, value in self.items()})
 
 
@@ -73,6 +74,7 @@ def date_to_t_int(dates, start_date):
 
 
 def _banner():
+    """It's a banner for the CLI..."""
     print(r" ____             _          ")  # noqa: T001
     print(r"| __ ) _   _  ___| | ___   _ ")  # noqa: T001
     print(r"|  _ \| | | |/ __| |/ / | | |")  # noqa: T001

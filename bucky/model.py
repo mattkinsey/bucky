@@ -1,3 +1,4 @@
+"""The main module handling the simulation"""
 import copy
 import datetime
 import logging
@@ -40,6 +41,7 @@ class SimulationException(Exception):
 
 @lru_cache(maxsize=None)
 def get_runid():  # TODO move to util and rename to timeid or something
+    """Gets a UUID based of the current datatime and caches it"""
     dt_now = datetime.datetime.now()
     return str(dt_now).replace(" ", "__").replace(":", "_").split(".")[0]
 
@@ -88,6 +90,7 @@ class buckyModelCovid:
         self.load_graph(self.graph_file)
 
     def load_graph(self, graph_file):
+        """Load the graph data and calculate all the variables that are static across MC runs"""
         # TODO refactor to just ahve this return g_data (it's currently the code block that used to be at the top of reset)
 
         logging.info("loading graph")
@@ -200,6 +203,7 @@ class buckyModelCovid:
             self.rescale_chr = False
 
     def reset(self, seed=None, params=None):
+        """Reset the state of the model and generate new inital data from a new random seed"""
         # TODO we should refactor reset of the compartments to be real pop numbers then /Nij at the end
 
         # if you set a seed using the constructor, you're stuck using it forever (TODO this isn't true anymore?)
@@ -408,6 +412,7 @@ class buckyModelCovid:
         mean_time_window=None,
         min_doubling_t=1.0,
     ):
+        """Calculate the recent doubling time of the historical case data"""
         if mean_time_window is not None:
             days_back = mean_time_window
 
@@ -466,6 +471,7 @@ class buckyModelCovid:
         return ret
 
     def estimate_reporting(self, cfr, days_back=14, case_lag=None, min_deaths=100.0):
+        """Estimate the case reporting rate based off observed vs. expected CFR"""
 
         if case_lag is None:
             adm0_cfr_by_age = xp.sum(cfr * self.Nij, axis=1) / xp.sum(self.Nj, axis=0)
@@ -549,6 +555,7 @@ class buckyModelCovid:
 
     @staticmethod
     def RHS_func(t, y_flat, Nij, contact_mats, Aij, par, npi, aij_sparse, y):
+        """RHS function for the ODEs, get's called in ivp.solve_ivp"""
         # constraint on values
         lower, upper = (0.0, 1.0)  # bounds for state vars
 
@@ -645,6 +652,7 @@ class buckyModelCovid:
         return dy_flat
 
     def run_once(self, seed=None, outdir="raw_output/", output=True, output_queue=None):
+        """Perform one complete run of the simulation"""
 
         # reset everything
         logging.debug("Resetting state")
