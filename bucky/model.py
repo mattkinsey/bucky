@@ -46,6 +46,12 @@ def get_runid():  # TODO move to util and rename to timeid or something
     return str(dt_now).replace(" ", "__").replace(":", "_").split(".")[0]
 
 
+def frac_sum_last_n_vals(arr, n, axis=0):
+    """Calculate the sum of last n values along an axis of an array, where n can be a float"""
+    frac_slice_ind = [slice(None)] * (axis) + [-int(n + 1)] + [slice(None)] * (arr.ndim - axis - 1)
+    return xp.sum(arr[-int(n) :], axis=axis) + (n % 1) * arr[frac_slice_ind]
+
+
 class buckyModelCovid:
     def __init__(
         self,
@@ -319,9 +325,8 @@ class buckyModelCovid:
         if self.debug:
             logging.debug("case init")
         Ti = self.params.Ti
-        current_I = (
-            xp.sum(self.g_data.inc_case_hist[-int(Ti) :], axis=0) + (Ti % 1) * self.g_data.inc_case_hist[-int(Ti + 1)]
-        )  # TODO replace with util func
+        current_I = frac_sum_last_n_vals(self.g_data.inc_case_hist, Ti, axis=0)
+
         current_I[xp.isnan(current_I)] = 0.0
         current_I[current_I < 0.0] = 0.0
         current_I *= 1.0 / (self.params["CASE_REPORT"])
