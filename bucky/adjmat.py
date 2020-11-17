@@ -3,21 +3,15 @@ import logging
 
 import networkx as nx
 
+from .numerical_libs import reimport_numerical_libs, xp, xp_sparse
 from .util.distributions import truncnorm
-
-xp = None
-xp_sparse = None
 
 # TODO add a min value to init and clip it off to make things more sparse
 
 
 class buckyAij:
     def __init__(self, G, sparse=True):
-        global xp, xp_sparse
-        if xp is None:
-            from . import xp
-        if xp_sparse is None:
-            from . import xp_sparse
+        reimport_numerical_libs()
 
         self.sparse = sparse
         self._base_Aij, self._base_Aij_diag = _read_edge_mat(G, sparse=sparse)

@@ -8,6 +8,8 @@ to work on cupy arrays.
 """
 
 import contextlib
+import importlib
+import inspect
 
 import numpy as xp
 import scipy.integrate._ivp.ivp as xp_ivp
@@ -33,6 +35,14 @@ class ExperimentalWarning(Warning):
 
 
 xp.ExperimentalWarning = ExperimentalWarning
+
+
+def reimport_numerical_libs():
+    for lib in ("xp", "xp_sparse", "xp_ivp"):
+        caller_globals = dict(inspect.getmembers(inspect.stack()[1][0]))["f_globals"]
+        if lib in caller_globals:
+            bucky_module = importlib.import_module("bucky")
+            caller_globals[lib] = getattr(bucky_module, lib)
 
 
 def use_cupy(optimize=False):
@@ -65,7 +75,6 @@ def use_cupy(optimize=False):
         fully implemented.
 
     """
-    import importlib  # pylint: disable=import-outside-toplevel
     import logging  # pylint: disable=import-outside-toplevel
     import sys  # pylint: disable=import-outside-toplevel
 
