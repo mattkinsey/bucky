@@ -30,6 +30,9 @@ ADD_AMERICAN_SAMOA = False
 # CSSE UIDs for Michigan prison information
 MI_PRISON_UIDS = [84070004, 84070005]
 
+# CSSE IDs for Utah local health districts
+UT_LHD_UIDS = [84070015, 84070016, 84070017, 84070018, 84070019, 84070020]
+
 
 def get_timeseries_data(col_name, filename, fips_key="FIPS", is_csse=True):
     """Transforms a historical data file to a dataframe with FIPs, date, and case or death data.
@@ -62,6 +65,11 @@ def get_timeseries_data(col_name, filename, fips_key="FIPS", is_csse=True):
         mi_data = mi_data.assign(FIPS=mi_data["UID"])
 
         df.loc[mi_data.index] = mi_data.values  # noqa: PD011
+
+        # Utah health districts have NAN FIPS, replace with UID
+        utah_local_dist_data = df.loc[df["UID"].isin(UT_LHD_UIDS)]
+        utah_local_dist_data = utah_local_dist_data.assign(FIPS=utah_local_dist_data["UID"])
+        df.loc[utah_local_dist_data.index] = utah_local_dist_data.values
 
     # Get dates and FIPS columns only
     cols = list(df.columns)
@@ -278,6 +286,61 @@ def get_county_population_data(csse_deaths_file, county_fips):
     return population_df
 
 
+def distribute_utah_data(df, csse_deaths_file):
+    """Distributes Utah case data for local health departments spanning multiple counties.
+
+    Utah has 13 local health districts, six of which span multiple counties. This
+    function distributes those cases and deaths by population across their constituent
+    counties.
+
+    Parameters
+    ----------
+    df : Pandas DataFrame
+        DataFrame containing historical data indexed by FIPS and date
+    csse_deaths_file : str
+        File location of CSSE deaths file
+
+    Returns
+    -------
+    df : Pandas DataFrame
+        Modified DataFrame containing corrected Utah historical data
+        indexed by FIPS and date
+    """
+    local_districts = {
+        # Box Elder, Cache, Rich
+        84070015: {"name": "Bear River, Utah, US", "FIPS": [49003, 49005, 49033]},
+        # Juab, Millard, Piute, Sevier, Wayne, Sanpete
+        84070016: {"name": "Central Utah, Utah, US", "FIPS": [49023, 49027, 49031, 49041, 49055, 49039]},
+        # Carbon, Emery, Grand
+        84070017: {"name": "Southeast Utah, Utah, US", "FIPS": [49007, 49015, 49019]},
+        # Garfield, Iron, Kane, Washington, Beaver
+        84070018: {"name": "Southwest Utah, Utah, US", "FIPS": [49017, 49021, 49025, 49053, 49001]},
+        # Daggett, Duchesne, Uintah
+        84070019: {"name": "TriCounty, Utah, Utah, US", "FIPS": [49009, 49013, 49047]},
+        # Weber, Morgan
+        84070020: {"name": "Weber-Morgan, Utah, US", "FIPS": [49057, 49029]},
+    }
+
+    for district_uid in local_districts.keys():
+
+        # Get list of fips
+        fips_list = local_districts[district_uid]["FIPS"]
+
+        # Deaths file has population data
+        county_pop = get_county_population_data(csse_deaths_file, fips_list)
+
+        # Get district data
+        district_data = df.loc[district_uid]
+
+        # Add to Michigan data, do not replace
+        df = distribute_data_by_population(df, county_pop, district_data, True)
+
+    # Drop health districts data from dataframe
+    df = df.loc[~df.index.get_level_values(0).isin(UT_LHD_UIDS)]
+
+    return df
+
+
 def distribute_nyc_data(df):
     """Distributes NYC case data across the six NYC counties.
 
@@ -483,6 +546,7 @@ def process_csse_data():
     # Distribute territory and Michigan DOC data
     data = distribute_territory_data(data, ADD_AMERICAN_SAMOA)
     data = distribute_mdoc(data, deaths_file)
+    data = distribute_utah_data(data, deaths_file)
 
     data = data.reset_index()
     data = data.assign(date=pd.to_datetime(data["date"]))
@@ -668,7 +732,7 @@ def main():
     update_covid_tracking_data()
 
     # Process USA Facts
-    update_usafacts_data()
+    # update_usafacts_data()
 
 
 def git_pull(abs_path):
