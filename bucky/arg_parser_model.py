@@ -69,13 +69,6 @@ parser.add_argument(
     help="quiet output (only show ERROR and higher)",
 )
 
-parser.add_argument(
-    "-nmc",
-    "--no_mc",
-    action="store_true",
-    help="Just do one run with the mean param values",
-)  # TODO remove
-
 # TODO this doesnt do anything other than let you throw and error if there's no cupy...
 parser.add_argument(
     "-gpu",

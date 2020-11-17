@@ -55,8 +55,6 @@ def frac_sum_last_n_vals(arr, n, axis=0):
 class buckyModelCovid:
     def __init__(
         self,
-        seed=None,
-        randomize_params_on_reset=True,
         debug=False,
         sparse_aij=False,
         t_max=None,
@@ -66,8 +64,6 @@ class buckyModelCovid:
         disable_npi=False,
         reject_runs=False,
     ):
-        self.rseed = seed  # TODO drop this and only set seed in reset
-        self.randomize = randomize_params_on_reset
         self.debug = debug
         self.sparse = sparse_aij  # we can default to none and autodetect
         # w/ override (maybe when #adm2 > 5k and some sparsity critera?)
@@ -127,8 +123,7 @@ class buckyModelCovid:
         if "all_locations" in self.contact_mats:
             del self.contact_mats["all_locations"]
 
-        # TODO tmp to remove unused contact mats in como comparison graph
-        # print(self.contact_mats.keys())
+        # Remove unknown contact mats
         valid_contact_mats = ["home", "work", "other_locations", "school"]
         self.contact_mats = {k: v for k, v in self.contact_mats.items() if k in valid_contact_mats}
 
@@ -217,19 +212,14 @@ class buckyModelCovid:
             random.seed(seed)
             np.random.seed(seed)
             xp.random.seed(seed)
-            self.rseed = seed
 
         self.t = 0.0
         self.iter = 0
         self.done = False
 
-        # randomize model params if we're doing that kind of thing
-        if self.randomize:
-            self.g_data.Aij.perturb(self.consts.reroll_variance)
-            self.params = self.bucky_params.generate_params(self.consts.reroll_variance)
-
-        else:
-            self.params = self.bucky_params.generate_params(None)
+        # reroll model params if we're doing that kind of thing
+        self.g_data.Aij.perturb(self.consts.reroll_variance)
+        self.params = self.bucky_params.generate_params(self.consts.reroll_variance)
 
         if params is not None:
             self.params = copy.deepcopy(params)
@@ -732,8 +722,6 @@ class buckyModelCovid:
         self.reset(seed=seed)
         logging.debug("Done reset")
 
-        # TODO should output the IC here
-
         # do integration
         logging.debug("Starting integration")
         t_eval = np.arange(0, self.t_max + self.dt, self.dt)
@@ -925,23 +913,16 @@ def main(args=None):
         logging.info("Using GPU backend")
 
     logging.info(f"command line args: {args}")
-    if args.no_mc:  # TODO can we just remove this already?
-        raise NotImplementedError
-        # env = buckyModelCovid(randomize_params_on_reset=False)
-        # n_mc = 1
-    else:
-        env = buckyModelCovid(
-            randomize_params_on_reset=True,
-            debug=debug_mode,
-            sparse_aij=(not args.dense),
-            t_max=args.days,
-            graph_file=args.graph_file,
-            par_file=args.par_file,
-            npi_file=args.npi_file,
-            disable_npi=args.disable_npi,
-            reject_runs=args.reject_runs,
-        )
-        n_mc = args.n_mc
+    env = buckyModelCovid(
+        debug=debug_mode,
+        sparse_aij=(not args.dense),
+        t_max=args.days,
+        graph_file=args.graph_file,
+        par_file=args.par_file,
+        npi_file=args.npi_file,
+        disable_npi=args.disable_npi,
+        reject_runs=args.reject_runs,
+    )
 
     seed_seq = np.random.SeedSequence(args.seed)
 
@@ -949,9 +930,9 @@ def main(args=None):
     success = 0
     n_runs = 0
     times = []
-    pbar = tqdm.tqdm(total=n_mc, desc="Performing Monte Carlos", dynamic_ncols=True)
+    pbar = tqdm.tqdm(total=args.n_mc, desc="Performing Monte Carlos", dynamic_ncols=True)
     try:
-        while success < n_mc:
+        while success < args.n_mc:
             start_time = datetime.datetime.now()
             mc_seed = seed_seq.spawn(1)[0].generate_state(1)[0]  # inc spawn key then grab next seed
             pbar.set_postfix_str(
