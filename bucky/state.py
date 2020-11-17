@@ -1,7 +1,7 @@
 """ Provides a class to hold the internal state vector to the compartment model (and track compartment indices)
 """
 
-xp = None
+from .numerical_libs import reimport_numerical_libs, xp
 
 
 class buckyState:  # pylint: disable=too-many-instance-attributes
@@ -9,10 +9,7 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
 
     def __init__(self, consts, Nij, state=None):
 
-        # use xp from the calling module
-        global xp
-        if xp is None:
-            from . import xp
+        reimport_numerical_libs()
 
         self.En = consts["En"]  # TODO rename these to like gamma shape or something
         self.Im = consts["Im"]

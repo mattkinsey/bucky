@@ -17,11 +17,10 @@ import numpy as np
 import pandas as pd
 import tqdm
 
-from . import xp, xp_ivp
 from .arg_parser_model import parser
 from .graph import buckyGraphData
 from .npi import read_npi_file
-from .numerical_libs import use_cupy
+from .numerical_libs import reimport_numerical_libs, use_cupy, xp, xp_ivp
 from .parameters import buckyParams
 from .state import buckyState
 from .util.distributions import mPERT_sample, truncnorm
@@ -867,8 +866,7 @@ def main(args=None):
     if args.gpu:
         use_cupy(optimize=args.opt)
 
-    global xp, xp_ivp  # pylint: disable=global-variable-not-assigned
-    from . import xp, xp_ivp  # noqa: E402  # pylint: disable=import-outside-toplevel  # isort:skip
+    reimport_numerical_libs()
 
     warnings.simplefilter(action="ignore", category=xp.ExperimentalWarning)
 

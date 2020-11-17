@@ -4,16 +4,13 @@ import logging
 import networkx as nx
 
 from .adjmat import buckyAij
-
-xp = None
+from .numerical_libs import reimport_numerical_libs, xp
 
 
 class buckyGraphData:
     def __init__(self, G, sparse=True):
-        # TODO maybe we should make the reimport a functoin in num_libs?
-        global xp, xp_sparse
-        if xp is None:
-            from . import xp
+
+        reimport_numerical_libs()
 
         G = nx.convert_node_labels_to_integers(G)
         self.cum_case_hist, self.inc_case_hist = _read_node_attr(G, "case_hist", diff=True, a_min=0.0)
