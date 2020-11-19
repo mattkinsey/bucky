@@ -1,4 +1,5 @@
 """utilities to read historical data that cooresponds to a bucky output file"""
+import glob
 import logging
 import os
 
@@ -17,14 +18,26 @@ data_locations = {
     "cumulative_deaths": {"file": csse, "column": "cumulative_deaths"},
     "current_hospitalizations": {
         "file": hhs_hosp,
-        "column": "total_adult_patients_hospitalized_confirmed_and_suspected_covid",
+        "column": [
+            "total_adult_patients_hospitalized_confirmed_and_suspected_covid",
+            "total_pediatric_patients_hospitalized_confirmed_and_suspected_covid",
+        ],
     },
     "daily_reported_cases": {"file": csse, "column": "daily_reported_cases"},
     "daily_cases": {"file": csse, "column": "daily_reported_cases"},
     "daily_deaths": {"file": csse, "column": "daily_deaths"},
-    "current_vent_usage": {"file": hhs_hosp, "column": "onVentilatorCurrently"},
-    "current_icu_usage": {"file": covid_tracking, "column": "staffed_icu_adult_patients_confirmed_and_suspected_covid"},
-    "daily_hospitalizations": {"file": hhs_hosp, "column": "previous_day_admission_adult_covid_confirmed"},
+    "current_vent_usage": {"file": covid_tracking, "column": "onVentilatorCurrently"},
+    "current_icu_usage": {
+        "file": hhs_hosp,
+        "column": [
+            "staffed_icu_adult_patients_confirmed_and_suspected_covid",
+            "staffed_icu_pediatric_patients_confirmed_and_suspected_covid",
+        ],
+    },
+    "daily_hospitalizations": {
+        "file": hhs_hosp,
+        "column": ["previous_day_admission_adult_covid_confirmed", "previous_day_admission_pediatric_covid_confirmed"],
+    },
 }
 
 
@@ -145,7 +158,11 @@ def get_historical_data(columns, level, lookup_df, window_size, hist_file):
 
             # Aggregate on geographic level
             agg_data = data.groupby(["date", level]).sum()
-            agg_data = agg_data.rename(columns={column_name: requested_col})
+            if isinstance(column_name, list):
+                # Sum columns
+                agg_data[requested_col] = agg_data[column_name].sum(axis=1)
+            else:
+                agg_data = agg_data.rename(columns={column_name: requested_col})
             agg_data = agg_data.round(3)
 
             # If first column, initialize dataframe
@@ -170,8 +187,9 @@ if __name__ == "__main__":
     )
 
     look = read_geoid_from_graph(graph_file)
-    levels = ["adm0"]
-    cols = ["current_vent_usage", "daily_reported_cases"]
+    levels = ["adm1"]
+    cols = ["current_hospitalizations"]
     for level in levels:
 
-        df = get_historical_data(cols, level, look, 7)
+        df = get_historical_data(cols, level, look, 7, None)
+        print(df)

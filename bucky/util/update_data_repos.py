@@ -727,6 +727,14 @@ def update_hhs_hosp_data():
     with urllib.request.urlopen(hosp_url, context=context) as testfile, open(filename, "w") as f:  # nosec
         f.write(testfile.read().decode())
 
+    # Map state abbreviation to ADM1
+    hhs_data = pd.read_csv(filename)
+    abbrev_to_adm1_code = pd.read_csv(bucky_cfg["data_dir"] + "/us_adm1_abbrev_map.csv")
+    abbrev_to_adm1_code = abbrev_to_adm1_code.set_index("state")
+    abbrev_map = abbrev_to_adm1_code.to_dict()["adm1"]
+    hhs_data["adm1"] = hhs_data["state"].map(abbrev_map)
+    hhs_data.to_csv(filename)
+
 
 def main():
     """Uses git to update public data repos."""
