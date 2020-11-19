@@ -13,6 +13,7 @@ Welcome to Bucky's documentation!
    getting_started
    install
    model_tree
+   vis_tools
    cli
    modules
    autosummary
