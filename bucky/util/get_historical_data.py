@@ -8,19 +8,23 @@ from .read_config import bucky_cfg
 
 covid_tracking = os.path.join(bucky_cfg["data_dir"], "cases/covid_tracking.csv")
 csse = os.path.join(bucky_cfg["data_dir"], "cases/csse_hist_timeseries.csv")
+hhs_hosp = os.path.join(bucky_cfg["data_dir"], "cases/hhs_hosps.csv")
 
 # Specify file and column name
 data_locations = {
     "cumulative_cases": {"file": csse, "column": "cumulative_reported_cases"},
     "cumulative_reported_cases": {"file": csse, "column": "cumulative_reported_cases"},
     "cumulative_deaths": {"file": csse, "column": "cumulative_deaths"},
-    "current_hospitalizations": {"file": covid_tracking, "column": "hospitalizedCurrently"},
+    "current_hospitalizations": {
+        "file": hhs_hosp,
+        "column": "total_adult_patients_hospitalized_confirmed_and_suspected_covid",
+    },
     "daily_reported_cases": {"file": csse, "column": "daily_reported_cases"},
     "daily_cases": {"file": csse, "column": "daily_reported_cases"},
     "daily_deaths": {"file": csse, "column": "daily_deaths"},
-    "current_vent_usage": {"file": covid_tracking, "column": "onVentilatorCurrently"},
-    "current_icu_usage": {"file": covid_tracking, "column": "inIcuCurrently"},
-    "daily_hospitalizations": {"file": covid_tracking, "column": "hospitalizedIncrease"},
+    "current_vent_usage": {"file": hhs_hosp, "column": "onVentilatorCurrently"},
+    "current_icu_usage": {"file": covid_tracking, "column": "staffed_icu_adult_patients_confirmed_and_suspected_covid"},
+    "daily_hospitalizations": {"file": hhs_hosp, "column": "previous_day_admission_adult_covid_confirmed"},
 }
 
 

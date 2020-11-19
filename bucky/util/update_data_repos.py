@@ -649,6 +649,21 @@ def update_usafacts_data():
     data.to_csv(bucky_cfg["data_dir"] + "/cases/usafacts_hist.csv")
 
 
+def update_hhs_hosp_data():
+    """Retrieves updated historical data from healthdata.gov and writes to CSV."""
+
+    logging.info("Downloading HHS Hospitalization data")
+    hosp_url = "https://healthdata.gov/node/3565481/download"
+
+    filename = bucky_cfg["data_dir"] + "/cases/hhs_hosps.csv"
+
+    # Download case and death data
+    context = ssl._create_unverified_context()  # pylint: disable=W0212  # nosec
+    # Create filename
+    with urllib.request.urlopen(hosp_url, context=context) as testfile, open(filename, "w") as f:  # nosec
+        f.write(testfile.read().decode())
+
+
 def main():
     """Uses git to update public data repos."""
     # Repos to update
@@ -669,6 +684,9 @@ def main():
 
     # Process USA Facts
     update_usafacts_data()
+
+    # Get HHS hospitalization data
+    update_hhs_hosp_data()
 
 
 def git_pull(abs_path):

@@ -174,6 +174,17 @@ class buckyModelCovid:
             hosp_data_count = hosp_data["hospitalizedCurrently"].to_numpy()
             self.adm1_current_hosp = xp.zeros((self.g_data.max_adm1 + 1,), dtype=float)
             self.adm1_current_hosp[hosp_data_adm1] = hosp_data_count
+
+            if "hhs_data" in G.graph:
+                hhs_data = G.graph["hhs_data"].reset_index()
+                hhs_curr_data = hhs_data.loc[hhs_data.date == str(self.first_date)]
+                hhs_curr_data = hhs_curr_data.set_index("adm1")
+                tot_hosps = (
+                    hhs_curr_data.total_adult_patients_hospitalized_confirmed_and_suspected_covid
+                    + hhs_curr_data.total_pediatric_patients_hospitalized_confirmed_and_suspected_covid
+                )
+                self.adm1_current_hosp[tot_hosps.index.to_numpy()] = tot_hosps.to_numpy()
+
             if self.debug:
                 logging.debug("Current hosp: " + pformat(self.adm1_current_hosp))
             df = G.graph["covid_tracking_data"]

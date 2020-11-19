@@ -563,6 +563,14 @@ if __name__ == "__main__":
     ct_data = ct_data.loc[ct_data.date <= last_date]
     ct_data = ct_data.set_index(["adm1", "date"])
 
+    # Get historical HHS hospitalization data (at state level)
+    hhs_data = pd.read_csv(bucky_cfg["data_dir"] + "/cases/hhs_hosps.csv")
+    hhs_data = hhs_data.loc[hhs_data.date <= last_date]
+    ct_adm1_map = ct_data.reset_index().set_index("state").adm1
+    ct_adm1_map = ct_adm1_map.drop_duplicates()
+    hhs_data["adm1"] = hhs_data.state.map(ct_adm1_map)
+    hhs_data = hhs_data.set_index(["adm1", "date"])
+
     # Remove duplicates
     # TODO: Find cause of duplicates
     date_data = date_data.loc[~date_data.index.duplicated(keep="first")]
@@ -689,6 +697,7 @@ if __name__ == "__main__":
         adm0_name="US",
         start_date=last_date,
         covid_tracking_data=ct_data,
+        hhs_data=hhs_data,
     )
     G2.add_edges_from(G.edges(), weight=0.0, R0_frac=1.0)
     G2.update(nodes=G.nodes(data=True))
