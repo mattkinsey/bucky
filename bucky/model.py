@@ -420,7 +420,7 @@ class buckyModelCovid:
         days_back=1,
     ):
         """Estimate R_t from the recent case data"""
-        rolling_case_hist = g_data.rolling_cases / params["CASE_REPORT"]
+        rolling_case_hist = g_data.rolling_inc_cases / params["CASE_REPORT"]
 
         tot_case_hist = (g_data.Aij.A.T * rolling_case_hist.T).T
 
