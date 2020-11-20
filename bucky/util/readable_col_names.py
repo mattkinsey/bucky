@@ -18,4 +18,6 @@ readable_col_names = {
     "total_population": "Population",
     "daily_hospitalizations": "Incident Hospitalizations",
     "cumulative_reported_cases_per_100k": "Cumulative Reported Cases per 100,000",
+    "daily_reported_cases_per_100k": "Daily Reported Cases per 100,000",
+    "daily_deaths_per_100k": "Daily Deaths per 100,000",
 }
