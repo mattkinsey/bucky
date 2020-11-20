@@ -520,6 +520,12 @@ if __name__ == "__main__":
         # Get data
         map_data = get_map_data(input_dir, "adm0")
 
+        # May pass in a lookup table to get a subset of states
+        if args.lookup is not None:
+            lookup_table = read_lookup(args.lookup)
+            adm1_subset = lookup_table.adm1.unique()
+            map_data = map_data.loc[map_data["adm1"].isin(adm1_subset)]
+
         # Get dates
         if list_dates is None:
             list_dates = get_dates(map_data, args.freq)
