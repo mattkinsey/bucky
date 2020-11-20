@@ -5,6 +5,7 @@ import networkx as nx
 
 from .adjmat import buckyAij
 from .numerical_libs import reimport_numerical_libs, xp
+from .util.cached_prop import cached_property
 
 
 class buckyGraphData:
@@ -17,9 +18,6 @@ class buckyGraphData:
         self.cum_death_hist, self.inc_death_hist = _read_node_attr(G, "death_hist", diff=True, a_min=0.0)
         self.Nij = _read_node_attr(G, "N_age_init", a_min=1e-5)
         self.Nj = xp.sum(self.Nij, axis=0)
-
-        self.rolling_cases = rolling_mean(self.inc_case_hist, 7, 0)
-        self.rolling_deaths = rolling_mean(self.inc_death_hist, 7, 0)
 
         # TODO add adm0 to support multiple countries
         self.adm2_id = _read_node_attr(G, G.graph["adm2_key"], dtype=int)[0]
@@ -42,6 +40,22 @@ class buckyGraphData:
         out = xp.zeros(shp, dtype=adm2_arr.dtype)
         xp.scatter_add(out, self.adm1_id, adm2_arr)
         return out
+
+    @cached_property
+    def rolling_inc_cases(self):
+        return rolling_mean(self.inc_case_hist, 7, 0)
+
+    @cached_property
+    def rolling_inc_deaths(self):
+        return rolling_mean(self.inc_death_hist, 7, 0)
+
+    @cached_property
+    def rolling_cum_cases(self):
+        return rolling_mean(self.cum_case_hist, 7, 0)
+
+    @cached_property
+    def rolling_cum_deaths(self):
+        return rolling_mean(self.cum_death_hist, 7, 0)
 
 
 def _read_node_attr(G, name, diff=False, dtype=float, a_min=None, a_max=None):
