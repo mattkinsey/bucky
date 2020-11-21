@@ -6,15 +6,13 @@ import networkx as nx
 from .numerical_libs import reimport_numerical_libs, xp, xp_sparse
 from .util.distributions import truncnorm
 
-# TODO add a min value to init and clip it off to make things more sparse
-
 
 class buckyAij:
-    def __init__(self, G, sparse=True):
+    def __init__(self, G, sparse=True, a_min=0.0):
         reimport_numerical_libs()
 
         self.sparse = sparse
-        self._base_Aij, self._base_Aij_diag = _read_edge_mat(G, sparse=sparse)
+        self._base_Aij, self._base_Aij_diag = _read_edge_mat(G, sparse=sparse, a_min=a_min)
         if self.sparse:
             self._indptr_sorted = _csr_is_ind_sorted(self._base_Aij)
 
@@ -67,8 +65,11 @@ class buckyAij:
         self._Aij, self._Aij_diag = self.normalize(self._Aij, self._Aij_diag, axis=0)
 
 
-def _read_edge_mat(G, weight_attr="weight", sparse=True):
+def _read_edge_mat(G, weight_attr="weight", sparse=True, a_min=0.0):
     edges = xp.array(list(G.edges(data=weight_attr))).T
+    # from IPython import embed
+    # embed()
+    # TODO fix: edges = edges.T[edges[2] <= a_min].T  # clip edges with weight < a_min
     A = xp_sparse.coo_matrix((edges[2], (edges[0].astype(int), edges[1].astype(int))))
     A = A.tocsr()  # just b/c it will do this for almost every op on the array anyway...
     if not sparse:

@@ -29,7 +29,7 @@ class buckyGraphData:
         self.max_adm2 = xp.to_cpu(xp.max(self.adm2_id))
         self.max_adm1 = xp.to_cpu(xp.max(self.adm1_id))
 
-        self.Aij = buckyAij(G, sparse)
+        self.Aij = buckyAij(G, sparse, a_min=0.0)
 
         # TODO move this params to config?
         self._rolling_mean_type = "arithmetic"
