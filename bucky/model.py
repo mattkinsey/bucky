@@ -556,18 +556,18 @@ class buckyModelCovid:
             case_lag = xp.sum(self.params["D_REPORT_TIME"] * adm0_cfr_by_age / adm0_cfr_total, axis=0)
 
         case_lag_int = int(case_lag)
+        recent_cum_cases = self.g_data.rolling_cum_cases - self.g_data.rolling_cum_cases[0]
+        recent_cum_deaths = self.g_data.rolling_cum_deaths - self.g_data.rolling_cum_deaths[0]
         case_lag_frac = case_lag % 1  # TODO replace with util function for the indexing
         cases_lagged = (
-            self.g_data.cum_case_hist[-case_lag_int - days_back : -case_lag_int]
-            + case_lag_frac * self.g_data.cum_case_hist[-case_lag_int - 1 - days_back : -case_lag_int - 1]
+            recent_cum_cases[-case_lag_int - days_back : -case_lag_int]
+            + case_lag_frac * recent_cum_cases[-case_lag_int - 1 - days_back : -case_lag_int - 1]
         )
 
         # adm0
         adm0_cfr_param = xp.sum(xp.sum(cfr * self.Nij, axis=1) / xp.sum(self.Nj, axis=0), axis=0)
         if self.adm0_cfr_reported is None:
-            self.adm0_cfr_reported = xp.sum(self.g_data.cum_death_hist[-days_back:], axis=1) / xp.sum(
-                cases_lagged, axis=1
-            )
+            self.adm0_cfr_reported = xp.sum(recent_cum_deaths[-days_back:], axis=1) / xp.sum(cases_lagged, axis=1)
         adm0_case_report = adm0_cfr_param / self.adm0_cfr_reported
 
         if self.debug:
@@ -599,7 +599,7 @@ class buckyModelCovid:
             xp.scatter_add(
                 self.adm1_deaths_reported,
                 self.g_data.adm1_id,
-                self.g_data.cum_death_hist[-days_back:].T,
+                recent_cum_deaths[-days_back:].T,
             )
             xp.scatter_add(adm1_lagged_cases, self.g_data.adm1_id, cases_lagged.T)
 
@@ -614,10 +614,10 @@ class buckyModelCovid:
         adm2_cfr_param = xp.sum(cfr * (self.Nij / self.Nj), axis=0)
 
         if self.adm2_cfr_reported is None:
-            self.adm2_cfr_reported = self.g_data.cum_death_hist[-days_back:] / cases_lagged
+            self.adm2_cfr_reported = recent_cum_deaths[-days_back:] / cases_lagged
         adm2_case_report = adm2_cfr_param / self.adm2_cfr_reported
 
-        valid_adm2_cr = xp.isfinite(adm2_case_report) & (self.g_data.cum_death_hist[-days_back:] > min_deaths)
+        valid_adm2_cr = xp.isfinite(adm2_case_report) & (recent_cum_deaths[-days_back:] > min_deaths)
         case_report[valid_adm2_cr] = adm2_case_report[valid_adm2_cr]
 
         return case_report
