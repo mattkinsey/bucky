@@ -53,7 +53,7 @@ class buckyAij:
         else:
             fac_shp = self._base_Aij.shape
 
-        fac = truncnorm(xp, 1.0, var, fac_shp, a_min=1e-6)
+        fac = truncnorm(1.0, var, fac_shp, a_min=1e-6)
 
         # rescale Aij from base_Aij
         if self.sparse:

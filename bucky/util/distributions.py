@@ -3,6 +3,8 @@
 import numpy as np
 import scipy.special as sc
 
+from ..numerical_libs import reimport_numerical_libs, xp
+
 
 # TODO only works on cpu atm
 # we'd need to implement betaincinv ourselves in cupy
@@ -40,7 +42,7 @@ def mPERT_sample(mu, a=0.0, b=1.0, gamma=4.0, var=None):
     return (b - a) * alp3 + a
 
 
-def truncnorm(xp, loc=0.0, scale=1.0, size=1, a_min=None, a_max=None):
+def truncnorm(loc=0.0, scale=1.0, size=1, a_min=None, a_max=None):
     """Provides a vectorized truncnorm implementation that is compatible with cupy.
 
     The output is calculated by using the numpy/cupy random.normal() and
@@ -49,13 +51,14 @@ def truncnorm(xp, loc=0.0, scale=1.0, size=1, a_min=None, a_max=None):
 
     Parameters
     ----------
-    xp : module
 
 
     Returns
     -------
 
     """
+    reimport_numerical_libs()
+
     ret = xp.random.normal(loc, scale, size)
     if a_min is None:
         a_min = -xp.inf

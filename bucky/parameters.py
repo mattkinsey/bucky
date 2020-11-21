@@ -5,6 +5,7 @@ from pprint import pformat
 import numpy as np
 import yaml
 
+from .numerical_libs import reimport_numerical_libs, xp
 from .util import dotdict
 from .util.distributions import mPERT_sample, truncnorm
 
@@ -42,6 +43,8 @@ def CI_to_std(CI):
 class buckyParams:
     def __init__(self, par_file=None):
 
+        reimport_numerical_libs()
+
         self.par_file = par_file
         if par_file is not None:
             self.base_params = self.read_yml(par_file)
@@ -76,17 +79,17 @@ class buckyParams:
             elif "mean" in base_params[p]:
                 if "CI" in base_params[p]:
                     if var:
-                        params[p] = truncnorm(np, *CI_to_std(base_params[p]["CI"]), a_min=1e-6)
+                        params[p] = xp.to_cpu(truncnorm(*CI_to_std(base_params[p]["CI"]), a_min=1e-6))
                     else:  # just use mean if we set var to 0
                         params[p] = copy.deepcopy(base_params[p]["mean"])
                 else:
                     params[p] = copy.deepcopy(base_params[p]["mean"])
-                    params[p] *= truncnorm(np, loc=1.0, scale=var, a_min=1e-6)
+                    params[p] *= xp.to_cpu(truncnorm(loc=1.0, scale=var, a_min=1e-6))
 
             # age-based vectors
             elif "values" in base_params[p]:
                 params[p] = np.array(base_params[p]["values"])
-                params[p] *= truncnorm(np, 1.0, var, size=params[p].shape, a_min=1e-6)
+                params[p] *= xp.to_cpu(truncnorm(1.0, var, size=params[p].shape, a_min=1e-6))
                 # interp to our age bins
                 if base_params[p]["age_bins"] != base_params["consts"]["age_bins"]:
                     params[p] = self.age_interp(

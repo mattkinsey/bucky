@@ -24,7 +24,7 @@ from .numerical_libs import reimport_numerical_libs, use_cupy, xp, xp_ivp
 from .parameters import buckyParams
 from .state import buckyState
 from .util.distributions import mPERT_sample, truncnorm
-from .util.util import TqdmLoggingHandler, _banner  # , cache_files
+from .util.util import TqdmLoggingHandler, _banner
 
 # supress pandas warning caused by pyarrow
 warnings.simplefilter(action="ignore", category=FutureWarning)
@@ -300,7 +300,7 @@ class buckyModelCovid:
             raise SimulationException
 
         if self.consts.reroll_variance > 0.0:
-            self.doubling_t *= truncnorm(xp, 1.0, self.consts.reroll_variance, size=self.doubling_t.shape, a_min=1e-6)
+            self.doubling_t *= truncnorm(1.0, self.consts.reroll_variance, size=self.doubling_t.shape, a_min=1e-6)
             self.doubling_t = xp.clip(self.doubling_t, 1.0, None) / 2.0
 
         self.params = self.bucky_params.rescale_doubling_rate(self.doubling_t, self.params, xp, self.g_data.Aij.diag)
@@ -315,7 +315,7 @@ class buckyModelCovid:
         self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0.0, 1.0)
 
         Rt = buckyModelCovid.estimate_Rt(self.g_data, self.params)
-        Rt *= truncnorm(xp, 1.0, 1.5 * self.consts.reroll_variance, size=Rt.shape, a_min=1e-6)
+        Rt *= truncnorm(1.0, 1.5 * self.consts.reroll_variance, size=Rt.shape, a_min=1e-6)
         self.params["R0"] = Rt
         self.params["BETA"] = Rt * self.params["GAMMA"] / self.g_data.Aij.diag
 
@@ -444,10 +444,8 @@ class buckyModelCovid:
         for i in range(days_back):  # TODO we can vectorize by convolving w over case hist
             d = i + 1
             Rt[i] = rolling_case_hist_adm0[-d] / (xp.sum(w[d:, None] * tot_case_hist_adm0[:-d], axis=0))
-        # from IPython import embed
-        # embed()
+
         Rt = xp.mean(Rt, axis=0)
-        print(Rt)
 
         Rt_out = xp.full((rolling_case_hist.shape[1],), Rt)
 
