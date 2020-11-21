@@ -147,52 +147,32 @@ class buckyModelCovid:
         self.adm1_cfr_reported = None
         self.adm2_cfr_reported = None
 
-        if "covid_tracking_data" in G.graph:
-            self.rescale_chr = True
-            ct_data = G.graph["covid_tracking_data"].reset_index()
-            hosp_data = ct_data.loc[ct_data.date == str(self.first_date)][["adm1", "hospitalizedCurrently"]]
-            hosp_data_adm1 = hosp_data["adm1"].to_numpy()
-            hosp_data_count = hosp_data["hospitalizedCurrently"].to_numpy()
+        # If HHS hospitalization data is on the graph, use it to rescale initial H counts and CHR
+        self.rescale_chr = "hhs_data" in G.graph
+        if self.rescale_chr:
             self.adm1_current_hosp = xp.zeros((self.g_data.max_adm1 + 1,), dtype=float)
-            self.adm1_current_hosp[hosp_data_adm1] = hosp_data_count
-
-            if "hhs_data" in G.graph:
-                hhs_data = G.graph["hhs_data"].reset_index()
-                hhs_curr_data = hhs_data.loc[hhs_data.date == str(self.first_date)]
-                hhs_curr_data = hhs_curr_data.set_index("adm1")
-                tot_hosps = (
-                    hhs_curr_data.total_adult_patients_hospitalized_confirmed_covid
-                    + hhs_curr_data.total_pediatric_patients_hospitalized_confirmed_covid
-                )
-                self.adm1_current_hosp[tot_hosps.index.to_numpy()] = tot_hosps.to_numpy()
+            hhs_data = G.graph["hhs_data"].reset_index()
+            hhs_curr_data = hhs_data.loc[hhs_data.date == str(self.first_date)]
+            hhs_curr_data = hhs_curr_data.set_index("adm1")
+            tot_hosps = (
+                hhs_curr_data.total_adult_patients_hospitalized_confirmed_covid
+                + hhs_curr_data.total_pediatric_patients_hospitalized_confirmed_covid
+            )
+            self.adm1_current_hosp[tot_hosps.index.to_numpy()] = tot_hosps.to_numpy()
 
             if self.debug:
-                logging.debug("Current hosp: " + pformat(self.adm1_current_hosp))
-            df = G.graph["covid_tracking_data"]
-            self.adm1_current_cfr = xp.zeros((self.g_data.max_adm1 + 1,), dtype=float)
-            cfr_delay = 12  # TODO this should be calced from D_REPORT_TIME*Nij
-            # TODO make a function that will take a 'floating point index' and return
-            # the fractional part of the non int (we do this multiple other places while
-            # reading over historical data, e.g. case_hist[-Ti:] during init)
+                logging.debug("Current hospitalizations: " + pformat(self.adm1_current_hosp))
 
-            for adm1, g in df.groupby("adm1"):
-                g_df = g.reset_index().set_index("date").sort_index()
-                g_df = g_df.rolling(7).mean().dropna(how="all")
-                g_df = g_df.clip(lower=0.0)
-                g_df = g_df.rolling(7).sum()
-                new_deaths = g_df.deathIncrease.to_numpy()
-                new_cases = g_df.positiveIncrease.to_numpy()
-                new_deaths = np.clip(new_deaths, a_min=0.0, a_max=None)
-                new_cases = np.clip(new_cases, a_min=0.0, a_max=None)
-                hist_cfr = new_deaths[cfr_delay:] / new_cases[:-cfr_delay]
-                cfr = np.nanmean(hist_cfr[-7:])
-                self.adm1_current_cfr[adm1] = cfr
+        # Estimate the recent CFR during the period covered by the historical data
+        cfr_delay = 5
+        last_cases = self.g_data.rolling_cum_cases[-cfr_delay] - self.g_data.rolling_cum_cases[0]
+        last_deaths = self.g_data.rolling_cum_deaths[-1] - self.g_data.rolling_cum_deaths[cfr_delay]
+        adm1_cases = self.g_data.sum_adm1(last_cases.T)
+        adm1_deaths = self.g_data.sum_adm1(last_deaths.T)
+        self.adm1_current_cfr = adm1_deaths / adm1_cases
 
-            if self.debug:
-                logging.debug("Current CFR: " + pformat(self.adm1_current_cfr))
-
-        else:
-            self.rescale_chr = False
+        if self.debug:
+            logging.debug("Current CFR: " + pformat(self.adm1_current_cfr))
 
     def reset(self, seed=None, params=None):
         """Reset the state of the model and generate new inital data from a new random seed"""
