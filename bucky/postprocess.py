@@ -262,7 +262,13 @@ if __name__ == "__main__":
         tot_df = tot_df.loc[tot_df[admin2_key].isin(unique_adm2)]
 
         # List of columns that will be output per 100k population as well
-        per_capita_cols = ["cumulative_reported_cases", "cumulative_deaths", "current_hospitalizations"]
+        per_capita_cols = [
+            "cumulative_reported_cases",
+            "cumulative_deaths",
+            "current_hospitalizations",
+            "daily_reported_cases",
+            "daily_deaths",
+        ]
 
         # Multiply column by N, then at end divide by aggregated N
         pop_mean_cols = ["case_reporting_rate", "R_eff", "doubling_t"]
