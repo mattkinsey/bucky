@@ -180,8 +180,8 @@ class buckyModelCovid:
                 hhs_curr_data = hhs_data.loc[hhs_data.date == str(self.first_date)]
                 hhs_curr_data = hhs_curr_data.set_index("adm1")
                 tot_hosps = (
-                    hhs_curr_data.total_adult_patients_hospitalized_confirmed_and_suspected_covid
-                    + hhs_curr_data.total_pediatric_patients_hospitalized_confirmed_and_suspected_covid
+                    hhs_curr_data.total_adult_patients_hospitalized_confirmed_covid
+                    + hhs_curr_data.total_pediatric_patients_hospitalized_confirmed_covid
                 )
                 self.adm1_current_hosp[tot_hosps.index.to_numpy()] = tot_hosps.to_numpy()
 
