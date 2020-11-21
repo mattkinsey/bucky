@@ -1,5 +1,6 @@
 """ Class to read and store all the data from the bucky input graph."""
 import logging
+from functools import partial
 
 import networkx as nx
 
@@ -27,8 +28,14 @@ class buckyGraphData:
         self.max_adm2 = xp.to_cpu(xp.max(self.adm2_id))
         self.max_adm1 = xp.to_cpu(xp.max(self.adm1_id))
 
-        # self.Aij, self.A_diag = _read_edge_mat(G, sparse=sparse)
         self.Aij = buckyAij(G, sparse)
+
+        # TODO move this params to config?
+        self._rolling_mean_type = "arithmetic"
+        self._rolling_mean_window_size = 7
+        self.rolling_mean_func = partial(
+            rolling_mean, window_size=self._rolling_mean_window_size, axis=0, mean_type=self._rolling_mean_type
+        )
 
     # TODO maybe provide a decorator or take a lambda or something to generalize it?
     # also this would be good if it supported rolling up to adm0 for multiple countries
@@ -41,21 +48,23 @@ class buckyGraphData:
         xp.scatter_add(out, self.adm1_id, adm2_arr)
         return out
 
+    # TODO other adm1 reductions (like harmonic mean)
+
     @cached_property
     def rolling_inc_cases(self):
-        return rolling_mean(self.inc_case_hist, 7, 0)
+        return self.rolling_mean_func(self.inc_case_hist)
 
     @cached_property
     def rolling_inc_deaths(self):
-        return rolling_mean(self.inc_death_hist, 7, 0)
+        return self.rolling_mean_func(self.inc_death_hist)
 
     @cached_property
     def rolling_cum_cases(self):
-        return rolling_mean(self.cum_case_hist, 7, 0)
+        return self.rolling_mean_func(self.cum_case_hist)
 
     @cached_property
     def rolling_cum_deaths(self):
-        return rolling_mean(self.cum_death_hist, 7, 0)
+        return self.rolling_mean_func(self.cum_death_hist)
 
 
 def _read_node_attr(G, name, diff=False, dtype=float, a_min=None, a_max=None):
@@ -74,21 +83,58 @@ def _read_node_attr(G, name, diff=False, dtype=float, a_min=None, a_max=None):
     return arr
 
 
+# TODO move all these rolling mean stuff to util
+def rolling_mean(arr, window_size=7, axis=0, weights=None, mean_type="arithmetic"):
+
+    # we could probably just pass args/kwargs...
+    if mean_type == "arithmetic":
+        return rolling_arithmetic_mean(arr, window_size, axis, weights)
+    elif mean_type == "geometric":
+        return rolling_geometric_mean(arr, window_size, axis, weights)
+    elif mean_type == "harmonic":
+        return rolling_harmonic_mean(arr, window_size, axis, weights)
+    else:
+        raise RuntimeError  # TODO what type of err should go here?
+
+
 # TODO move to util?
-def rolling_mean(arr, window_size=7, axis=0):
+def rolling_arithmetic_mean(arr, window_size=7, axis=0, weights=None):
     arr = xp.swapaxes(arr, axis, -1)
     shp = arr.shape[:-1] + (arr.shape[-1] - window_size + 1,)
     rolling_arr = xp.empty(shp)
-    window = xp.ones(window_size)
+    if weights is None:
+        window = xp.ones(window_size) / window_size
+    else:
+        window = weights / xp.sum(weights)
     arr = arr.reshape(-1, arr.shape[-1])
     for i in range(arr.shape[0]):
-        rolling_arr[i] = xp.convolve(arr[i], window, mode="valid") / window_size
+        rolling_arr[i] = xp.convolve(arr[i], window, mode="valid")
+        rolling_arr = rolling_arr.reshape(shp)
+    rolling_arr = xp.swapaxes(rolling_arr, axis, -1)
+    return rolling_arr
+
+
+def rolling_geometric_mean(arr, window_size, axis=0, weights=None):
+    # add support for weights (need to use a log identity)
+    if weights is not None:
+        raise NotImplementedError
+    arr = xp.swapaxes(arr, axis, -1)
+    shp = arr.shape[:-1] + (arr.shape[-1] - window_size + 1,)
+    rolling_arr = xp.empty(shp)
+    window = xp.ones(window_size) / window_size
+    arr = arr.reshape(-1, arr.shape[-1])
+    log_abs_arr = xp.log(xp.abs(arr))
+    neg_mask = arr < 0.0
+    log_abs_arr[xp.abs(arr) < 1.0] = -1000.0
+    for i in range(arr.shape[0]):
+        tmp = xp.convolve(log_abs_arr[i], window, mode="valid")
+        n_neg = xp.convolve(1.0 * neg_mask[i], xp.ones(window_size), mode="valid")
+        # n_neg = xp.sum(arr[i] < 0.)
+        rolling_arr[i] = ((-1.0) ** n_neg) ** (1.0 / window_size) * xp.exp(tmp)
     rolling_arr = rolling_arr.reshape(shp)
     rolling_arr = xp.swapaxes(rolling_arr, axis, -1)
     return rolling_arr
 
 
-def _mat_norm(mat, axis=0):
-    mat_norm = 1.0 / mat.sum(axis=axis)  # this returns a np.matrix if mat is scipy.sparse
-    mat_norm = xp.array(A_norm)
-    # TODO check type of mat (if sparse we handle differently)
+def rolling_harmonic_mean(arr, window_size, axis=0, weights=None):
+    raise NotImplementedError
