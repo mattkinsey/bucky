@@ -35,7 +35,7 @@ warnings.simplefilter(action="ignore", category=RuntimeWarning)
 class SimulationException(Exception):
     """A generic exception to throw when there's an error related to the simulation"""
 
-    pass
+    pass  # pylint: disable=unnecessary-pass
 
 
 @lru_cache(maxsize=None)
@@ -92,7 +92,8 @@ class buckyModelCovid:
 
     def load_graph(self, graph_file):
         """Load the graph data and calculate all the variables that are static across MC runs"""
-        # TODO refactor to just ahve this return g_data (it's currently the code block that used to be at the top of reset)
+        # TODO refactor to just ahve this return g_data
+        # (it's currently the code block that used to be at the top of reset)
 
         logging.info("loading graph")
         with open(graph_file, "rb") as f:
@@ -227,7 +228,7 @@ class buckyModelCovid:
             adm1_F_fac[xp.isnan(adm1_F_fac)] = 1.0
 
             # F_RR_fac = truncnorm(xp, 1.0, self.consts.reroll_variance, size=adm1_F_fac.size, a_min=1e-6)
-            adm1_F_fac = adm1_F_fac  # * F_RR_fac
+            # adm1_F_fac = adm1_F_fac * F_RR_fac
             adm1_F_fac = xp.clip(adm1_F_fac, a_min=0.1, a_max=10.0)  # prevent extreme values
             if self.debug:
                 logging.debug("adm1 cfr rescaling factor: " + pformat(adm1_F_fac))
@@ -469,11 +470,6 @@ class buckyModelCovid:
         doubling_t = xp.repeat(adm0_doubling_t[:, None], cases.shape[-1], axis=1)
 
         # adm1
-        # cases_adm1 = xp.zeros((self.g_data.max_adm1 + 1, days_back), dtype=float)
-        # cases_old_adm1 = xp.zeros((self.g_data.max_adm1 + 1, days_back), dtype=float)
-
-        # xp.scatter_add(cases_adm1, self.g_data.adm1_id, cases.T)
-        # xp.scatter_add(cases_old_adm1, self.g_data.adm1_id, cases_old.T)
         cases_adm1 = self.g_data.sum_adm1(cases.T)
         cases_old_adm1 = self.g_data.sum_adm1(cases_old.T)
 

@@ -170,7 +170,7 @@ def use_cupy(optimize=False):
 
     bucky.xp = cp
 
-    import cupyx.scipy.sparse as xp_sparse  # pylint: disable=import-outside-toplevel
+    import cupyx.scipy.sparse as xp_sparse  # pylint: disable=import-outside-toplevel, redefined-outer-name
 
     bucky.xp_sparse = xp_sparse
 
