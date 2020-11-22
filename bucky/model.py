@@ -772,10 +772,10 @@ class buckyModelCovid:
 
         # prepend the min cumulative cases over the last 2 days in case in the decreased
         prepend_cases = xp.minimum(self.g_data.cum_case_hist[-2], self.g_data.cum_case_hist[-1])
-        daily_cases_reported = xp.diff(out.incC, axis=-1, prepend=prepend_cases[:, None])
+        daily_reported_cases = xp.diff(out.incC, axis=-1, prepend=prepend_cases[:, None])
         cum_cases_reported = out.incC
 
-        init_inc_case_mean = xp.mean(xp.sum(daily_cases_reported[:, 1:4], axis=0))
+        init_inc_case_mean = xp.mean(xp.sum(daily_reported_cases[:, 1:4], axis=0))
         hist_inc_case_mean = xp.mean(xp.sum(self.g_data.inc_case_hist[-7:], axis=-1))
 
         inc_case_rejection_fac = 1.5  # TODO These should come from the cli arg -r
@@ -786,7 +786,7 @@ class buckyModelCovid:
             logging.info("Inconsistent inc cases, rejecting run")
             raise SimulationException
 
-        daily_cases_total = daily_cases_reported / self.params.CASE_REPORT[:, None]
+        daily_cases_total = daily_reported_cases / self.params.CASE_REPORT[:, None]
         cum_cases_total = cum_cases_reported / self.params.CASE_REPORT[:, None]
 
         out.incH[:, 0] = out.incH[:, 1]
@@ -811,7 +811,7 @@ class buckyModelCovid:
             "cumulative_deaths": out.D,
             "daily_hospitalizations": daily_hosp.ravel(),
             "daily_cases": daily_cases_total.ravel(),
-            "daily_reported_cases": daily_cases_reported.ravel(),
+            "daily_reported_cases": daily_reported_cases.ravel(),
             "daily_deaths": daily_deaths.ravel(),
             "cumulative_cases": cum_cases_total.ravel(),
             "cumulative_reported_cases": cum_cases_reported.ravel(),
