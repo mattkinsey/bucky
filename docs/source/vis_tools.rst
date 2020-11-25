@@ -7,7 +7,7 @@ The Bucky model includes visualization tools for creating line plots with confid
 Plots
 -----
 
-By default (i.e. without additional arguments), ``bucky.viz.plot`` creates line plots at the national and state level for the columns ``daily_reported_cases`` and ``daily_deaths`` for the most recently postprocessed simulation data. Historical data can be added using the ``--hist`` flag. For a full list of parameters and options, see :doc:`viz module documentation <autosummary/bucky.viz>`.
+By default (i.e. without additional arguments), ``bucky.viz.plot`` creates line plots at the national and state level for the columns ``daily_reported_cases`` and ``daily_deaths`` for the most recently postprocessed simulation data. Historical data can be added using the ``--hist`` flag. For a full list of parameters and options, see TODO linkhere to documentation.
 
 To illustrate the different available geographic levels, example plots are shown below for the United States, California, and California's Riverside county. These plots include historical data and all available confidence intervals. 
 
@@ -46,27 +46,3 @@ The mapping tool uses Matplotlib colormaps, defaulting to Reds. To use a differe
 
 .. image:: _static/adm1_CaliforniaCumulativeReportedCasesper100,0002020-12-17_plasma.png
     :width: 1000
-
-CONUS Maps
-++++++++++
-
-Lookup tables can be used to create maps for a subset of data, e.g. the continental US. Two lookup tables are provided: ``CONUS_state.lookup`` and ``CONUS_county.lookup``, for the state and county level respectively.
-
-.. image:: _static/adm0_ADM0DailyReportedCasesper100,0002020-11-24.png
-    :width: 1000
-
-.. image:: _static/adm1_ContinentalUSDailyReportedCasesper100,0002020-11-24.png
-    :width: 1000
-
-For example, to create the state-level CONUS map above, run the following command:
-
-.. code-block:: bash
-
-    ./bmodel viz.map --adm0 --columns daily_reported_cases_per_100k --lookup data/lookup_tables/CONUS_state.lookup
-
-
-For the county-level map:
-
-.. code-block:: bash
-
-    ./bmodel viz.map --all_adm1 --columns daily_reported_cases_per_100k --lookup data/lookup_tables/CONUS_county.lookup 
