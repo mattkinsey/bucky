@@ -68,15 +68,10 @@ class buckyModelCovid:
         # w/ override (maybe when #adm2 > 5k and some sparsity critera?)
 
         # Integrator params
-        self.t = 0.0
         self.dt = 1.0  # time step for model output (the internal step is adaptive...)
         self.t_max = t_max
-        self.done = False
         self.run_id = get_runid()
         logging.info(f"Run ID: {self.run_id}")
-
-        self.g_data = None
-        self.graph_file = graph_file
 
         self.npi_file = npi_file
         self.disable_npi = disable_npi
@@ -88,7 +83,8 @@ class buckyModelCovid:
         self.bucky_params = buckyParams(par_file)
         self.consts = self.bucky_params.consts
 
-        self.load_graph(self.graph_file)
+        self.g_data = None
+        self.load_graph(graph_file)
 
     def load_graph(self, graph_file):
         """Load the graph data and calculate all the variables that are static across MC runs"""
@@ -185,9 +181,7 @@ class buckyModelCovid:
             np.random.seed(seed)
             xp.random.seed(seed)
 
-        self.t = 0.0
         self.iter = 0
-        self.done = False
 
         # reroll model params if we're doing that kind of thing
         self.g_data.Aij.perturb(self.consts.reroll_variance)
