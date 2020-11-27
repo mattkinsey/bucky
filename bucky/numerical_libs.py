@@ -157,7 +157,7 @@ def use_cupy(optimize=False):
 
     # Add a version of np.r_ to cupy that just calls numpy
     # has to be a class b/c r_ uses sq brackets
-    class cp_r_:
+    class cp_r_:  # pylint: disable=too-few-public-methods
         """Hackish version of a cupy version of r_.
 
         It just uses numpy and wraps it to have the same signature.
@@ -169,7 +169,7 @@ def use_cupy(optimize=False):
 
     cp.r_ = cp_r_()
 
-    import cupyx.scipy.special
+    import cupyx.scipy.special  # pylint: disable=import-outside-toplevel
 
     cp.special = cupyx.scipy.special
 
