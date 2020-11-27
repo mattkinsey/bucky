@@ -881,7 +881,7 @@ def main(args=None):
 
     def writer():
         # Call to_write.get() until it returns None
-        stream = xp.cuda.Stream() if args.gpu else None
+        stream = xp.cuda.Stream(non_blocking=True) if args.gpu else None
         for base_fname, df_data in iter(to_write.get, None):
             cpu_data = {k: xp.to_cpu(v, stream=stream) for k, v in df_data.items()}
             if stream is not None:
