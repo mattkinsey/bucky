@@ -31,11 +31,14 @@ class buckyGraphData:
 
         self.Aij = buckyAij(G, sparse, a_min=0.0)
 
-        # TODO move this params to config?
-        self._rolling_mean_type = "arithmetic"
+        # TODO move these params to config?
+        self._rolling_mean_type = "arithmetic"  # "geometric"
         self._rolling_mean_window_size = 7
-        self.rolling_mean_func = partial(
+        self.rolling_mean_func_cum = partial(
             rolling_mean, window_size=self._rolling_mean_window_size, axis=0, mean_type=self._rolling_mean_type
+        )
+        self.rolling_mean_func_inc = partial(
+            rolling_mean, window_size=self._rolling_mean_window_size, axis=0, mean_type="arithmetic"
         )
 
     # TODO maybe provide a decorator or take a lambda or something to generalize it?
@@ -55,19 +58,21 @@ class buckyGraphData:
 
     @cached_property
     def rolling_inc_cases(self):
-        return self.rolling_mean_func(self.inc_case_hist)
+        # return self.rolling_mean_func_inc(self.inc_case_hist)
+        return xp.diff(self.rolling_cum_cases, axis=0)
 
     @cached_property
     def rolling_inc_deaths(self):
-        return self.rolling_mean_func(self.inc_death_hist)
+        # return self.rolling_mean_func_inc(self.inc_death_hist)
+        return xp.diff(self.rolling_cum_deaths, axis=0)
 
     @cached_property
     def rolling_cum_cases(self):
-        return self.rolling_mean_func(self.cum_case_hist)
+        return self.rolling_mean_func_cum(self.cum_case_hist)
 
     @cached_property
     def rolling_cum_deaths(self):
-        return self.rolling_mean_func(self.cum_death_hist)
+        return self.rolling_mean_func_cum(self.cum_death_hist)
 
 
 def _read_node_attr(G, name, diff=False, dtype=float, a_min=None, a_max=None):
