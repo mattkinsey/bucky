@@ -107,9 +107,12 @@ def read_lookup(geofile, country="US"):
     df["adm0"] = country
     df["adm0_name"] = country
 
-    # Create adm1 codes
-    df["adm1"] = df["adm1_name"].astype("category").cat.codes
     df["adm2"] = df["adm2"].astype(int)
+
+    # Create adm1 codes if not provided
+    if "adm1" not in df.columns:
+        df["adm1"] = df["adm1_name"].astype("category").cat.codes
+
     df["adm1"] = df["adm1"].astype(int)
 
     # Drop FEMA region if it exists
