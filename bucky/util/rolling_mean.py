@@ -17,6 +17,7 @@ def rolling_mean(arr, window_size=7, axis=0, weights=None, mean_type="arithmetic
 
 
 def _rolling_arithmetic_mean(arr, window_size=7, axis=0, weights=None):
+    """Compute a rolling arithmetic mean"""
     arr = xp.swapaxes(arr, axis, -1)
     shp = arr.shape[:-1] + (arr.shape[-1] - window_size + 1,)
     rolling_arr = xp.empty(shp)
@@ -33,6 +34,7 @@ def _rolling_arithmetic_mean(arr, window_size=7, axis=0, weights=None):
 
 
 def _rolling_geometric_mean(arr, window_size, axis=0, weights=None):
+    """Compute a rolling geometric mean"""
     # add support for weights (need to use a log identity)
     if weights is not None:
         raise NotImplementedError
@@ -55,4 +57,5 @@ def _rolling_geometric_mean(arr, window_size, axis=0, weights=None):
 
 
 def _rolling_harmonic_mean(arr, window_size, axis=0, weights=None):
+    """Compute a rolling harmonic mean"""
     raise NotImplementedError

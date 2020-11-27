@@ -1,4 +1,6 @@
-# TODO break into file now that we have the utils submodule (also update __init__)
+"""Generic utility functions/classes used in the model."""
+
+# TODO break into files now that we have the utils submodule (also update __init__)
 
 import copy
 import logging
@@ -8,12 +10,19 @@ import pandas as pd
 import tqdm
 
 
-# https://stackoverflow.com/questions/38543506/change-logging-print-function-to-tqdm-write-so-logging-doesnt-interfere-wit
 class TqdmLoggingHandler(logging.Handler):
+    """Logging handler that is friendly with tqdm.
+
+    See https://stackoverflow.com/questions/38543506/change-logging-print-function-to-tqdm-write-so-logging-doesnt-interfere-wit
+    """
+
     def __init__(self, level=logging.NOTSET):  # pylint: disable=useless-super-delegation
+        """Init handler."""
         super().__init__(level)
 
     def emit(self, record):
+        """Emit message."""
+
         try:
             msg = self.format(record)
             tqdm.tqdm.write(msg)
@@ -32,11 +41,12 @@ class dotdict(dict):
     __delattr__ = dict.__delitem__
 
     def __deepcopy__(self, memo=None):
-        """return a deepcopy of the dict"""
+        """Return a deepcopy of the dict."""
         return dotdict({key: copy.deepcopy(value) for key, value in self.items()})
 
 
 def remove_chars(seq):
+    """Remove all non digit characters from a string, but cleanly passthrough non strs."""
     seq_type = type(seq)
     if seq_type != str:
         return seq
@@ -45,6 +55,10 @@ def remove_chars(seq):
 
 
 def map_np_array(a, d):
+    """Function similar to pandas map but for np arrays.
+
+    .. deprecated:: 0.8.0
+    """
     n = np.ndarray(a.shape)
     for k in d:
         n[a == k] = d[k]
@@ -52,12 +66,17 @@ def map_np_array(a, d):
 
 
 def estimate_IFR(age):
-    # from best fit in https://www.medrxiv.org/content/10.1101/2020.07.23.20160895v4.full.pdf
+    """Estimate the best fit IFR for a given age.
+
+    See https://www.medrxiv.org/content/10.1101/2020.07.23.20160895v4.full.pdf for the fit
+    """
+
     # std err is 0.17 on the const and 0.003 on the linear term
     return np.exp(-7.56 + 0.121 * age) / 100.0
 
 
 def bin_age_csv(filename, out_filename):
+    """Group ages in the Census csv to match the bins used by Prem et al."""
     df = pd.read_csv(filename, header=None, names=["fips", "age", "N"])
     pop_weighted_IFR = df.N.to_numpy() * estimate_IFR(df.age.to_numpy())
     df = df.assign(IFR=pop_weighted_IFR)
@@ -70,11 +89,13 @@ def bin_age_csv(filename, out_filename):
 
 
 def date_to_t_int(dates, start_date):
+    """Find the indices of a list of dates internally used by time indexed arrays in the modeli."""
+    # TODO handle varied dt
     return np.array([(date - start_date).days for date in dates], dtype=int)
 
 
 def _banner():
-    """It's a banner for the CLI..."""
+    """A banner for the CLI."""
     print(r" ____             _          ")  # noqa: T001
     print(r"| __ ) _   _  ___| | ___   _ ")  # noqa: T001
     print(r"|  _ \| | | |/ __| |/ / | | |")  # noqa: T001

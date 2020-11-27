@@ -7,11 +7,17 @@ from .numerical_libs import reimport_numerical_libs, xp, xp_sparse
 from .util.distributions import truncnorm
 
 
+# TODO sprase diag will be added to cupy v9.0.0a2 so we won't need to track it after that
 class buckyAij:
+    """Class that handles the adjacency matrix for the model, generalizes between dense/sparse."""
+
     def __init__(self, G, sparse=True, a_min=0.0):
+        """Initialize the stored matrix off of the edges of a networkx graph."""
+
         reimport_numerical_libs()
 
         self.sparse = sparse
+        # TODO handle different attr names for edge weight
         self._base_Aij, self._base_Aij_diag = _read_edge_mat(G, sparse=sparse, a_min=a_min)
         if self.sparse:
             self._indptr_sorted = _csr_is_ind_sorted(self._base_Aij)
@@ -66,9 +72,8 @@ class buckyAij:
 
 
 def _read_edge_mat(G, weight_attr="weight", sparse=True, a_min=0.0):
+    """Read the adj matrix of a networkx graph and convert it to the cupy/scipy format."""
     edges = xp.array(list(G.edges(data=weight_attr))).T
-    # from IPython import embed
-    # embed()
     # TODO fix: edges = edges.T[edges[2] <= a_min].T  # clip edges with weight < a_min
     A = xp_sparse.coo_matrix((edges[2], (edges[0].astype(int), edges[1].astype(int))))
     A = A.tocsr()  # just b/c it will do this for almost every op on the array anyway...

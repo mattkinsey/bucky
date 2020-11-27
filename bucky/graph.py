@@ -13,6 +13,7 @@ class buckyGraphData:
     """Contains and preprocesses all the data imported from an input graph file."""
 
     def __init__(self, G, sparse=True):
+        """Initialize the input data into cupy/numpy, reading it from a networkx graph"""
 
         reimport_numerical_libs()
 

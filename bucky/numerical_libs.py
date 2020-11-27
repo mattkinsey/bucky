@@ -109,6 +109,12 @@ def use_cupy(optimize=False):
     if ~hasattr(cp, "searchsorted"):
         # NB: this isn't correct in general but it works for what scipy solve_ivp needs...
         def cp_searchsorted(a, v, side="right", sorter=None):
+            """Provide a cupy version of search sorted thats good enough for scipy.ivp
+
+            This was added to cupy sometime between v6.0.0 and v7.0.0 so it won't be needed for up to date installs.
+
+            .. warning:: This isn't correct in general but it works for what scipy.ivp needs..
+            """
             if side != "right":
                 raise NotImplementedError
             if sorter is not None:

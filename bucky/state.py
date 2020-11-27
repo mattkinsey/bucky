@@ -9,6 +9,7 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
     """Class to manage the state of the bucky compartments (and their indices)."""
 
     def __init__(self, consts, Nij, state=None):
+        """Initialize the compartment indices and the state vector using the calling modules numerical libs"""
 
         reimport_numerical_libs()
 
