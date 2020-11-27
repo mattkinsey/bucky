@@ -1,4 +1,4 @@
-"""utilities to read historical data that cooresponds to a bucky output file"""
+"""utilities to read historical data that cooresponds to a bucky output file."""
 import glob
 import logging
 import os
@@ -42,7 +42,7 @@ data_locations = {
 
 
 def add_daily_history(history_data, window_size=None):
-    """Applies a window to cumulative historical data to get daily data.
+    """Return daily historical data from a diff of the historical cumulative data.
 
     Parameters
     ----------
@@ -87,7 +87,7 @@ def add_daily_history(history_data, window_size=None):
 
 
 def get_historical_data(columns, level, lookup_df, window_size, hist_file):
-    """Gets historical data for the columns requested.
+    """Return historical data for requested columns.
 
     Parameters
     ----------
@@ -192,4 +192,4 @@ if __name__ == "__main__":
     for level in levels:
 
         df = get_historical_data(cols, level, look, 7, None)
-        print(df)
+        logging.info(df)

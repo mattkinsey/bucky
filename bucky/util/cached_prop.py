@@ -1,21 +1,19 @@
 """Cached property descript that will only eval on first access.
 
-From https://stackoverflow.com/questions/4037481/caching-class-attributes-in-python"""
+From https://stackoverflow.com/questions/4037481/caching-class-attributes-in-python
+"""
 
 
 class cached_property(object):
-    """
-    Descriptor (non-data) for building an attribute on-demand on first use.
-    """
+    """Descriptor (non-data) for building an attribute on-demand on first use."""
 
     def __init__(self, factory):
-        """
-        <factory> is called such: factory(instance) to build the attribute.
-        """
+        """Init the function as a factory so that factory(instance) will build the attribute."""
         self._attr_name = factory.__name__
         self._factory = factory
 
     def __get__(self, instance, owner):
+        """Get either the evaluated property or its cached value."""
         # Build the attribute.
         attr = self._factory(instance)
 

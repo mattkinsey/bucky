@@ -1,11 +1,12 @@
-""" Provides a class to hold the internal state vector to the compartment model (and track compartment indices)
-"""
+"""Provide a class to hold the internal state vector to the compartment model (and track compartment indices)."""
+
+import contextlib
 
 from .numerical_libs import reimport_numerical_libs, xp
 
 
 class buckyState:  # pylint: disable=too-many-instance-attributes
-    """Class to manage the state of the bucky compartments (and their indices)"""
+    """Class to manage the state of the bucky compartments (and their indices)."""
 
     def __init__(self, consts, Nij, state=None):
 
@@ -45,19 +46,18 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
             self.state = state
 
     def __getattribute__(self, attr):
-        """Allow for . access to the compartment indices, otherwise return the 'normal' attribute"""
-        try:
+        """Allow for . access to the compartment indices, otherwise return the 'normal' attribute."""
+        with contextlib.suppress(AttributeError):
             if attr in super().__getattribute__("indices"):
                 out = self.state[self.indices[attr]]
                 if out.shape[0] == 1:
                     out = xp.squeeze(out, axis=0)
                 return out
-        except AttributeError:
-            pass
+
         return super().__getattribute__(attr)
 
     def __setattr__(self, attr, x):
-        """Allow setting of compartments using . notation, otherwise default to normal attribute behavior"""
+        """Allow setting of compartments using . notation, otherwise default to normal attribute behavior."""
         try:
             if attr in super().__getattribute__("indices"):
                 # TODO check that its a slice otherwise this wont work so we should warn
@@ -69,9 +69,9 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
 
     @property
     def state_shape(self):
-        """The shape of the internal state ndarray"""
+        """Return the shape of the internal state ndarray."""
         return (self.n_compartments, self.n_age_grps, self.n_nodes)
 
     def init_S(self):
-        """Init the S compartment such that N=1"""
+        """Init the S compartment such that N=1."""
         self.S = 1.0 - xp.sum(self.state, axis=0)

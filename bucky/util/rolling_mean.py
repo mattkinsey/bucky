@@ -1,15 +1,16 @@
-""" Provides generic rolling Pythagorean means over cupy/numpy ndarrays"""
+"""Provides generic rolling Pythagorean means over cupy/numpy ndarrays."""
 from ..numerical_libs import reimport_numerical_libs, xp
 
 
 def rolling_mean(arr, window_size=7, axis=0, weights=None, mean_type="arithmetic"):
+    """Calculate a rolling mean over a numpy/cupy ndarray."""
     reimport_numerical_libs()
     # we could probably just pass args/kwargs...
     if mean_type == "arithmetic":
         return _rolling_arithmetic_mean(arr, window_size, axis, weights)
     elif mean_type == "geometric":
         return _rolling_geometric_mean(arr, window_size, axis, weights)
-    elif mean_type == "harmonic":
+    elif mean_type == "harmonic":  # noqa: SIM106
         return _rolling_harmonic_mean(arr, window_size, axis, weights)
     else:
         raise RuntimeError  # TODO what type of err should go here?

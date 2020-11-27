@@ -1,4 +1,4 @@
-""" Provides any probability distributions used by the model that aren't in numpy/cupy."""
+"""Provide probability distributions used by the model that aren't in numpy/cupy."""
 
 import numpy as np
 import scipy.special as sc
@@ -9,7 +9,7 @@ from ..numerical_libs import reimport_numerical_libs, xp
 # TODO only works on cpu atm
 # we'd need to implement betaincinv ourselves in cupy
 def mPERT_sample(mu, a=0.0, b=1.0, gamma=4.0, var=None):
-    """Provides a vectorized Modified PERT distribution.
+    """Provide a vectorized Modified PERT distribution.
 
     Parameters
     ----------
@@ -43,7 +43,7 @@ def mPERT_sample(mu, a=0.0, b=1.0, gamma=4.0, var=None):
 
 
 def truncnorm(loc=0.0, scale=1.0, size=1, a_min=None, a_max=None):
-    """Provides a vectorized truncnorm implementation that is compatible with cupy.
+    """Provide a vectorized truncnorm implementation that is compatible with cupy.
 
     The output is calculated by using the numpy/cupy random.normal() and
     truncted via rejection sampling. The interface is intended to mirror

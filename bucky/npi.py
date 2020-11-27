@@ -1,4 +1,4 @@
-"""Module to parse npi csv files"""
+"""Module to parse npi csv files."""
 import datetime
 import logging
 
@@ -22,7 +22,8 @@ def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
     adm2_map : NumPy array
         Array of adm2 IDs
     disable_npi : bool (default: False)
-        Bool indicating whether NPIs should be disabled
+        Bool indicating whether NPIs should be disabled after being initialized for the first day
+
     Returns
     -------
     npi_params : dict

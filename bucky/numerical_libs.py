@@ -31,13 +31,14 @@ bucky.xp_ivp = xp_ivp
 
 
 class ExperimentalWarning(Warning):
-    """Simple class to mock the optuna warning if we don't have optuna"""
+    """Simple class to mock the optuna warning if we don't have optuna."""
 
 
 xp.ExperimentalWarning = ExperimentalWarning
 
 
 def reimport_numerical_libs():
+    """Reimport xp, xp_sparse, xp_ivp from the global context (in case they've been update to cupy)."""
     for lib in ("xp", "xp_sparse", "xp_ivp"):
         caller_globals = dict(inspect.getmembers(inspect.stack()[1][0]))["f_globals"]
         if lib in caller_globals:
@@ -89,7 +90,7 @@ def use_cupy(optimize=False):
 
     # modify src before importing
     def modify_and_import(module_name, package, modification_func):
-        """Return and imported class after applying the modification function to the source files"""
+        """Return an imported class after applying the modification function to the source files."""
         spec = importlib.util.find_spec(module_name, package)
         source = spec.loader.get_source(module_name)
         new_source = modification_func(source)
@@ -147,7 +148,7 @@ def use_cupy(optimize=False):
         cp.ExperimentalWarning = ExperimentalWarning
 
     def cp_to_cpu(x, stream=None, out=None):
-        """Function that will take a np/cupy array but will always return it in host memory (as an np array)"""
+        """Take a np/cupy array and always return it in host memory (as an np array)."""
         if "cupy" in type(x).__module__:
             return x.get(stream=stream, out=out)
         return x
@@ -157,9 +158,13 @@ def use_cupy(optimize=False):
     # Add a version of np.r_ to cupy that just calls numpy
     # has to be a class b/c r_ uses sq brackets
     class cp_r_:
-        """Hackish version of a cupy version of r_ (it just uses numpy and wraps it to have the same signature)"""
+        """Hackish version of a cupy version of r_.
+
+        It just uses numpy and wraps it to have the same signature.
+        """  # noqa: RST306
 
         def __getitem__(self, inds):
+            """Call np.r_ and case the result to cupy."""  # noqa: RST306
             return cp.array(np.r_[inds])
 
     cp.r_ = cp_r_()

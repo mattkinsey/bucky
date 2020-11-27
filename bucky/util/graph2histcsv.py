@@ -1,4 +1,4 @@
-"""Creates a CSSE formated case/death history file from the data on an input graph"""
+"""Creates a CSSE formated case/death history file from the data on an input graph."""
 import argparse
 import pickle
 

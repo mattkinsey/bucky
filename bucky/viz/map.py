@@ -1,7 +1,4 @@
-"""
-===================================================
-Bucky Mapping Tools (:mod:`bucky.viz.map`)
-===================================================
+"""Bucky Mapping Tools.
 
 Creates maps at the ADM0, ADM1, or ADM2 level.
 """
@@ -204,7 +201,7 @@ def get_dates(df, frequency="weekly"):
 
 
 def get_map_data(data_dir, adm_level):
-    """Reads requested simulation data.
+    """Read requested simulation data.
 
     Maps are created using one level down from the requested map level.
     For example, a national map is created using state-level data.
@@ -247,7 +244,7 @@ def make_map(
     colormap="Reds",
     outline_df=None,
 ):
-    """Creates a map for each date and column.
+    """Create a map for each date and column.
 
     Parameters
     ----------
@@ -397,7 +394,7 @@ def make_adm1_maps(
     colormap="Reds",
     add_outline=False,
 ):
-    """Creates adm1 maps.
+    """Create adm1 maps.
 
     Parameters
     ----------
