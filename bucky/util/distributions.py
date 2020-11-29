@@ -13,21 +13,21 @@ def mPERT_sample(mu, a=0.0, b=1.0, gamma=4.0, var=None):
 
     Parameters
     ----------
-    mu : float, array_like
+    mu : float or ndarray
         Mean value for the PERT distribution.
-    a : float, array_like
+    a : float or ndarray
         Lower bound for the distribution.
-    b : float, array_like
+    b : float or ndarray
         Upper bound for the distribution.
-    gamma : float, array_like
+    gamma : float or ndarray
         Shape paramter.
-    var : float, array_like, None
+    var : float, ndarray or None
         Variance of the distribution. If var != None,
         gamma will be calcuated to meet the desired variance.
 
     Returns
     -------
-    out : float, array_like
+    out : float or ndarray
         Samples drawn from the specified mPERT distribution.
         Shape is the broadcasted shape of the the input parameters.
 

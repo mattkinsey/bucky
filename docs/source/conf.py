@@ -41,7 +41,7 @@ master_doc = "index"
 # -- General configuration ---------------------------------------------------
 
 extensions = [
-    "sphinx.ext.autodoc",
+    # "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx_rtd_theme",
     "sphinx.ext.mathjax",
@@ -69,6 +69,7 @@ autoapi_options = [
     "special-members",
 ]
 
+napoleon_google_docstring = False
 napoleon_numpy_docstring = True
 napoleon_include_private_with_doc = True
 napoleon_include_special_with_doc = True
@@ -76,6 +77,12 @@ napoleon_use_admonition_for_examples = True
 napoleon_use_admonition_for_notes = True
 napoleon_use_admonition_for_references = True
 napoleon_use_ivar = True
+napoleon_use_param = True
+napoleon_preprocess_types = True
+
+napoleon_type_aliases = {
+    "ndarray": ":class:`numpy.ndarray` or :class:`cupy.ndarray` if using CuPy",
+}
 
 # Be picky about warnings
 nitpicky = True

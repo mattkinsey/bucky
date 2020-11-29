@@ -100,7 +100,7 @@ def get_historical_data(columns, level, lookup_df, window_size, hist_file):
         levels
     window_size : int
         Size of window in days
-    hist_file : string or None
+    hist_file : str or None
         Historical data file to use if not using defaults.
 
     Returns

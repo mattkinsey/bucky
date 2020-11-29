@@ -349,7 +349,7 @@ def make_plots(
     end_date : str
         Plot data until this date. Must be formatted as YYYY-MM-DD.
         If None, uses last date in simulation.
-    hist_file : string
+    hist_file : str
         Path to historical data file. If None, uses either CSSE or
         Covid Tracking data depending on columns requested.
     min_hist_points : int

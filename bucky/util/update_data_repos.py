@@ -267,7 +267,7 @@ def get_county_population_data(csse_deaths_file, county_fips):
     ----------
     csse_deaths_file : str
         filename of CSSE deaths file
-    county_fips: array-like
+    county_fips: numpy.ndarray
         list of FIPS to return population data for
 
 
@@ -344,12 +344,12 @@ def distribute_utah_data(df, csse_deaths_file):
 def distribute_nyc_data(df):
     """Distributes NYC case data across the six NYC counties.
 
+    TODO add deprecation warning b/c csse has fixed this
+
     Parameters
     ----------
     df : pandas.DataFrame
         DataFrame containing historical data indexed by FIPS and date
-
-    TODO add deprecation warning b/c csse has fixed this
 
     Returns
     -------
