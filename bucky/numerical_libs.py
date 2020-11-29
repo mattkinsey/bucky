@@ -30,11 +30,11 @@ bucky.xp_sparse = xp_sparse
 bucky.xp_ivp = xp_ivp
 
 
-class ExperimentalWarning(Warning):
+class MockExperimentalWarning(Warning):
     """Simple class to mock the optuna warning if we don't have optuna."""
 
 
-xp.ExperimentalWarning = ExperimentalWarning
+xp.ExperimentalWarning = MockExperimentalWarning
 
 
 def reimport_numerical_libs():
@@ -141,7 +141,7 @@ def use_cupy(optimize=False):
     if spec is None:
         logging.info("Optuna not installed, kernel opt is disabled")
         cp.optimize_kernels = contextlib.nullcontext
-        cp.ExperimentalWarning = ExperimentalWarning
+        cp.ExperimentalWarning = MockExperimentalWarning
     elif optimize:
         import optuna  # pylint: disable=import-outside-toplevel
 
@@ -151,7 +151,7 @@ def use_cupy(optimize=False):
         cp.ExperimentalWarning = optuna.exceptions.ExperimentalWarning
     else:
         cp.optimize_kernels = contextlib.nullcontext
-        cp.ExperimentalWarning = ExperimentalWarning
+        cp.ExperimentalWarning = MockExperimentalWarning
 
     def cp_to_cpu(x, stream=None, out=None):
         """Take a np/cupy array and always return it in host memory (as an np array)."""
