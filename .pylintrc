@@ -145,6 +145,7 @@ disable=parameter-unpacking,
 	too-many-statements,
 	too-many-arguments,
 	too-many-branches,
+	too-many-instance-attributes,
 	attribute-defined-outside-init,
 	logging-not-lazy, logging-fstring-interpolation
 
