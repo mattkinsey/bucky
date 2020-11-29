@@ -13,15 +13,15 @@ def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
 
     Parameters
     ----------
-    fname : string
+    fname : str
         Filename of NPI file
-    start_date : string
+    start_date : str
         Start date to use
     end_t : int
         Number of days after start date
-    adm2_map : NumPy array
+    adm2_map : :class:`numpy.ndarray` or :class:`cupy.ndarray`
         Array of adm2 IDs
-    disable_npi : bool (default: False)
+    disable_npi : bool, optional
         Bool indicating whether NPIs should be disabled after being initialized for the first day
 
     Returns

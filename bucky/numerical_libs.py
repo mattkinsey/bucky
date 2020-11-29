@@ -3,7 +3,10 @@
 The main goal of this is to smooth over the differences between numpy and cupy so that
 the rest of the code can use them interchangably. We also need to  monkey patch scipy's ivp solver
 to work on cupy arrays.
-.. note:: Linters **HATE** this module because it's really abusing the import system (by design).
+
+Notes
+-----
+Linters **HATE** this module because it's really abusing the import system (by design).
 
 """
 
