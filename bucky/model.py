@@ -83,8 +83,7 @@ class buckyModelCovid:
         self.bucky_params = buckyParams(par_file)
         self.consts = self.bucky_params.consts
 
-        self.g_data = None
-        self.load_graph(graph_file)
+        self.g_data = self.load_graph(graph_file)
 
     def load_graph(self, graph_file):
         """Load the graph data and calculate all the variables that are static across MC runs"""
@@ -97,7 +96,7 @@ class buckyModelCovid:
 
         # Load data from input graph
         # TODO we should go through an replace lots of math using self.g_data.* with function IN buckyGraphData
-        self.g_data = buckyGraphData(G, self.sparse)
+        g_data = buckyGraphData(G, self.sparse)
 
         if "IFR" in G.nodes[list(G.nodes.keys())[0]]:
             logging.info("Using ifr from graph")
@@ -126,8 +125,8 @@ class buckyModelCovid:
         self.Cij = xp.vstack([self.contact_mats[k][None, ...] for k in sorted(self.contact_mats)])
 
         # Get stratified population (and total)
-        self.Nij = self.g_data.Nij
-        self.Nj = self.g_data.Nj
+        self.Nij = g_data.Nij
+        self.Nj = g_data.Nj
         self.n_age_grps = self.Nij.shape[0]  # TODO factor out
 
         n_nodes = self.Nij.shape[-1]  # TODO factor out
@@ -147,7 +146,7 @@ class buckyModelCovid:
         # If HHS hospitalization data is on the graph, use it to rescale initial H counts and CHR
         self.rescale_chr = "hhs_data" in G.graph
         if self.rescale_chr:
-            self.adm1_current_hosp = xp.zeros((self.g_data.max_adm1 + 1,), dtype=float)
+            self.adm1_current_hosp = xp.zeros((g_data.max_adm1 + 1,), dtype=float)
             hhs_data = G.graph["hhs_data"].reset_index()
             hhs_curr_data = hhs_data.loc[hhs_data.date == str(self.first_date)]
             hhs_curr_data = hhs_curr_data.set_index("adm1")
@@ -162,14 +161,16 @@ class buckyModelCovid:
 
         # Estimate the recent CFR during the period covered by the historical data
         cfr_delay = 5
-        last_cases = self.g_data.rolling_cum_cases[-cfr_delay] - self.g_data.rolling_cum_cases[0]
-        last_deaths = self.g_data.rolling_cum_deaths[-1] - self.g_data.rolling_cum_deaths[cfr_delay]
-        adm1_cases = self.g_data.sum_adm1(last_cases.T)
-        adm1_deaths = self.g_data.sum_adm1(last_deaths.T)
+        last_cases = g_data.rolling_cum_cases[-cfr_delay] - g_data.rolling_cum_cases[0]
+        last_deaths = g_data.rolling_cum_deaths[-1] - g_data.rolling_cum_deaths[cfr_delay]
+        adm1_cases = g_data.sum_adm1(last_cases.T)
+        adm1_deaths = g_data.sum_adm1(last_deaths.T)
         self.adm1_current_cfr = adm1_deaths / adm1_cases
 
         if self.debug:
             logging.debug("Current CFR: " + pformat(self.adm1_current_cfr))
+
+        return g_data
 
     def reset(self, seed=None, params=None):
         """Reset the state of the model and generate new inital data from a new random seed"""
