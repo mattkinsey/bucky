@@ -7,7 +7,7 @@ The Bucky model includes visualization tools for creating line plots with confid
 Plots
 -----
 
-By default (i.e. without additional arguments), ``bucky.viz.plot`` creates line plots at the national and state level for the columns ``daily_reported_cases`` and ``daily_deaths`` for the most recently postprocessed simulation data. Historical data can be added using the ``--hist`` flag. For a full list of parameters and options, see TODO linkhere to documentation.
+By default (i.e. without additional arguments), :py:mod:`bucky.viz.plot` creates line plots at the national and state level for the columns ``daily_reported_cases`` and ``daily_deaths`` for the most recently postprocessed simulation data. Historical data can be added using the ``--hist`` flag. For a full list of parameters and options, see TODO linkhere to documentation.
 
 To illustrate the different available geographic levels, example plots are shown below for the United States, California, and California's Riverside county. These plots include historical data and all available confidence intervals. 
 

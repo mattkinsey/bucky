@@ -39,19 +39,19 @@ def get_timeseries_data(col_name, filename, fips_key="FIPS", is_csse=True):
 
     Parameters
     ----------
-    col_name : string
+    col_name : str
         Column name to extract from data.
-    filename : string
+    filename : str
         Location of filename to read.
-    fips_key : string, optional
+    fips_key : str, optional
         Key used in file for indicating county-level field.
-    is_csse : boolean
+    is_csse : bool, optional
         Indicates whether the file is CSSE data. If True, certain areas
         without FIPS are included.
 
     Returns
     -------
-    df : Pandas DataFrame
+    df : pandas.DataFrame
         Dataframe with the historical data indexed by FIPS, date
 
     """
@@ -106,17 +106,17 @@ def distribute_unallocated_csse(confirmed_file, deaths_file, hist_df):
 
     Parameters
     ----------
-    confirmed_file : string
+    confirmed_file : str
         filename of CSSE confirmed data
-    deaths_file : string
+    deaths_file : str
         filename of CSSE death data
-    hist_df : Pandas DataFrame
+    hist_df : pandas.DataFrame
         current historical DataFrame containing confirmed and death data
         indexed by date and FIPS code
 
     Returns
     -------
-    hist_df : Pandas DataFrame
+    hist_df : pandas.DataFrame
         modified historical DataFrame with cases and deaths distributed
 
     """
@@ -215,22 +215,22 @@ def distribute_data_by_population(total_df, dist_vect, data_to_dist, replace):
 
     Parameters
     ----------
-    total_df : Pandas DataFrame
+    total_df : pandas.DataFrame
         DataFrame containing confirmed and death data indexed by date and
         FIPS code
-    dist_vect : Pandas DataFrame
+    dist_vect : pandas.DataFrame
         Population data for each county as proportion of total state
         population, indexed by FIPS code
-    data_to_dist: Pandas DataFrame
+    data_to_dist: pandas.DataFrame
         Data to distribute, indexed by data
-    replace : boolean
+    replace : bool
         If true, distributed values overwrite current historical data in
         DataFrame. If false, distributed values are added to current data
 
 
     Returns
     -------
-    total_df : Pandas DataFrame
+    total_df : pandas.DataFrame
         Modified input dataframe with distributed data
 
     """
@@ -265,7 +265,7 @@ def get_county_population_data(csse_deaths_file, county_fips):
 
     Parameters
     ----------
-    csse_deaths_file : string
+    csse_deaths_file : str
         filename of CSSE deaths file
     county_fips: array-like
         list of FIPS to return population data for
@@ -273,7 +273,7 @@ def get_county_population_data(csse_deaths_file, county_fips):
 
     Returns
     -------
-    population_df: Pandas DataFrame
+    population_df: pandas.DataFrame
         DataFrame with population fraction data indexed by FIPS
 
     """
@@ -295,14 +295,14 @@ def distribute_utah_data(df, csse_deaths_file):
 
     Parameters
     ----------
-    df : Pandas DataFrame
+    df : pandas.DataFrame
         DataFrame containing historical data indexed by FIPS and date
     csse_deaths_file : str
         File location of CSSE deaths file
 
     Returns
     -------
-    df : Pandas DataFrame
+    df : pandas.DataFrame
         Modified DataFrame containing corrected Utah historical data
         indexed by FIPS and date
     """
@@ -346,14 +346,14 @@ def distribute_nyc_data(df):
 
     Parameters
     ----------
-    df : Pandas DataFrame
+    df : pandas.DataFrame
         DataFrame containing historical data indexed by FIPS and date
 
     TODO add deprecation warning b/c csse has fixed this
 
     Returns
     -------
-    df : Pandas DataFrame
+    df : pandas.DataFrame
         Modified DataFrame containing corrected NYC historical data
         indexed by FIPS and date
 
@@ -392,15 +392,15 @@ def distribute_mdoc(df, csse_deaths_file):
 
     Parameters
     ----------
-    df : Pandas DataFrame
+    df : pandas.DataFrame
         Current historical DataFrame indexed by FIPS and date, which
         includes MDOC and FCI data
-    csse_deaths_file : string
+    csse_deaths_file : str
         File location of CSSE deaths file (contains population data)
 
     Returns
     -------
-    df : Pandas DataFrame
+    df : pandas.DataFrame
         Modified historical dataframe with Michigan prison data distributed
         and added to Michigan data
 
@@ -435,15 +435,15 @@ def distribute_territory_data(df, add_american_samoa):
 
     Parameters
     ----------
-    df : Pandas DataFrame
+    df : pandas.DataFrame
         Current historical DataFrame indexed by FIPS and date, which
         includes territory-wide case and death data
-    add_american_samoa: boolean
+    add_american_samoa: bool
         If true, adds 1 case to American Samoa
 
     Returns
     -------
-    df : Pandas DataFrame
+    df : pandas.DataFrame
         Modified historical dataframe with territory-wide data
         distributed to counties
 
@@ -604,14 +604,14 @@ def process_usafacts(case_file, deaths_file):
 
     Parameters
     ----------
-    case_file : string
+    case_file : str
         Location of USAFacts case file
-    deaths_file : string
+    deaths_file : str
         Location of USAFacts death file
 
     Returns
     -------
-    combined_df : Pandas DataFrame
+    combined_df : pandas.DataFrame
         USAFacts data containing cases and deaths indexed by FIPS and
         date.
 
@@ -766,7 +766,7 @@ def git_pull(abs_path):
 
     Parameters
     ----------
-    abs_path : string
+    abs_path : str
         Abs path location of repository to update
     """
     git_command = "git pull --rebase origin master"

@@ -43,17 +43,40 @@ master_doc = "index"
 
 extensions = [
     "sphinx.ext.autodoc",
-    "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx_rtd_theme",
     "sphinx.ext.mathjax",
-    "recommonmark",
     "sphinxcontrib.tikz",
     "sphinxarg.ext",
     "sphinxcontrib.bibtex",
     "sphinx_copybutton",
-    "numpydoc",
+    # "numpydoc",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.linkcode",
+    "autoapi.extension",
 ]
+
+autoapi_dirs = ["../../bucky"]
+autoapi_add_toctree_entry = False
+autoapi_member_order = "groupwise"
+autoapi_options = [
+    "members",
+    "undoc-members",
+    "private-members",
+    "show-inheritance",
+    "show-module-summary",
+    "special-members",
+    "imported-members",
+    "special-members",
+]
+
+napoleon_numpy_docstring = True
+napoleon_include_private_with_doc = True
+napoleon_include_special_with_doc = True
+napoleon_use_admonition_for_examples = True
+napoleon_use_admonition_for_notes = True
+napoleon_use_admonition_for_references = True
+napoleon_use_ivar = True
 
 # Be picky about warnings
 nitpicky = True
@@ -61,8 +84,50 @@ nitpicky = True
 # Ignores stuff we can't easily resolve on other project's sphinx manuals
 nitpick_ignore = []
 
-# Turn on sphinx.ext.autosummary
-autosummary_generate = True
+for line in open("nitpick-exceptions"):
+    if line.strip() == "" or line.startswith("#"):
+        continue
+    dtype, target = line.split(None, 1)
+    target = target.strip()
+    nitpick_ignore.append((dtype, six.u(target)))
+
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/dev", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "cupy": ("https://docs.cupy.dev/en/stable/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/reference", None),
+    "pandas": ("https://pandas.pydata.org/pandas-docs/stable", None),
+    "matplotlib": ("https://matplotlib.org", None),
+    "geopandas": ("https://geopandas.org", None),
+}
+
+# numpydoc_show_class_members=False
+
+# Resolve function for the linkcode extension.
+def linkcode_resolve(domain, info):
+    def find_source():
+        # try to find the file and line number, based on code from numpy:
+        # https://github.com/numpy/numpy/blob/master/doc/source/conf.py#L286
+        obj = sys.modules[info["module"]]
+        for part in info["fullname"].split("."):
+            obj = getattr(obj, part)
+        import inspect
+        import os
+
+        fn = inspect.getsourcefile(obj)
+        fn = os.path.relpath(fn, start=os.path.dirname(lasagne.__file__))
+        source, lineno = inspect.getsourcelines(obj)
+        return fn, lineno, lineno + len(source) - 1
+
+    if domain != "py" or not info["module"]:
+        return None
+    try:
+        filename = "bucky/%s#L%d-L%d" % find_source()
+    except Exception:
+        filename = info["module"].replace(".", "/") + ".py"
+    tag = "refactor"  #'master' if 'dev' in release else ('v' + release)
+    return "https://github.com/mattkinsey/bucky/blob/%s/%s" % (tag, filename)
+
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -94,15 +159,3 @@ html_theme_options = {"collapse_navigation": False}
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
-
-
-def setup(app):
-    app.add_config_value(
-        "recommonmark_config",
-        {
-            "url_resolver": lambda url: repo_doc_root + url,
-            "auto_toc_tree_section": "Usage",
-        },
-        True,
-    )
-    app.add_transform(AutoStructify)
