@@ -52,6 +52,8 @@ def frac_sum_last_n_vals(arr, n, axis=0):
 
 
 class buckyModelCovid:
+    """Class that handles one full simulation (both time integration and managing MC states)"""
+
     def __init__(
         self,
         debug=False,
@@ -63,6 +65,7 @@ class buckyModelCovid:
         disable_npi=False,
         reject_runs=False,
     ):
+        """Initialize the class, do some bookkeeping and read in the input graph"""
         self.debug = debug
         self.sparse = sparse_aij  # we can default to none and autodetect
         # w/ override (maybe when #adm2 > 5k and some sparsity critera?)
@@ -846,7 +849,7 @@ class buckyModelCovid:
 
 
 def main(args=None):
-
+    """Main method for a complete simulation called with a set of CLI args"""
     if args is None:
         args = sys.argv[1:]
     args = parser.parse_args(args=args)
@@ -881,6 +884,7 @@ def main(args=None):
     to_write = queue.Queue(maxsize=100)
 
     def writer():
+        """Write thread loop that pulls from an async queue"""
         # Call to_write.get() until it returns None
         stream = xp.cuda.Stream(non_blocking=True) if args.gpu else None
         for base_fname, df_data in iter(to_write.get, None):

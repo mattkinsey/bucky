@@ -216,6 +216,7 @@ if __name__ == "__main__":
     to_write = JoinableQueue()
 
     def _writer(q):
+        """Write thread that will pull from a queue"""
         # Call to_write.get() until it returns None
         has_header_dict = {}
         for fname, df in iter(q.get, None):
@@ -232,6 +233,7 @@ if __name__ == "__main__":
     write_thread.start()
 
     def _process_date(date, write_queue=to_write):
+        """Perform the postprocessing for all the MC runs for a single output date"""
         date_files = glob.glob(args.file + "/*_" + str(date) + ".feather")  # [:NFILES]
 
         # Read feather files
@@ -330,6 +332,7 @@ if __name__ == "__main__":
             # Compute quantiles
 
             def quantiles_group(tot_df):
+                """Calculate the quantiles for a single region"""
                 # TODO why is this in the for loop? pretty sure we can move it but check for deps
                 # Kernel opt currently only works on reductions (@v8.0.0) but maybe someday it'll help here
                 with xp.optimize_kernels():

@@ -1,3 +1,4 @@
+"""Submodule to handle the model parameterization and randomization"""
 import copy
 import logging
 from pprint import pformat
@@ -11,37 +12,46 @@ from .util.distributions import mPERT_sample, truncnorm
 
 
 def calc_Te(Tg, Ts, n, f):
+    """Calculate the latent period"""
     num = 2.0 * n * f / (n + 1.0) * Tg - Ts
     den = 2.0 * n * f / (n + 1.0) - 1.0
     return num / den
 
 
 def calc_Reff(m, n, Tg, Te, r):
+    """Calculate the effective reproductive number"""
     num = 2.0 * n * r / (n + 1.0) * (Tg - Te) * (1.0 + r * Te / m) ** m
     den = 1.0 - (1.0 + 2.0 * r / (n + 1.0) * (Tg - Te)) ** (-n)
     return num / den
 
 
 def calc_Ti(Te, Tg, n):
+    """Calcuate the infectious period"""
     return (Tg - Te) * 2.0 * n / (n + 1.0)
 
 
 def calc_beta(Te):
+    """Derive beta from Te"""
     return 1.0 / Te
 
 
 def calc_gamma(Ti):
+    """Derive gamma from Ti"""
     return 1.0 / Ti
 
 
 def CI_to_std(CI):
+    """Convert a 95% confidence interval to an equivilent stddev (assuming its normal)"""
     lower, upper = CI
     std95 = np.sqrt(1.0 / 0.05)
     return (upper + lower) / 2.0, (upper - lower) / std95 / 2.0
 
 
 class buckyParams:
+    """Class holding all the model parameters defined in the par file, also used to reroll them for each MC run"""
+
     def __init__(self, par_file=None):
+        """Initialize the class, sync up the libs with the parent context and load the par file"""
 
         reimport_numerical_libs()
 
@@ -54,11 +64,13 @@ class buckyParams:
 
     @staticmethod
     def read_yml(par_file):
+        """Read in the YAML par file"""
         # TODO check file exists
         with open(par_file, "rb") as f:
             return yaml.load(f, yaml.SafeLoader)  # nosec
 
     def generate_params(self, var=0.2):
+        """Generate a new set of params by rerolling, adding the derived params and rejecting invalid sets"""
         if var is None:
             var = 0.0
         while True:  # WTB python do-while...
@@ -69,6 +81,7 @@ class buckyParams:
             logging.debug("Rejected params: " + pformat(params))
 
     def reroll_params(self, base_params, var):
+        """Reroll the parameters defined in the par file"""
         params = dotdict({})
         for p in base_params:
             # Scalars
@@ -110,13 +123,16 @@ class buckyParams:
         return params
 
     @staticmethod
-    def age_interp(x_bins_new, x_bins, y):  # TODO we should probably account for population for the 65+ type bins...
+    def age_interp(x_bins_new, x_bins, y):
+        """Interpolate parameters define in age groups to a new set of age groups"""
+        # TODO we should probably account for population for the 65+ type bins...
         x_mean_new = np.mean(np.array(x_bins_new), axis=1)
         x_mean = np.mean(np.array(x_bins), axis=1)
         return np.interp(x_mean_new, x_mean, y)
 
     @staticmethod
     def rescale_doubling_rate(D, params, A_diag=None):
+        """Rescale parameters to match the input doubling times"""
         # TODO rename D to Td everwhere for consistency
         r = xp.log(2.0) / D
         params["R0"] = calc_Reff(
@@ -134,6 +150,7 @@ class buckyParams:
 
     @staticmethod
     def calc_derived_params(params):
+        """Add the derived params that are calculated from the rerolled ones"""
         params["Te"] = calc_Te(
             params["Tg"],
             params["Ts"],
