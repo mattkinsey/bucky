@@ -46,14 +46,14 @@ def add_daily_history(history_data, window_size=None):
 
     Parameters
     ----------
-    history_data : Pandas DataFrame
+    history_data : pandas.DataFrame
         Cumulative case and death data
     window_size : int or None
         Size of window in days
 
     Returns
     -------
-    history_data : Pandas DataFrame
+    history_data : pandas.DataFrame
         Historical data with added columns for daily case and death data
     """
     history_data = history_data.set_index(["adm2", "date"]).sort_index()  # TODO do we need it sorted?
@@ -95,7 +95,7 @@ def get_historical_data(columns, level, lookup_df, window_size, hist_file):
         Column names for historical data
     level : str
         Geographic level to get historical data for, e.g. adm1
-    lookup_df : Pandas DataFrame
+    lookup_df : pandas.DataFrame
         Dataframe with names and values for admin0, admin1, and admin2
         levels
     window_size : int
@@ -105,7 +105,7 @@ def get_historical_data(columns, level, lookup_df, window_size, hist_file):
 
     Returns
     -------
-    history_data : Pandas DataFrame
+    history_data : pandas.DataFrame
         Historical data indexed by data and geographic level
         containing only requested columns
     """

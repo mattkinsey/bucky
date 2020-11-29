@@ -152,11 +152,11 @@ parser.add_argument(
 
 
 def get_dates(df, frequency="weekly"):
-    """Given a DataFrame of simulation data, this method returns dates based on the requested frequency.
+    """Given a pandas.DataFrame of simulation data, this method returns dates based on the requested frequency.
 
     Parameters
     ----------
-    df : DataFrame
+    df : pandas.DataFrame
         Dataframe of simulation data
     frequency : {"weekly", "daily", "monthly"}
         Frequency of selected dates
@@ -215,7 +215,7 @@ def get_map_data(data_dir, adm_level):
 
     Returns
     -------
-    df : DataFrame
+    df : pandas.DataFrame
         Requested preprocessed simulation data
 
     """
@@ -250,7 +250,7 @@ def make_map(
     ----------
     shape_df : geopandas.GeoDataFrame
         Shapefile information at the required admin level
-    df : DataFrame
+    df : pandas.DataFrame
         Simulation data to plot
     dates : list of str
         List of dates to make maps for
@@ -402,9 +402,9 @@ def make_adm1_maps(
         Shapefile information at the admin2 level
     adm1_shape_df : geopandas.GeoDataFrame
         Shapefile information at the admin1 level
-    df : DataFrame
+    df : pandas.DataFrame
         Simulation data to plot
-    lookup_df : DataFrame
+    lookup_df : pandas.DataFrame
         Dataframe containing mapping between admin levels
     dates : list of str
         List of dates to make maps for

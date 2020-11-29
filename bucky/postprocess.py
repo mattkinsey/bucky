@@ -21,14 +21,14 @@ def divide_by_pop(dataframe, cols):
 
     Parameters
     ----------
-    dataframe : DataFrame
+    dataframe : pandas.DataFrame
         Simulation data
     cols : list of str
         Column names to scale by population
 
     Returns
     -------
-    dataframe : DataFrame
+    dataframe : pandas.DataFrame
         Original dataframe with the requested columns scaled
 
     """

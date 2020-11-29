@@ -68,7 +68,7 @@ def get_case_history(historical_data, end_date, num_days=DAYS_OF_HIST):
 
     Parameters
     ----------
-    historical_data : DataFrame
+    historical_data : pandas.DataFrame
         Dataframe with case, death data indexed by date, FIPS
     end_date : str
         Last date to get data for
@@ -136,15 +136,15 @@ def compute_population_density(age_df, shape_df):
 
     Parameters
     ----------
-    age_df : DataFrame
+    age_df : pandas.DataFrame
         age-stratified population data
     shape_df : geopandas.GeoDataFrame
         GeoDataFrame with shape information indexed by FIPS
 
     Returns
     -------
-    pop_density : DataFrame
-        DataFrame with population density by FIPS
+    pop_density : pandas.DataFrame
+        pandas.DataFrame with population density by FIPS
 
     """
     # Use age data and shape file to compute population density
@@ -173,11 +173,11 @@ def read_descartes_data(end_date):
 
     Returns
     -------
-    nat_frac_move : DataFrame
+    nat_frac_move : pandas.DataFrame
         TODO
-    dl_state : DataFrame
+    dl_state : pandas.DataFrame
         TODO
-    dl_county : DataFrame
+    dl_county : pandas.DataFrame
         TODO
 
     Notes
@@ -239,7 +239,7 @@ def read_lex_data(date):
 
     Returns
     -------
-    df_long : DataFrame
+    df_long : pandas.DataFrame
         Preprocessed LEX data
 
     """
@@ -281,12 +281,12 @@ def get_lex(last_requested_date, window_size=7):
     ----------
     last_requested_date : str
         Fetches data for requested date
-    window_size : int, default 7
+    window_size : int, optional
         Size of window, in days, to apply to data
 
     Returns
     -------
-    frac_df : DataFrame
+    frac_df : pandas.DataFrame
         TODO
 
     """
@@ -328,12 +328,12 @@ def get_safegraph(last_requested_date, window_size=7):
     ----------
     last_requested_date : str
         Fetches data for requested date
-    window_size : int, default 7
+    window_size : int, optional
         Size of window, in days, to apply to data
 
     Returns
     -------
-    frac_df : DataFrame
+    frac_df : pandas.DataFrame
         TODO
 
     """
@@ -375,16 +375,16 @@ def get_mobility_data(pop_density, end_date, county_df):
 
     Parameters
     ----------
-    pop_density : DataFrame
+    pop_density : pandas.DataFrame
         Population density indexed by FIPS
     end_date : str
         Last date of historical data
-    county_df : DataFrame
+    county_df : pandas.DataFrame
         County-level shape data
 
     Returns
     -------
-    edge_weights : DataFrame
+    edge_weights : pandas.DataFrame
         TODO
     movement_dict : dict
         TODO

@@ -157,7 +157,7 @@ def plot(
 ):
     """Given a dataframe and a key, creates plots with requested columns.
 
-    For example, a DataFrame with state-level data would create a plot for
+    For example, a pandas.DataFrame with state-level data would create a plot for
     each unique state. Simulation data is plotted as a line with shaded
     confidence intervals. Historical data is added as scatter points if
     requested.
@@ -166,16 +166,16 @@ def plot(
     ----------
     out_dir : str
         Location to place created plots.
-    lookup_df : DataFrame
+    lookup_df : pandas.DataFrame
         Dataframe containing information relating different geographic
         areas
     key : str
         Key to use to relate simulation data and geographic areas. Must
         appear in lookup and simulation data (and historical data if
         applicable)
-    sim_data : DataFrame
+    sim_data : pandas.DataFrame
         Simulation data to plot
-    hist_data : DataFrame
+    hist_data : pandas.DataFrame
         Historical data to add to plot
     plot_columns : list of str
         Columns to plot
@@ -335,7 +335,7 @@ def make_plots(
         Location of simulation data
     output_directory : str
         Parent directory to place created plots.
-    lookup : DataFrame
+    lookup : pandas.DataFrame
         Lookup table for geographic mapping information
     plot_hist : bool
         If True, will plot historical data.

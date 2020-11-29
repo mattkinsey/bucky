@@ -24,7 +24,7 @@ def read_geoid_from_graph(graph_file=None):
 
     Returns
     -------
-    df : DataFrame
+    df : pandas.DataFrame
         Dataframe with names and values for admin0, admin1, and admin2
         levels.
 
@@ -89,12 +89,12 @@ def read_lookup(geofile, country="US"):
     ----------
     geofile : str
         Location of lookup table
-    country : str, default "US"
+    country : str, optional
         Country name
 
     Returns
     -------
-    df : DataFrame
+    df : pandas.DataFrame
         Dataframe with names and values for admin0, admin1, and admin2
 
     """
