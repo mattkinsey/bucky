@@ -14,6 +14,8 @@ from .util.read_config import bucky_cfg
 # TODO this logic should be in numerical_libs so we can apply it everywhere
 if bool(os.getenv("BUCKY_CPU")) or False:
     logging.info("BUCKY_CPU found, forcing cpu usage")
+    force_cpu = True
+else:
     force_cpu = False
 
 cupy_found = (importlib.util.find_spec("cupy") is not None) and (not force_cpu)
