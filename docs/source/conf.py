@@ -15,6 +15,8 @@ import inspect
 import os
 import sys
 
+import six
+
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
@@ -23,6 +25,7 @@ import sys
 # sys.path.insert(0, os.path.abspath('../../..'))
 sys.path.insert(0, os.path.abspath("../.."))
 
+import bucky  # isort:skip
 
 repo_root_url = "http://gitlab.com/kinsemc/bucky/"
 
@@ -119,7 +122,7 @@ def linkcode_resolve(domain, info):
             obj = getattr(obj, part)
 
         fn = inspect.getsourcefile(obj)
-        fn = os.path.relpath(fn, start=os.path.dirname(lasagne.__file__))
+        fn = os.path.relpath(fn, start=os.path.dirname(bucky.__file__))
         source, lineno = inspect.getsourcelines(obj)
         return fn, lineno, lineno + len(source) - 1
 
@@ -143,7 +146,7 @@ exclude_patterns = []
 
 mathjax_path = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
 tikz_proc_suite = "GhostScript"
-tikz_latex_preamble = "\\newcommand{\\asym}{\\alpha_i}\n \
+tikz_latex_preamble = r"\\newcommand{\\asym}{\\alpha_i}\n \
         \\newcommand{\chr}{\\eta_i}\n \
         \\newcommand{\cfr}{\\phi_i}\n \
         \\newcommand{\htime}{\\rho_i}\n \

@@ -177,6 +177,7 @@ def get_historical_data(columns, level, lookup_df, window_size, hist_file):
     return df
 
 
+# TODO all this main stuff should be in test/
 if __name__ == "__main__":
 
     from bucky.viz.geoid import read_geoid_from_graph
@@ -189,7 +190,7 @@ if __name__ == "__main__":
     look = read_geoid_from_graph(graph_file)
     levels = ["adm1"]
     cols = ["current_hospitalizations"]
-    for level in levels:
+    for _level in levels:
 
-        df = get_historical_data(cols, level, look, 7, None)
-        logging.info(df)
+        _df = get_historical_data(cols, _level, look, 7, None)
+        logging.info(_df)

@@ -4,7 +4,7 @@ From https://stackoverflow.com/questions/4037481/caching-class-attributes-in-pyt
 """
 
 
-class cached_property(object):
+class cached_property:  # pylint: disable=too-few-public-methods
     """Descriptor (non-data) for building an attribute on-demand on first use."""
 
     def __init__(self, factory):
