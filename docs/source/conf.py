@@ -162,7 +162,11 @@ tikz_latex_preamble = r"\\newcommand{\\asym}{\\alpha_i}\n \
 # html_theme = 'alabaster'
 html_theme = "pydata_sphinx_theme"
 html_logo = "../../logo.png"
-html_theme_options = {"show_toc_level": 4, "github_url": "https://github.com/mattkinsey/bucky"}
+html_theme_options = {
+    "show_toc_level": 4,
+    "github_url": "https://github.com/mattkinsey/bucky",
+    "external_links": [{"name": "Bucky on GitHub", "url": "https://github.com/mattkinsey/bucky"}],
+}
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".

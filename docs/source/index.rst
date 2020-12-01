@@ -6,17 +6,15 @@
 Welcome to Bucky's documentation!
 =================================
 
+The Bucky model is a spatial SEIR model for simulating COVID-19 at the county level. The Bucky model contains code for running simulations, processing data, and visualizing results.
+
 .. toctree::
    :maxdepth: 3
    :caption: Contents:
 
    getting_started
-   install
-   model_tree
-   vis_tools
-   cli
+   user_guide
    api
-   references
 
 Indices and tables
 ==================
