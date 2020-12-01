@@ -19,8 +19,8 @@ data_locations = {
     "current_hospitalizations": {
         "file": hhs_hosp,
         "column": [
-            "total_adult_patients_hospitalized_confirmed_and_suspected_covid",
-            "total_pediatric_patients_hospitalized_confirmed_and_suspected_covid",
+            "total_adult_patients_hospitalized_confirmed_covid",
+            "total_pediatric_patients_hospitalized_confirmed_covid",
         ],
     },
     "daily_reported_cases": {"file": csse, "column": "daily_reported_cases"},
@@ -30,8 +30,8 @@ data_locations = {
     "current_icu_usage": {
         "file": hhs_hosp,
         "column": [
-            "staffed_icu_adult_patients_confirmed_and_suspected_covid",
-            "staffed_icu_pediatric_patients_confirmed_and_suspected_covid",
+            "staffed_icu_adult_patients_confirmed_covid",
+            "staffed_icu_pediatric_patients_confirmed_covid",
         ],
     },
     "daily_hospitalizations": {

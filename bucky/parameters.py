@@ -76,7 +76,7 @@ class buckyParams:
         while True:  # WTB python do-while...
             params = self.reroll_params(self.base_params, var)
             params = self.calc_derived_params(params)
-            if (params.Te > 1.0 and params.Tg > params.Te and params.Ti > 2.0) or var == 0.0:
+            if (params.Te > 1.0 and params.Tg > params.Te and params.Ti > 3.0) or var == 0.0:
                 return params
             logging.debug("Rejected params: " + pformat(params))
 

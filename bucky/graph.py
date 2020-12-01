@@ -21,7 +21,6 @@ class buckyGraphData:
         self.cum_case_hist, self.inc_case_hist = _read_node_attr(G, "case_hist", diff=True, a_min=0.0)
         self.cum_death_hist, self.inc_death_hist = _read_node_attr(G, "death_hist", diff=True, a_min=0.0)
         self.Nij = _read_node_attr(G, "N_age_init", a_min=1e-5)
-        self.Nj = xp.sum(self.Nij, axis=0)
 
         # TODO add adm0 to support multiple countries
         self.adm2_id = _read_node_attr(G, G.graph["adm2_key"], dtype=int)[0]
@@ -56,6 +55,7 @@ class buckyGraphData:
         """Return the adm1 sum of a variable defined at the adm2 level using the mapping on the graphi."""
         # TODO add in axis param, we call this a bunch on array.T
         # assumes 1st dim is adm2 indexes
+        # TODO should take an axis argument and handle reshape, then remove all the transposes floating around
         shp = (self.max_adm1 + 1,) + adm2_arr.shape[1:]
         out = xp.zeros(shp, dtype=adm2_arr.dtype)
         xp.scatter_add(out, self.adm1_id, adm2_arr)
@@ -65,6 +65,28 @@ class buckyGraphData:
 
     # TODO other adm1 reductions (like harmonic mean), also add weights (for things like Nj)
 
+    # Define and cache some of the reductions on Nij we might want
+    @cached_property
+    def Nj(self):
+        """Total population per adm2"""
+        return xp.sum(self.Nij, axis=0)
+
+    @cached_property
+    def adm0_Ni(self):
+        """Age stratified adm0 population"""
+        return xp.sum(self.Nij, axis=1)
+
+    @cached_property
+    def adm1_Nij(self):
+        """Age stratified adm1 populations"""
+        return self.sum_adm1(self.Nij.T).T
+
+    @cached_property
+    def adm1_Nj(self):
+        """Total adm1 populations"""
+        return self.sum_adm1(self.Nj)
+
+    # Define and cache some rolling means of the historical data @ adm2
     @cached_property
     def rolling_inc_cases(self):
         """Return the rolling mean of incident cases."""
@@ -86,6 +108,48 @@ class buckyGraphData:
     def rolling_cum_deaths(self):
         """Return the rolling mean of cumulative deaths."""
         return self.rolling_mean_func_cum(self.cum_death_hist)
+
+    # adm1 rollups of historical data
+    @cached_property
+    def adm1_cum_case_hist(self):
+        """Cumulative cases by adm1"""
+        return self.sum_adm1(self.cum_case_hist.T).T
+
+    @cached_property
+    def adm1_inc_case_hist(self):
+        """Incident cases by adm1"""
+        return self.sum_adm1(self.inc_case_hist.T).T
+
+    @cached_property
+    def adm1_cum_death_hist(self):
+        """Cumulative deaths by adm1"""
+        return self.sum_adm1(self.cum_death_hist.T).T
+
+    @cached_property
+    def adm1_inc_death_hist(self):
+        """Incident deaths by adm1"""
+        return self.sum_adm1(self.inc_death_hist.T).T
+
+    # adm0 rollups of historical data
+    @cached_property
+    def adm0_cum_case_hist(self):
+        """Cumulative cases at adm0"""
+        return xp.sum(self.cum_case_hist, axis=1)
+
+    @cached_property
+    def adm0_inc_case_hist(self):
+        """Incident cases at adm0"""
+        return xp.sum(self.inc_case_hist, axis=1)
+
+    @cached_property
+    def adm0_cum_death_hist(self):
+        """Cumulative deaths at adm0"""
+        return xp.sum(self.cum_death_hist, axis=1)
+
+    @cached_property
+    def adm0_inc_death_hist(self):
+        """Incident deaths at adm0"""
+        return xp.sum(self.inc_death_hist, axis=1)
 
 
 def _read_node_attr(G, name, diff=False, dtype=float, a_min=None, a_max=None):
