@@ -254,6 +254,8 @@ def make_map(
         Simulation data to plot
     dates : list of str
         List of dates to make maps for
+    adm_key : str
+        Admin level key
     cols : list of str
         List of columns to make maps for
     output_dir : str

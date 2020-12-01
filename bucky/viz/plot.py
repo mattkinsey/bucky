@@ -335,7 +335,7 @@ def make_plots(
         Location of simulation data
     output_directory : str
         Parent directory to place created plots.
-    lookup : pandas.DataFrame
+    lookup_df : pandas.DataFrame
         Lookup table for geographic mapping information
     plot_hist : bool
         If True, will plot historical data.
