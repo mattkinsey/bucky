@@ -50,12 +50,12 @@ def remove_chars(seq):
 
     Parameters
     ----------
-    seq : any type
+    seq : Any
         Strings will be modified, any other type is directly returned
 
     Returns
     -------
-    same type as seq
+    Any
         The original sequence, minus non-digit characters if input was a string
 
     """
