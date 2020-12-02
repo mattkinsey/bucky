@@ -3,10 +3,10 @@ from functools import partial
 
 import networkx as nx
 
+from ..numerical_libs import reimport_numerical_libs, xp
+from ..util.cached_prop import cached_property
+from ..util.rolling_mean import rolling_mean
 from .adjmat import buckyAij
-from .numerical_libs import reimport_numerical_libs, xp
-from .util.cached_prop import cached_property
-from .util.rolling_mean import rolling_mean
 
 
 class buckyGraphData:

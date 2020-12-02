@@ -2,7 +2,7 @@
 
 import contextlib
 
-from .numerical_libs import reimport_numerical_libs, xp
+from ..numerical_libs import reimport_numerical_libs, xp
 
 
 class buckyState:  # pylint: disable=too-many-instance-attributes

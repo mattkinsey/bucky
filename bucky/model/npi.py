@@ -5,7 +5,7 @@ import logging
 import numpy as np
 import pandas as pd
 
-from .numerical_libs import reimport_numerical_libs, xp
+from ..numerical_libs import reimport_numerical_libs, xp
 
 
 def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):

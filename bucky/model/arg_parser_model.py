@@ -9,7 +9,7 @@ import importlib
 import logging
 import os
 
-from .util.read_config import bucky_cfg
+from ..util.read_config import bucky_cfg
 
 # TODO this logic should be in numerical_libs so we can apply it everywhere
 if bool(os.getenv("BUCKY_CPU")) or False:

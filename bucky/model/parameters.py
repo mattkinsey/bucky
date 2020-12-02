@@ -6,9 +6,9 @@ from pprint import pformat
 import numpy as np
 import yaml
 
-from .numerical_libs import reimport_numerical_libs, xp
-from .util import dotdict
-from .util.distributions import mPERT_sample, truncnorm
+from ..numerical_libs import reimport_numerical_libs, xp
+from ..util import dotdict
+from ..util.distributions import mPERT_sample, truncnorm
 
 
 def calc_Te(Tg, Ts, n, f):

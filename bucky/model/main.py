@@ -17,14 +17,15 @@ import numpy as np
 import pandas as pd
 import tqdm
 
+from ..numerical_libs import reimport_numerical_libs, use_cupy, xp, xp_ivp
+from ..util.distributions import mPERT_sample, truncnorm
+from ..util.util import TqdmLoggingHandler, _banner
 from .arg_parser_model import parser
+from .estimation import estimate_doubling_time, estimate_Rt
 from .graph import buckyGraphData
 from .npi import read_npi_file
-from .numerical_libs import reimport_numerical_libs, use_cupy, xp, xp_ivp
 from .parameters import buckyParams
 from .state import buckyState
-from .util.distributions import mPERT_sample, truncnorm
-from .util.util import TqdmLoggingHandler, _banner
 
 # supress pandas warning caused by pyarrow
 warnings.simplefilter(action="ignore", category=FutureWarning)

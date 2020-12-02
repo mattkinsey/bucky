@@ -3,8 +3,8 @@
 
 # import networkx as nx
 
-from .numerical_libs import reimport_numerical_libs, xp, xp_sparse
-from .util.distributions import truncnorm
+from ..numerical_libs import reimport_numerical_libs, xp, xp_sparse
+from ..util.distributions import truncnorm
 
 
 # TODO sprase diag will be added to cupy v9.0.0a2 so we won't need to track it after that
