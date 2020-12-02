@@ -237,7 +237,13 @@ class buckyModelCovid:
 
         # crr_days_needed = max( #TODO this depends on all the Td params, and D_REPORT_TIME...
         case_reporting = xp.to_cpu(
-            self.estimate_reporting(cfr=self.params.F, days_back=22, min_deaths=self.consts.case_reporting_min_deaths),
+            self.estimate_reporting(
+                self.g_data,
+                self.params,
+                cfr=self.params.F,
+                days_back=22,
+                min_deaths=self.consts.case_reporting_min_deaths,
+            ),
         )
         self.case_reporting = xp.array(
             mPERT_sample(  # TODO these facs should go in param file
@@ -248,23 +254,25 @@ class buckyModelCovid:
             ),
         )
 
-        self.doubling_t = self.estimate_doubling_time(
-            doubling_time_window=self.consts.doubling_t_window,
-            mean_time_window=self.consts.doubling_t_N_historical_days,
-        )
+        self.doubling_t = xp.zeros(self.Nj.shape)
+        # self.doubling_t = estimate_doubling_time(g_data,
+        #    doubling_time_window=self.consts.doubling_t_window,
+        #    mean_time_window=self.consts.doubling_t_N_historical_days,
+        #    self.case_reporting,
+        # )
 
-        if xp.any(~xp.isfinite(self.doubling_t)):
-            logging.info("non finite doubling times, is there enough case data?")
-            if self.debug:
-                logging.debug(self.doubling_t)
-                logging.debug(self.g_data.adm1_id[~xp.isfinite(self.doubling_t)])
-            raise SimulationException
+        # if xp.any(~xp.isfinite(self.doubling_t)):
+        #    logging.info("non finite doubling times, is there enough case data?")
+        #    if self.debug:
+        #        logging.debug(self.doubling_t)
+        #        logging.debug(self.g_data.adm1_id[~xp.isfinite(self.doubling_t)])
+        #    raise SimulationException
 
-        if self.consts.reroll_variance > 0.0:
-            self.doubling_t *= truncnorm(1.0, self.consts.reroll_variance, size=self.doubling_t.shape, a_min=1e-6)
-            self.doubling_t = xp.clip(self.doubling_t, 1.0, None) / 2.0
+        # if self.consts.reroll_variance > 0.0:
+        #    self.doubling_t *= truncnorm(1.0, self.consts.reroll_variance, size=self.doubling_t.shape, a_min=1e-6)
+        #    self.doubling_t = xp.clip(self.doubling_t, 1.0, None) / 2.0
 
-        self.params = self.bucky_params.rescale_doubling_rate(self.doubling_t, self.params, self.g_data.Aij.diag)
+        # self.params = self.bucky_params.rescale_doubling_rate(self.doubling_t, self.params, self.g_data.Aij.diag)
 
         mean_case_reporting = xp.mean(self.case_reporting[-self.consts.case_reporting_N_historical_days :], axis=0)
 
@@ -275,8 +283,9 @@ class buckyModelCovid:
         self.params["GAMMA_H"] = xp.broadcast_to(self.params["GAMMA_H"][:, None], self.Nij.shape)
         self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0.0, 1.0)
 
-        Rt = buckyModelCovid.estimate_Rt(self.g_data, self.params)
-        Rt *= truncnorm(1.0, 1.5 * self.consts.reroll_variance, size=Rt.shape, a_min=1e-6)
+        Rt = estimate_Rt(self.g_data, self.params)
+        Rt_fac = xp.array(mPERT_sample(mu=1.0, a=0.9, b=1.1, gamma=5.0))
+        Rt *= Rt_fac  # truncnorm(1.0, 1.5 * self.consts.reroll_variance, size=Rt.shape, a_min=1e-6)
         self.params["R0"] = Rt
         self.params["BETA"] = Rt * self.params["GAMMA"] / self.g_data.Aij.diag
 
@@ -375,143 +384,21 @@ class buckyModelCovid:
 
         # return y
 
-    @staticmethod
-    def estimate_Rt(
-        g_data,
-        params,
-        days_back=1,
-    ):
-        """Estimate R_t from the recent case data"""
-        rolling_case_hist = g_data.rolling_inc_cases / params["CASE_REPORT"]
-
-        tot_case_hist = (g_data.Aij.A.T * rolling_case_hist.T).T
-
-        t_max = rolling_case_hist.shape[0]
-        k = params.consts["En"]
-
-        mean = params["Tg"]
-        theta = mean / k
-        x = xp.arange(-1.0, t_max - 1.0)
-        x[0] = 0.0
-        w = 1.0 / (xp.special.gamma(k) * theta ** k) * x ** (k - 1) * xp.exp(-x / theta)
-        w = w / (1.0 - w)
-        w = w[::-1]
-        # adm0
-        rolling_case_hist_adm0 = xp.nansum(rolling_case_hist, axis=1)[:, None]
-        tot_case_hist_adm0 = xp.nansum(tot_case_hist, axis=1)[:, None]
-
-        n_loc = rolling_case_hist_adm0.shape[1]
-        Rt = xp.empty((days_back, n_loc))
-        for i in range(days_back):  # TODO we can vectorize by convolving w over case hist
-            d = i + 1
-            Rt[i] = rolling_case_hist_adm0[-d] / (xp.sum(w[d:, None] * tot_case_hist_adm0[:-d], axis=0))
-
-        Rt = xp.mean(Rt, axis=0)
-
-        Rt_out = xp.full((rolling_case_hist.shape[1],), Rt)
-
-        # adm1
-        tot_case_hist_adm1 = g_data.sum_adm1(tot_case_hist.T).T
-        rolling_case_hist_adm1 = g_data.sum_adm1(rolling_case_hist.T).T
-
-        n_loc = rolling_case_hist_adm1.shape[1]
-        Rt = xp.empty((days_back, n_loc))
-        for i in range(days_back):
-            d = i + 1
-            Rt[i] = rolling_case_hist_adm1[-d] / (xp.sum(w[d:, None] * tot_case_hist_adm1[:-d], axis=0))
-        Rt = xp.mean(Rt, axis=0)
-        Rt = Rt[g_data.adm1_id]
-        valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist_adm1[-7], axis=0) > 10)
-        Rt_out[valid_mask] = Rt[valid_mask]
-
-        # adm2
-        n_loc = rolling_case_hist.shape[1]
-        Rt = xp.empty((days_back, n_loc))
-        for i in range(days_back):
-            d = i + 1
-            Rt[i] = rolling_case_hist[-d] / (xp.sum(w[d:, None] * tot_case_hist[:-d], axis=0))
-        Rt = xp.mean(Rt, axis=0)
-        valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist[-7], axis=0) > 10)
-        Rt_out[valid_mask] = Rt[valid_mask]
-
-        return Rt_out
-
-    # TODO these rollups to higher adm levels should be a util (it might make sense as a decorator)
-    # it shows up here, the CRR, the CHR rescaling, and in postprocess...
-    def estimate_doubling_time(
-        self,
-        days_back=7,  # TODO rename, its the number days calc the rolling Td
-        doubling_time_window=7,
-        mean_time_window=None,
-        min_doubling_t=1.0,
-    ):
-        """Calculate the recent doubling time of the historical case data"""
-        if mean_time_window is not None:
-            days_back = mean_time_window
-
-        cases = self.g_data.cum_case_hist[-days_back:] / self.case_reporting[-days_back:]
-        cases_old = (
-            self.g_data.cum_case_hist[-days_back - doubling_time_window : -doubling_time_window]
-            / self.case_reporting[-days_back - doubling_time_window : -doubling_time_window]
-        )
-
-        # adm0
-        adm0_doubling_t = doubling_time_window / xp.log2(xp.nansum(cases, axis=1) / xp.nansum(cases_old, axis=1))
-
-        if self.debug:
-            logging.debug("Adm0 doubling time: " + str(adm0_doubling_t))
-        if xp.any(~xp.isfinite(adm0_doubling_t)):
-            if self.debug:
-                logging.debug(xp.nansum(cases, axis=1))
-                logging.debug(xp.nansum(cases_old, axis=1))
-            raise SimulationException
-
-        doubling_t = xp.repeat(adm0_doubling_t[:, None], cases.shape[-1], axis=1)
-
-        # adm1
-        cases_adm1 = self.g_data.sum_adm1(cases.T)
-        cases_old_adm1 = self.g_data.sum_adm1(cases_old.T)
-
-        adm1_doubling_t = doubling_time_window / xp.log2(cases_adm1 / cases_old_adm1)
-
-        tmp_doubling_t = adm1_doubling_t[self.g_data.adm1_id].T
-        valid_mask = xp.isfinite(tmp_doubling_t) & (tmp_doubling_t > min_doubling_t)
-
-        doubling_t[valid_mask] = tmp_doubling_t[valid_mask]
-
-        # adm2
-        adm2_doubling_t = doubling_time_window / xp.log2(cases / cases_old)
-
-        valid_adm2_dt = xp.isfinite(adm2_doubling_t) & (adm2_doubling_t > min_doubling_t)
-        doubling_t[valid_adm2_dt] = adm2_doubling_t[valid_adm2_dt]
-
-        # hist_weights = xp.arange(1., days_back + 1.0, 1.0)
-        # hist_doubling_t = xp.sum(doubling_t * hist_weights[:, None], axis=0) / xp.sum(
-        #    hist_weights
-        # )
-
-        # Take mean of most recent values
-        if mean_time_window is not None:
-            ret = xp.nanmean(doubling_t[-mean_time_window:], axis=0)
-        else:
-            ret = doubling_t
-
-        return ret
-
-    def estimate_reporting(self, cfr, days_back=14, case_lag=None, min_deaths=100.0):
+    # @staticmethod need to mode the caching out b/c its in the self namespace
+    def estimate_reporting(self, g_data, params, cfr, days_back=14, case_lag=None, min_deaths=100.0):
         """Estimate the case reporting rate based off observed vs. expected CFR"""
 
         if case_lag is None:
-            adm0_cfr_by_age = xp.sum(cfr * self.Nij, axis=1) / xp.sum(self.Nj, axis=0)
+            adm0_cfr_by_age = xp.sum(cfr * g_data.Nij, axis=1) / xp.sum(g_data.Nj, axis=0)
             adm0_cfr_total = xp.sum(
-                xp.sum(cfr * self.Nij, axis=1) / xp.sum(self.Nj, axis=0),
+                xp.sum(cfr * g_data.Nij, axis=1) / xp.sum(g_data.Nj, axis=0),
                 axis=0,
             )
-            case_lag = xp.sum(self.params["D_REPORT_TIME"] * adm0_cfr_by_age / adm0_cfr_total, axis=0)
+            case_lag = xp.sum(params["D_REPORT_TIME"] * adm0_cfr_by_age / adm0_cfr_total, axis=0)
 
         case_lag_int = int(case_lag)
-        recent_cum_cases = self.g_data.rolling_cum_cases - self.g_data.rolling_cum_cases[0]
-        recent_cum_deaths = self.g_data.rolling_cum_deaths - self.g_data.rolling_cum_deaths[0]
+        recent_cum_cases = g_data.rolling_cum_cases - g_data.rolling_cum_cases[0]
+        recent_cum_deaths = g_data.rolling_cum_deaths - g_data.rolling_cum_deaths[0]
         case_lag_frac = case_lag % 1  # TODO replace with util function for the indexing
         cases_lagged = (
             recent_cum_cases[-case_lag_int - days_back : -case_lag_int]
@@ -519,11 +406,12 @@ class buckyModelCovid:
         )
 
         # adm0
-        adm0_cfr_param = xp.sum(xp.sum(cfr * self.Nij, axis=1) / xp.sum(self.Nj, axis=0), axis=0)
+        adm0_cfr_param = xp.sum(xp.sum(cfr * g_data.Nij, axis=1) / xp.sum(g_data.Nj, axis=0), axis=0)
         if self.adm0_cfr_reported is None:
             self.adm0_cfr_reported = xp.sum(recent_cum_deaths[-days_back:], axis=1) / xp.sum(cases_lagged, axis=1)
         adm0_case_report = adm0_cfr_param / self.adm0_cfr_reported
 
+        """
         if self.debug:
             logging.debug("Adm0 case reporting rate: " + pformat(adm0_case_report))
         if xp.any(~xp.isfinite(adm0_case_report)):
@@ -532,40 +420,41 @@ class buckyModelCovid:
                 logging.debug(adm0_cfr_param)
                 logging.debug(self.adm0_cfr_reported)
             raise SimulationException
+        """
 
         case_report = xp.repeat(adm0_case_report[:, None], cases_lagged.shape[-1], axis=1)
 
         # adm1
-        adm1_cfr_param = xp.zeros((self.g_data.max_adm1 + 1,), dtype=float)
-        adm1_totpop = xp.zeros((self.g_data.max_adm1 + 1,), dtype=float)
+        adm1_cfr_param = xp.zeros((g_data.max_adm1 + 1,), dtype=float)
+        adm1_totpop = g_data.adm1_Nj  # xp.zeros((self.g_data.max_adm1 + 1,), dtype=float)
 
-        tmp_adm1_cfr = xp.sum(cfr * self.Nij, axis=0)
+        tmp_adm1_cfr = xp.sum(cfr * g_data.Nij, axis=0)
 
-        xp.scatter_add(adm1_cfr_param, self.g_data.adm1_id, tmp_adm1_cfr)
-        xp.scatter_add(adm1_totpop, self.g_data.adm1_id, self.Nj)
+        xp.scatter_add(adm1_cfr_param, g_data.adm1_id, tmp_adm1_cfr)
+        # xp.scatter_add(adm1_totpop, self.g_data.adm1_id, self.Nj)
         adm1_cfr_param /= adm1_totpop
 
         # adm1_cfr_reported is const, only calc it once and cache it
         if self.adm1_cfr_reported is None:
-            self.adm1_deaths_reported = xp.zeros((self.g_data.max_adm1 + 1, days_back), dtype=float)
-            adm1_lagged_cases = xp.zeros((self.g_data.max_adm1 + 1, days_back), dtype=float)
+            self.adm1_deaths_reported = xp.zeros((g_data.max_adm1 + 1, days_back), dtype=float)
+            adm1_lagged_cases = xp.zeros((g_data.max_adm1 + 1, days_back), dtype=float)
 
             xp.scatter_add(
                 self.adm1_deaths_reported,
-                self.g_data.adm1_id,
+                g_data.adm1_id,
                 recent_cum_deaths[-days_back:].T,
             )
-            xp.scatter_add(adm1_lagged_cases, self.g_data.adm1_id, cases_lagged.T)
+            xp.scatter_add(adm1_lagged_cases, g_data.adm1_id, cases_lagged.T)
 
             self.adm1_cfr_reported = self.adm1_deaths_reported / adm1_lagged_cases
 
-        adm1_case_report = (adm1_cfr_param[:, None] / self.adm1_cfr_reported)[self.g_data.adm1_id].T
+        adm1_case_report = (adm1_cfr_param[:, None] / self.adm1_cfr_reported)[g_data.adm1_id].T
 
-        valid_mask = (self.adm1_deaths_reported > min_deaths)[self.g_data.adm1_id].T & xp.isfinite(adm1_case_report)
+        valid_mask = (self.adm1_deaths_reported > min_deaths)[g_data.adm1_id].T & xp.isfinite(adm1_case_report)
         case_report[valid_mask] = adm1_case_report[valid_mask]
 
         # adm2
-        adm2_cfr_param = xp.sum(cfr * (self.Nij / self.Nj), axis=0)
+        adm2_cfr_param = xp.sum(cfr * (g_data.Nij / g_data.Nj), axis=0)
 
         if self.adm2_cfr_reported is None:
             self.adm2_cfr_reported = recent_cum_deaths[-days_back:] / cases_lagged
