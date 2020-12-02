@@ -362,7 +362,7 @@ class SEIR_covid:
             self.params.H = xp.broadcast_to(self.params.H[:, None], self.Nij.shape)
             self.params.F = xp.broadcast_to(self.params.F[:, None], self.Nij.shape)
 
-        if True:
+        if False:
             # self.ifr[xp.isnan(self.ifr)] = 0.0
             # self.params.F = self.ifr / self.params["SYM_FRAC"]
             # adm0_ifr = xp.sum(self.ifr * self.Nij) / xp.sum(self.Nj)
