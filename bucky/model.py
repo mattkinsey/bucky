@@ -399,8 +399,8 @@ class SEIR_covid:
         )
         self.case_reporting = xp.array(
             mPERT_sample(  # TODO these facs should go in param file
-                mu=xp.clip(case_reporting, a_min=0.2, a_max=1.0),
-                a=xp.clip(0.8 * case_reporting, a_min=0.2, a_max=None),
+                mu=xp.clip(case_reporting, a_min=0.01, a_max=1.0),
+                a=xp.clip(0.8 * case_reporting, a_min=0.01, a_max=None),
                 b=xp.clip(1.2 * case_reporting, a_min=None, a_max=1.0),
                 gamma=500.0,
             ),
