@@ -747,7 +747,7 @@ def main(args=None):
     if args.gpu:
         use_cupy(optimize=args.opt)
 
-    reimport_numerical_libs()
+    reimport_numerical_libs("model.main.main")
 
     warnings.simplefilter(action="ignore", category=xp.ExperimentalWarning)
 

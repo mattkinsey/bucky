@@ -40,13 +40,21 @@ class MockExperimentalWarning(Warning):
 xp.ExperimentalWarning = MockExperimentalWarning
 
 
-def reimport_numerical_libs():
+reimport_cache = {}
+
+
+def reimport_numerical_libs(context=None):
     """Reimport xp, xp_sparse, xp_ivp from the global context (in case they've been update to cupy)."""
+    global reimport_cache
+    if context in reimport_cache:
+        return
     for lib in ("xp", "xp_sparse", "xp_ivp"):
         caller_globals = dict(inspect.getmembers(inspect.stack()[1][0]))["f_globals"]
         if lib in caller_globals:
             bucky_module = importlib.import_module("bucky")
             caller_globals[lib] = getattr(bucky_module, lib)
+            if context is not None:
+                reimport_cache[context] = True
 
 
 def use_cupy(optimize=False):

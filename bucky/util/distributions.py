@@ -57,7 +57,7 @@ def truncnorm(loc=0.0, scale=1.0, size=1, a_min=None, a_max=None):
     -------
 
     """
-    reimport_numerical_libs()
+    reimport_numerical_libs("util.distributions.truncnorm")
 
     ret = xp.random.normal(loc, scale, size)
     if a_min is None:

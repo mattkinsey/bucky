@@ -14,7 +14,7 @@ class buckyAij:
     def __init__(self, G, sparse=True, a_min=0.0):
         """Initialize the stored matrix off of the edges of a networkx graph."""
 
-        reimport_numerical_libs()
+        reimport_numerical_libs("model.adjmat.buckyAij.__init__")
 
         self.sparse = sparse
         # TODO handle different attr names for edge weight

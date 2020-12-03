@@ -29,7 +29,7 @@ def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
     npi_params : dict
         TODO
     """
-    reimport_numerical_libs()
+    reimport_numerical_libs("model.npi.read_npi_file")
 
     # filter by overlap with simulation date range
     df = pd.read_csv(fname)

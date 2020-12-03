@@ -8,7 +8,7 @@ def estimate_Rt(
 ):
     """Estimate R_t from the recent case data"""
 
-    reimport_numerical_libs()
+    reimport_numerical_libs("model.estimation.estimate_Rt")
 
     rolling_case_hist = g_data.rolling_inc_cases / params["CASE_REPORT"]
 
@@ -75,6 +75,8 @@ def estimate_doubling_time(
     case_reporting=None,
 ):
     """Calculate the recent doubling time of the historical case data"""
+    reimport_numerical_libs("model.estimation.estimate_doubling_time")
+
     if mean_time_window is not None:
         days_back = mean_time_window
 

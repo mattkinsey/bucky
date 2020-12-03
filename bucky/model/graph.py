@@ -15,7 +15,7 @@ class buckyGraphData:
     def __init__(self, G, sparse=True):
         """Initialize the input data into cupy/numpy, reading it from a networkx graph"""
 
-        reimport_numerical_libs()
+        reimport_numerical_libs("model.graph.buckyGraphData.__init__")
 
         G = nx.convert_node_labels_to_integers(G)
         self.cum_case_hist, self.inc_case_hist = _read_node_attr(G, "case_hist", diff=True, a_min=0.0)

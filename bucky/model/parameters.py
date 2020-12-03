@@ -53,7 +53,7 @@ class buckyParams:
     def __init__(self, par_file=None):
         """Initialize the class, sync up the libs with the parent context and load the par file"""
 
-        reimport_numerical_libs()
+        reimport_numerical_libs("model.parameters.buckyParams.__init__")
 
         self.par_file = par_file
         if par_file is not None:

@@ -4,7 +4,7 @@ from ..numerical_libs import reimport_numerical_libs, xp
 
 def rolling_mean(arr, window_size=7, axis=0, weights=None, mean_type="arithmetic"):
     """Calculate a rolling mean over a numpy/cupy ndarray."""
-    reimport_numerical_libs()
+    reimport_numerical_libs("util.rolling_mean.rolling_mean")
     # we could probably just pass args/kwargs...
     if mean_type == "arithmetic":
         return _rolling_arithmetic_mean(arr, window_size, axis, weights)
