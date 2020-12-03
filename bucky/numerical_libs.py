@@ -40,7 +40,7 @@ class MockExperimentalWarning(Warning):
 xp.ExperimentalWarning = MockExperimentalWarning
 
 
-reimport_cache = {}
+reimport_cache = set()
 
 
 def reimport_numerical_libs(context=None):
@@ -54,7 +54,7 @@ def reimport_numerical_libs(context=None):
             bucky_module = importlib.import_module("bucky")
             caller_globals[lib] = getattr(bucky_module, lib)
             if context is not None:
-                reimport_cache[context] = True
+                reimport_cache.add(context)
 
 
 def use_cupy(optimize=False):
