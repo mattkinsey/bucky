@@ -8,6 +8,35 @@ import pandas as pd
 from ..numerical_libs import reimport_numerical_libs, xp
 
 
+def get_npi_params(g_data, first_date, t_max, npi_file=None, disable_npi=False):
+    """Read an npi scenario file or if none is provided provide correctly shaped 'no future changes' npi_params"""
+    reimport_numerical_libs("model.npi.get_npi_params")
+
+    n_nodes = g_data.Nij.shape[-1]
+    if npi_file is not None:
+        logging.info(f"Using NPI from: {npi_file}")
+        npi_params = read_npi_file(
+            npi_file,
+            first_date,
+            t_max,
+            g_data.adm2_id,
+            disable_npi,
+        )
+        for k in npi_params:
+            npi_params[k] = xp.array(npi_params[k])
+            if k == "contact_weights":
+                npi_params[k] = xp.broadcast_to(npi_params[k], (t_max + 1, n_nodes, 4))
+            else:
+                npi_params[k] = xp.broadcast_to(npi_params[k], (t_max + 1, n_nodes))
+    else:
+        npi_params = {
+            "r0_reduct": xp.broadcast_to(xp.ones(1), (t_max + 1, n_nodes)),
+            "contact_weights": xp.broadcast_to(xp.ones(1), (t_max + 1, n_nodes, 4)),
+            "mobility_reduct": xp.broadcast_to(xp.ones(1), (t_max + 1, n_nodes)),
+        }
+    return npi_params
+
+
 def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
     """TODO Description.
 
@@ -29,7 +58,7 @@ def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
     npi_params : dict
         TODO
     """
-    reimport_numerical_libs("model.npi.read_npi_file")
+    # reimport_numerical_libs("model.npi.read_npi_file")
 
     # filter by overlap with simulation date range
     df = pd.read_csv(fname)
