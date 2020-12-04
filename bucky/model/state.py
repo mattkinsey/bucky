@@ -18,26 +18,30 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
         self.Rhn = consts["Rhn"]
         self.consts = consts
 
-        indices = {"S": 0}
-        indices["E"] = slice(1, self.En + 1)
-        indices["I"] = slice(indices["E"].stop, indices["E"].stop + self.Im)
-        indices["Ic"] = slice(indices["I"].stop, indices["I"].stop + self.Im)
-        indices["Ia"] = slice(indices["Ic"].stop, indices["Ic"].stop + self.Im)
-        indices["R"] = slice(indices["Ia"].stop, indices["Ia"].stop + 1)
-        indices["Rh"] = slice(indices["R"].stop, indices["R"].stop + self.Rhn)
-        indices["D"] = slice(indices["Rh"].stop, indices["Rh"].stop + 1)
+        # Build a dict of bin counts per evolved compartment
+        bin_counts = {}
+        for name in ("S", "R", "D", "incH", "incC"):
+            bin_counts[name] = 1
+        for name in ("I", "Ic", "Ia"):
+            bin_counts[name] = self.Im
+        bin_counts["E"] = self.En
+        bin_counts["Rh"] = self.Rhn
 
+        # calculate slices for each compartment
+        indices = {}
+        current_index = 0
+        for name, nbins in bin_counts.items():
+            indices[name] = slice(current_index, current_index + nbins)
+            current_index += nbins
+
+        # define some combined compartment indices
+        indices["N"] = xp.concatenate([xp.r_[v] for k, v in indices.items() if "inc" not in k])
         indices["Itot"] = xp.concatenate([xp.r_[v] for k, v in indices.items() if k in ("I", "Ia", "Ic")])
         indices["H"] = xp.concatenate([xp.r_[v] for k, v in indices.items() if k in ("Ic", "Rh")])
 
-        indices["incH"] = slice(indices["D"].stop, indices["D"].stop + 1)
-        indices["incC"] = slice(indices["incH"].stop, indices["incH"].stop + 1)
-
-        indices["N"] = slice(0, indices["D"].stop)
-
         self.indices = indices
 
-        self.n_compartments = xp.to_cpu(indices["incC"].stop)
+        self.n_compartments = sum([n for n in bin_counts.values()])
 
         self.n_age_grps, self.n_nodes = Nij.shape
 
