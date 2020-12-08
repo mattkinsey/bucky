@@ -52,6 +52,7 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
             self.state = state
 
     def zeros_like(self):
+        """Return a mostly shallow copy of self but with a zeroed out self.state"""
         ret = copy.copy(self)
         ret.state = xp.zeros_like(self.state)
         return ret
