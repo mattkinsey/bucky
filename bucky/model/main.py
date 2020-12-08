@@ -18,7 +18,7 @@ import pandas as pd
 import tqdm
 
 from ..numerical_libs import reimport_numerical_libs, use_cupy, xp, xp_ivp
-from ..util.distributions import mPERT_sample, truncnorm
+from ..util.distributions import approx_mPERT_sample, truncnorm
 from ..util.util import TqdmLoggingHandler, _banner
 from .arg_parser_model import parser
 from .estimation import estimate_doubling_time, estimate_Rt
@@ -236,22 +236,19 @@ class buckyModelCovid:
             self.params.H = xp.clip(self.params.H, a_min=self.params.F, a_max=1.0)
 
         # crr_days_needed = max( #TODO this depends on all the Td params, and D_REPORT_TIME...
-        case_reporting = xp.to_cpu(
-            self.estimate_reporting(
-                self.g_data,
-                self.params,
-                cfr=self.params.F,
-                days_back=22,
-                min_deaths=self.consts.case_reporting_min_deaths,
-            ),
+        case_reporting = self.estimate_reporting(
+            self.g_data,
+            self.params,
+            cfr=self.params.F,
+            days_back=22,
+            min_deaths=self.consts.case_reporting_min_deaths,
         )
-        self.case_reporting = xp.array(
-            mPERT_sample(  # TODO these facs should go in param file
-                mu=xp.clip(case_reporting, a_min=0.2, a_max=1.0),
-                a=xp.clip(0.8 * case_reporting, a_min=0.2, a_max=None),
-                b=xp.clip(1.2 * case_reporting, a_min=None, a_max=1.0),
-                gamma=50.0,
-            ),
+
+        self.case_reporting = approx_mPERT_sample(  # TODO these facs should go in param file
+            mu=xp.clip(case_reporting, a_min=0.2, a_max=1.0),
+            a=xp.clip(0.8 * case_reporting, a_min=0.2, a_max=None),
+            b=xp.clip(1.2 * case_reporting, a_min=None, a_max=1.0),
+            gamma=50.0,
         )
 
         self.doubling_t = xp.zeros(self.Nj.shape)
@@ -284,7 +281,7 @@ class buckyModelCovid:
         self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0.0, 1.0)
 
         Rt = estimate_Rt(self.g_data, self.params)
-        Rt_fac = xp.array(mPERT_sample(mu=1.0, a=0.9, b=1.1, gamma=5.0))
+        Rt_fac = approx_mPERT_sample(mu=xp.ones(Rt.shape), a=0.9, b=1.1, gamma=5.0)
         Rt *= Rt_fac  # truncnorm(1.0, 1.5 * self.consts.reroll_variance, size=Rt.shape, a_min=1e-6)
         self.params["R0"] = Rt
         self.params["BETA"] = Rt * self.params["GAMMA"] / self.g_data.Aij.diag
@@ -302,9 +299,9 @@ class buckyModelCovid:
         current_I *= 1.0 / (self.params["CASE_REPORT"])
 
         # TODO should be in param file
-        R_fac = xp.array(mPERT_sample(mu=1.0, a=0.9, b=1.1, gamma=100.0))
-        E_fac = xp.array(mPERT_sample(mu=1.1, a=0.75, b=1.45, gamma=5.0))
-        H_fac = xp.array(mPERT_sample(mu=1.0, a=0.9, b=1.1, gamma=100.0))
+        R_fac = 0.5 * approx_mPERT_sample(mu=1.0, a=0.9, b=1.1, gamma=100.0)
+        E_fac = approx_mPERT_sample(mu=1.3, a=0.9, b=1.7, gamma=10.0)
+        H_fac = approx_mPERT_sample(mu=1.0, a=0.8, b=1.2, gamma=10.0)
 
         I_init = current_I[None, :] / self.Nij / self.n_age_grps
         D_init = self.g_data.cum_death_hist[-1][None, :] / self.Nij / self.n_age_grps
@@ -591,7 +588,7 @@ class buckyModelCovid:
 
         # do integration
         logging.debug("Starting integration")
-        t_eval = np.arange(0, self.t_max + self.dt, self.dt)
+        t_eval = xp.arange(0, self.t_max + self.dt, self.dt)
         sol = xp_ivp.solve_ivp(
             self.RHS_func,
             method="RK23",
