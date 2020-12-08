@@ -172,19 +172,20 @@ def use_cupy(optimize=False):
 
     cp.to_cpu = cp_to_cpu
 
-    # Add a version of np.r_ to cupy that just calls numpy
-    # has to be a class b/c r_ uses sq brackets
-    class cp_r_:  # pylint: disable=too-few-public-methods
-        """Hackish version of a cupy version of r_.
+    if ~hasattr(cp, "r_"):
+        # Add a version of np.r_ to cupy that just calls numpy
+        # has to be a class b/c r_ uses sq brackets
+        class cp_r_:  # pylint: disable=too-few-public-methods
+            """Hackish version of a cupy version of r_.
 
-        It just uses numpy and wraps it to have the same signature.
-        """  # noqa: RST306
+            It just uses numpy and wraps it to have the same signature.
+            """  # noqa: RST306
 
-        def __getitem__(self, inds):
-            """Call np.r_ and case the result to cupy."""  # noqa: RST306
-            return cp.array(np.r_[inds])
+            def __getitem__(self, inds):
+                """Call np.r_ and case the result to cupy."""  # noqa: RST306
+                return cp.array(np.r_[inds])
 
-    cp.r_ = cp_r_()
+        cp.r_ = cp_r_()
 
     import cupyx.scipy.special  # pylint: disable=import-outside-toplevel
 
