@@ -491,8 +491,13 @@ class buckyModelCovid:
         dy = y.zeros_like()
 
         # effective params after damping w/ allocated stuff
-        t_index = min(int(t), npi["r0_reduct"].shape[0] - 1)  # prevent OOB error when integrator overshoots
-        BETA_eff = npi["r0_reduct"][t_index] * par["BETA"]
+        if npi["npi_active"]:
+            # We want to avoid doing this int cast if we arent using npis b/c it forces a sync
+            t_index = min(int(t), npi["r0_reduct"].shape[0] - 1)  # prevent OOB error when integrator overshoots
+            BETA_eff = npi["r0_reduct"][t_index] * par["BETA"]
+        else:
+            BETA_eff = par["BETA"]
+
         F_eff = par["F_eff"]
         HOSP = par["H"]
         THETA = y.Rhn * par["THETA"]
@@ -502,14 +507,22 @@ class buckyModelCovid:
         SYM_FRAC = par["SYM_FRAC"]
         CASE_REPORT = par["CASE_REPORT"]
 
-        Cij = npi["contact_weights"][t_index] * contact_mats
+        if npi["npi_active"]:
+            Cij = npi["contact_weights"][t_index] * contact_mats
+        else:
+            Cij = contact_mats
         Cij = xp.sum(Cij, axis=1)
         Cij /= xp.sum(Cij, axis=2, keepdims=True)
 
-        if aij_sparse:
-            Aij_eff = Aij.multiply(npi["mobility_reduct"][t_index])
+        if npi["npi_active"]:
+            if aij_sparse:
+                Aij_eff = Aij.multiply(npi["mobility_reduct"][t_index])
+            else:
+                Aij_eff = npi["mobility_reduct"][t_index] * Aij
+
         else:
-            Aij_eff = npi["mobility_reduct"][t_index] * Aij
+            Aij_eff = Aij
+
         # perturb Aij
         # new_R0_fracij = truncnorm(xp, 1.0, .1, size=Aij.shape, a_min=1e-6)
         # new_R0_fracij = xp.clip(new_R0_fracij, 1e-6, None)

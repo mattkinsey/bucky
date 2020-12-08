@@ -28,8 +28,10 @@ def get_npi_params(g_data, first_date, t_max, npi_file=None, disable_npi=False):
                 npi_params[k] = xp.broadcast_to(npi_params[k], (t_max + 1, n_nodes, 4))
             else:
                 npi_params[k] = xp.broadcast_to(npi_params[k], (t_max + 1, n_nodes))
+        npi_params["npi_active"] = True
     else:
         npi_params = {
+            "npi_active": False,
             "r0_reduct": xp.broadcast_to(xp.ones(1), (t_max + 1, n_nodes)),
             "contact_weights": xp.broadcast_to(xp.ones(1), (t_max + 1, n_nodes, 4)),
             "mobility_reduct": xp.broadcast_to(xp.ones(1), (t_max + 1, n_nodes)),
