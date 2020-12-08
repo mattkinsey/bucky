@@ -146,7 +146,7 @@ exclude_patterns = []
 
 mathjax_path = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
 tikz_proc_suite = "GhostScript"
-tikz_latex_preamble = r"\\newcommand{\\asym}{\\alpha_i}\n \
+tikz_latex_preamble = "\\newcommand{\\asym}{\\alpha_i}\n \
         \\newcommand{\chr}{\\eta_i}\n \
         \\newcommand{\cfr}{\\phi_i}\n \
         \\newcommand{\htime}{\\rho_i}\n \
