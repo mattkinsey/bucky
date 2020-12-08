@@ -1,6 +1,7 @@
 """Provide a class to hold the internal state vector to the compartment model (and track compartment indices)."""
 
 import contextlib
+import copy
 
 from ..numerical_libs import reimport_numerical_libs, xp
 
@@ -49,6 +50,11 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
             self.state = xp.zeros(self.state_shape)
         else:
             self.state = state
+
+    def zeros_like(self):
+        ret = copy.copy(self)
+        ret.state = xp.zeros_like(self.state)
+        return ret
 
     def __getattribute__(self, attr):
         """Allow for . access to the compartment indices, otherwise return the 'normal' attribute."""

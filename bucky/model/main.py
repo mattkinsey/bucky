@@ -488,7 +488,7 @@ class buckyModelCovid:
         xp.clip(y.state, a_min=lower, a_max=upper, out=y.state)
 
         # init d(state)/dt
-        dy = buckyState(y.consts, Nij)  # TODO make a pseudo copy operator w/ zeros
+        dy = y.zeros_like()
 
         # effective params after damping w/ allocated stuff
         t_index = min(int(t), npi["r0_reduct"].shape[0] - 1)  # prevent OOB error when integrator overshoots
