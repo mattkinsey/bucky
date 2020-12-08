@@ -3,12 +3,12 @@ import copy
 import logging
 from pprint import pformat
 
-import numpy as np
+import numpy  # we only need numpy for interp, we could write this in cupy...
 import yaml
 
 from ..numerical_libs import reimport_numerical_libs, xp
 from ..util import dotdict
-from ..util.distributions import mPERT_sample, truncnorm
+from ..util.distributions import approx_mPERT_sample, truncnorm
 
 
 def calc_Te(Tg, Ts, n, f):
@@ -43,7 +43,7 @@ def calc_gamma(Ti):
 def CI_to_std(CI):
     """Convert a 95% confidence interval to an equivilent stddev (assuming its normal)"""
     lower, upper = CI
-    std95 = np.sqrt(1.0 / 0.05)
+    std95 = xp.sqrt(1.0 / 0.05)
     return (upper + lower) / 2.0, (upper - lower) / std95 / 2.0
 
 
@@ -58,6 +58,26 @@ class buckyParams:
         self.par_file = par_file
         if par_file is not None:
             self.base_params = self.read_yml(par_file)
+
+            for k, v in self.base_params.items():
+                if type(v) == dict:
+                    p = k
+                    if "values" in self.base_params[p]:
+                        # params[p] = np.array(base_params[p]["values"])
+                        # params[p] *= truncnorm(1.0, var, size=params[p].shape, a_min=1e-6)
+                        # interp to our age bins
+                        if self.base_params[p]["age_bins"] != self.base_params["consts"]["age_bins"]:
+                            self.base_params[p]["values"] = self.age_interp(
+                                self.base_params["consts"]["age_bins"],
+                                self.base_params[p]["age_bins"],
+                                self.base_params[p]["values"],
+                            )
+                            self.base_params[p]["age_bins"] = self.base_params["consts"]["age_bins"]
+
+                    for k2 in v:
+                        if k2 == "values" or k2 == "mean":
+                            self.base_params[k][k2] = xp.array(self.base_params[k][k2])
+
             self.consts = dotdict(self.base_params["consts"])
         else:
             self.base_params = None
@@ -87,22 +107,22 @@ class buckyParams:
             # Scalars
             if "gamma" in base_params[p]:
                 mu = copy.deepcopy(base_params[p]["mean"])
-                params[p] = mPERT_sample(np.array([mu]), gamma=base_params[p]["gamma"])
+                params[p] = approx_mPERT_sample(xp.array([mu]), gamma=base_params[p]["gamma"])
 
             elif "mean" in base_params[p]:
                 if "CI" in base_params[p]:
                     if var:
-                        params[p] = xp.to_cpu(truncnorm(*CI_to_std(base_params[p]["CI"]), a_min=1e-6))
+                        params[p] = truncnorm(*CI_to_std(base_params[p]["CI"]), a_min=1e-6)
                     else:  # just use mean if we set var to 0
                         params[p] = copy.deepcopy(base_params[p]["mean"])
                 else:
-                    params[p] = copy.deepcopy(base_params[p]["mean"])
-                    params[p] *= xp.to_cpu(truncnorm(loc=1.0, scale=var, a_min=1e-6))
+                    params[p] = xp.atleast_1d(copy.deepcopy(base_params[p]["mean"]))
+                    params[p] *= truncnorm(loc=1.0, scale=var, a_min=1e-6)
 
             # age-based vectors
             elif "values" in base_params[p]:
-                params[p] = np.array(base_params[p]["values"])
-                params[p] *= xp.to_cpu(truncnorm(1.0, var, size=params[p].shape, a_min=1e-6))
+                params[p] = xp.array(base_params[p]["values"])
+                params[p] *= truncnorm(1.0, var, size=params[p].shape, a_min=1e-6)
                 # interp to our age bins
                 if base_params[p]["age_bins"] != base_params["consts"]["age_bins"]:
                     params[p] = self.age_interp(
@@ -118,7 +138,7 @@ class buckyParams:
             # clip values
             if "clip" in base_params[p]:
                 clip_range = base_params[p]["clip"]
-                params[p] = np.clip(params[p], clip_range[0], clip_range[1])
+                params[p] = xp.clip(params[p], clip_range[0], clip_range[1])
 
         return params
 
@@ -126,9 +146,9 @@ class buckyParams:
     def age_interp(x_bins_new, x_bins, y):
         """Interpolate parameters define in age groups to a new set of age groups"""
         # TODO we should probably account for population for the 65+ type bins...
-        x_mean_new = np.mean(np.array(x_bins_new), axis=1)
-        x_mean = np.mean(np.array(x_bins), axis=1)
-        return np.interp(x_mean_new, x_mean, y)
+        x_mean_new = numpy.mean(numpy.array(x_bins_new), axis=1)
+        x_mean = numpy.mean(numpy.array(x_bins), axis=1)
+        return numpy.interp(x_mean_new, x_mean, y)
 
     @staticmethod
     def rescale_doubling_rate(D, params, A_diag=None):
@@ -158,7 +178,7 @@ class buckyParams:
             params["frac_trans_before_sym"],
         )
         params["Ti"] = calc_Ti(params["Te"], params["Tg"], params["consts"]["En"])
-        r = np.log(2.0) / params["D"]
+        r = xp.log(2.0) / params["D"]
         params["R0"] = calc_Reff(
             params["consts"]["Im"],
             params["consts"]["En"],
