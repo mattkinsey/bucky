@@ -46,10 +46,32 @@ def get_runid():  # TODO move to util and rename to timeid or something
     return str(dt_now).replace(" ", "__").replace(":", "_").split(".")[0]
 
 
-def frac_sum_last_n_vals(arr, n, axis=0):
-    """Calculate the sum of last n values along an axis of an array, where n can be a float"""
-    frac_slice_ind = [slice(None)] * (axis) + [-int(n + 1)] + [slice(None)] * (arr.ndim - axis - 1)
-    return xp.sum(arr[-int(n) :], axis=axis) + (n % 1) * arr[frac_slice_ind]
+def frac_last_n_vals(arr, n, axis=0, offset=0):  # TODO assumes come from end of array currently, move to util
+    """Return the last n values along an axis of an array; if n is a float, include the fractional amount of the int(n)-1 element"""
+    int_slice_ind = (
+        [slice(None)] * (axis)
+        + [slice(-int(n + offset), -int(xp.ceil(offset)) or None)]
+        + [slice(None)] * (arr.ndim - axis - 1)
+    )
+    ret = arr[int_slice_ind]
+    # handle fractional element before the standard slice
+    if (n + offset) % 1:
+        frac_slice_ind = (
+            [slice(None)] * (axis)
+            + [slice(-int(n + offset + 1), -int(n + offset))]
+            + [slice(None)] * (arr.ndim - axis - 1)
+        )
+        ret = xp.concatenate((((n + offset) % 1) * arr[frac_slice_ind], ret), axis=axis)
+    # handle fractional element after the standard slice
+    if offset % 1:
+        frac_slice_ind = (
+            [slice(None)] * (axis)
+            + [slice(-int(offset + 1), -int(offset) or None)]
+            + [slice(None)] * (arr.ndim - axis - 1)
+        )
+        ret = xp.concatenate((ret, (1.0 - (offset % 1)) * arr[frac_slice_ind]), axis=axis)
+
+    return ret
 
 
 class buckyModelCovid:
@@ -292,7 +314,7 @@ class buckyModelCovid:
         if self.debug:
             logging.debug("case init")
         Ti = self.params.Ti
-        current_I = frac_sum_last_n_vals(self.g_data.inc_case_hist, Ti, axis=0)
+        current_I = xp.sum(frac_last_n_vals(self.g_data.inc_case_hist, Ti, axis=0), axis=0)
 
         current_I[xp.isnan(current_I)] = 0.0
         current_I[current_I < 0.0] = 0.0
@@ -397,10 +419,9 @@ class buckyModelCovid:
         recent_cum_cases = g_data.rolling_cum_cases - g_data.rolling_cum_cases[0]
         recent_cum_deaths = g_data.rolling_cum_deaths - g_data.rolling_cum_deaths[0]
         case_lag_frac = case_lag % 1  # TODO replace with util function for the indexing
-        cases_lagged = (
-            recent_cum_cases[-case_lag_int - days_back : -case_lag_int]
-            + case_lag_frac * recent_cum_cases[-case_lag_int - 1 - days_back : -case_lag_int - 1]
-        )
+        cases_lagged = frac_last_n_vals(recent_cum_cases, days_back + case_lag_frac, offset=case_lag_int)
+        if case_lag_frac:
+            cases_lagged = cases_lagged[0] + cases_lagged[1:]
 
         # adm0
         adm0_cfr_param = xp.sum(xp.sum(cfr * g_data.Nij, axis=1) / xp.sum(g_data.Nj, axis=0), axis=0)
