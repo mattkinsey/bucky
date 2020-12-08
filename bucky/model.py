@@ -477,8 +477,10 @@ class SEIR_covid:
         )
 
         yy.I = (1.0 - self.params.H) * I_init / yy.Im
-        yy.Ic = self.params.CASE_REPORT * self.params.H * I_init / yy.Im
-        yy.Rh = self.params.CASE_REPORT * self.params.H * I_init * self.params.GAMMA_H / self.params.THETA / yy.Rhn
+        # for bucky the CASE_REPORT is low due to estimating it based on expected CFR and historical CFR
+        # thus adding CASE_REPORT here might lower Ic and Rh too much
+        yy.Ic = self.params.H * I_init / yy.Im  # self.params.CASE_REPORT *
+        yy.Rh = self.params.H * I_init * self.params.GAMMA_H / self.params.THETA / yy.Rhn  # self.params.CASE_REPORT *
 
         if self.rescale_chr:
             adm1_hosp = xp.zeros((self.adm1_max + 1,), dtype=float)
