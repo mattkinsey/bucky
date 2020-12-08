@@ -333,7 +333,7 @@ class buckyModelCovid:
         E_fac = approx_mPERT_sample(mu=1.3, a=0.9, b=1.7, gamma=10.0)
         H_fac = approx_mPERT_sample(mu=1.0, a=0.8, b=1.2, gamma=10.0)
 
-        I_init = current_I[None, :] / self.Nij / self.n_age_grps
+        I_init = E_fac * current_I[None, :] / self.Nij / self.n_age_grps
         D_init = self.g_data.cum_death_hist[-1][None, :] / self.Nij / self.n_age_grps
         recovered_init = (
             self.g_data.cum_case_hist[-1] / self.params["SYM_FRAC"] / (self.params["CASE_REPORT"])
