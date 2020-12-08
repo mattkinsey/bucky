@@ -174,14 +174,22 @@ class buckyModelCovid:
         if self.rescale_chr:
             self.adm1_current_hosp = xp.zeros((g_data.max_adm1 + 1,), dtype=float)
             hhs_data = G.graph["hhs_data"].reset_index()
+            hhs_data = (
+                hhs_data.set_index("date")
+                .sort_index()
+                .groupby("adm1")
+                .rolling(7)  # , center=True)
+                .mean()
+                .drop(columns="adm1")
+                .reset_index()
+            )
             hhs_curr_data = hhs_data.loc[hhs_data.date == str(self.first_date)]
-            hhs_curr_data = hhs_curr_data.set_index("adm1")
+            hhs_curr_data = hhs_curr_data.set_index("adm1").sort_index()
             tot_hosps = (
                 hhs_curr_data.total_adult_patients_hospitalized_confirmed_covid
                 + hhs_curr_data.total_pediatric_patients_hospitalized_confirmed_covid
             )
             self.adm1_current_hosp[tot_hosps.index.to_numpy()] = tot_hosps.to_numpy()
-
             if self.debug:
                 logging.debug("Current hospitalizations: " + pformat(self.adm1_current_hosp))
 
