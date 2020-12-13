@@ -5,11 +5,36 @@ consts:
   Rhn: 3
   age_bins: [[0,4], [5,9], [10, 14], [15, 19], [20,24], [25,29], [30,34], [35,39], [40,44], [45, 49], [50,54], [55,59], [60, 64], [65,69], [70,74], [74,120]]
 
-  reroll_variance: 0.08 #12
+  reroll_variance: 0.12
   doubling_t_window: 7
   doubling_t_N_historical_days: 3
   case_reporting_min_deaths: 100.
   case_reporting_N_historical_days: 7
+  F_scaling: .9
+
+dists:
+  Rt_dist:
+    gamma: 5.
+    a: .9
+    b: 1.1
+  R_fac_dist:
+    mu: .5
+    a: .45
+    b: .55
+    gamma: 50.
+  E_fac_dist:
+    mu: 1.3
+    a: .9
+    b: 1.7
+    gamma: 10.
+  H_fac_dist:
+    mu: 1.
+    a: .8
+    b: 1.2
+    gamma: 10.
+  F_RR_var: 0.12
+  H_RR_var: 0.12
+
 
 Tg:
   # Mean generation interval
@@ -36,7 +61,7 @@ rel_inf_asym:
 frac_trans_before_sym:
   # Fraction of transmissions occuring before symptom onset
   mean: 0.50
-  CI: [0.4, 0.6]
+  #CI: [0.4, 0.6]
   clip: [0., 1.]
 
 F:
