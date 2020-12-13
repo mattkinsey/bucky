@@ -147,7 +147,8 @@ disable=parameter-unpacking,
 	too-many-branches,
 	too-many-instance-attributes,
 	attribute-defined-outside-init,
-	logging-not-lazy, logging-fstring-interpolation
+	logging-not-lazy, logging-fstring-interpolation,
+    anomalous-backslash-in-string
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
