@@ -47,6 +47,16 @@ def CI_to_std(CI):
     return (upper + lower) / 2.0, (upper - lower) / std95 / 2.0
 
 
+# TODO move to util
+def recursive_dict_update(d, u):
+    for k, v in u.items():
+        if isinstance(v, dict):
+            d[k] = recursive_dict_update(d.get(k, {}), v)
+        else:
+            d[k] = v
+    return d
+
+
 class buckyParams:
     """Class holding all the model parameters defined in the par file, also used to reroll them for each MC run"""
 
@@ -55,32 +65,67 @@ class buckyParams:
 
         reimport_numerical_libs("model.parameters.buckyParams.__init__")
 
+        self.eps = xp.array([1e-6])
+        self.one = xp.array([1.0])
+
         self.par_file = par_file
         if par_file is not None:
             self.base_params = self.read_yml(par_file)
-
-            for k, v in self.base_params.items():
-                if type(v) == dict:
-                    p = k
-                    if "values" in self.base_params[p]:
-                        # params[p] = np.array(base_params[p]["values"])
-                        # params[p] *= truncnorm(1.0, var, size=params[p].shape, a_min=1e-6)
-                        # interp to our age bins
-                        if self.base_params[p]["age_bins"] != self.base_params["consts"]["age_bins"]:
-                            self.base_params[p]["values"] = self.age_interp(
-                                self.base_params["consts"]["age_bins"],
-                                self.base_params[p]["age_bins"],
-                                self.base_params[p]["values"],
-                            )
-                            self.base_params[p]["age_bins"] = self.base_params["consts"]["age_bins"]
-
-                    for k2 in v:
-                        if k2 == "values" or k2 == "mean":
-                            self.base_params[k][k2] = xp.array(self.base_params[k][k2])
-
+            self.base_params = self.preprocess_param_dict(self.base_params)
             self.consts = dotdict(self.base_params["consts"])
+            self.dists = dotdict(self.base_params["dists"])
         else:
             self.base_params = None
+
+    def update_params(self, update_dict):
+        self.base_params = recursive_dict_update(self.base_params, update_dict)
+        self.base_params = self.preprocess_param_dict(self.base_params)
+        self.consts = dotdict(self.base_params["consts"])
+        self.dists = dotdict(self.base_params["dists"])
+
+    # This could be static, literally never uses self
+    def preprocess_param_dict(self, base_params):
+        for k, v in base_params.items():
+            if type(v) == dict:
+                p = k
+                if "values" in base_params[p]:
+                    # params[p] = np.array(base_params[p]["values"])
+                    # params[p] *= truncnorm(1.0, var, size=params[p].shape, a_min=1e-6)
+                    # interp to our age bins
+                    need_interp = True
+                    if xp.array(base_params[p]["age_bins"]).shape == xp.array(base_params["consts"]["age_bins"]).shape:
+                        need_interp = xp.any(xp.array(base_params[p]["age_bins"]) != base_params["consts"]["age_bins"])
+                    else:
+                        need_interp = True
+
+                    if need_interp:
+                        base_params[p]["values"] = self.age_interp(
+                            base_params["consts"]["age_bins"],
+                            base_params[p]["age_bins"],
+                            base_params[p]["values"],
+                        )
+                        base_params[p]["age_bins"] = base_params["consts"]["age_bins"]
+
+                for k2 in v:
+                    to_add = {}
+                    if k2 in ("values", "mean", "CI", "stddev") or k == "consts":
+                        base_params[k][k2] = xp.array(base_params[k][k2])
+                    if "CI" in base_params[k]:
+                        mean, std = CI_to_std(base_params[p]["CI"])
+                        to_add["mean"] = xp.array(mean)
+                        to_add["stddev"] = xp.array(std)
+                    if "clip" in base_params[k]:
+                        clip = base_params[k]["clip"]
+                        to_add["clip_lower"] = xp.array(clip[0]) if clip[0] is not None else None
+                        to_add["clip_upper"] = xp.array(clip[1]) if clip[1] is not None else None
+
+                for k2 in ("CI", "clip"):
+                    if k2 in base_params[k]:
+                        del base_params[k][k2]
+
+                base_params[k].update(to_add)
+
+        return base_params
 
     @staticmethod
     def read_yml(par_file):
@@ -98,7 +143,7 @@ class buckyParams:
             params = self.calc_derived_params(params)
             if (params.Te > 1.0 and params.Tg > params.Te and params.Ti > 3.0) or var == 0.0:
                 return params
-            logging.debug("Rejected params: " + pformat(params))
+            # logging.debug("Rejected params: " + pformat(params))
 
     def reroll_params(self, base_params, var):
         """Reroll the parameters defined in the par file"""
@@ -107,29 +152,29 @@ class buckyParams:
             # Scalars
             if "gamma" in base_params[p]:
                 mu = copy.deepcopy(base_params[p]["mean"])
-                params[p] = approx_mPERT_sample(xp.array([mu]), gamma=base_params[p]["gamma"])
+                params[p] = approx_mPERT_sample(mu, gamma=base_params[p]["gamma"])
 
             elif "mean" in base_params[p]:
-                if "CI" in base_params[p]:
-                    if var:
-                        params[p] = truncnorm(*CI_to_std(base_params[p]["CI"]), a_min=1e-6)
-                    else:  # just use mean if we set var to 0
-                        params[p] = copy.deepcopy(base_params[p]["mean"])
-                else:
-                    params[p] = xp.atleast_1d(copy.deepcopy(base_params[p]["mean"]))
-                    params[p] *= truncnorm(loc=1.0, scale=var, a_min=1e-6)
+                # if "CI" in base_params[p]:
+                #    if var:
+                #        params[p] = truncnorm(*CI_to_std(base_params[p]["CI"]), a_min=1e-6)
+                #    else:  # just use mean if we set var to 0
+                #        params[p] = copy.deepcopy(base_params[p]["mean"])
+                # else:
+                params[p] = xp.atleast_1d(copy.deepcopy(base_params[p]["mean"]))
+                params[p] = params[p] * truncnorm(loc=self.one, scale=var, a_min=self.eps)
 
             # age-based vectors
             elif "values" in base_params[p]:
                 params[p] = xp.array(base_params[p]["values"])
-                params[p] *= truncnorm(1.0, var, size=params[p].shape, a_min=1e-6)
+                params[p] = params[p] * truncnorm(self.one, var, size=params[p].shape, a_min=self.eps)
                 # interp to our age bins
-                if base_params[p]["age_bins"] != base_params["consts"]["age_bins"]:
-                    params[p] = self.age_interp(
-                        base_params["consts"]["age_bins"],
-                        base_params[p]["age_bins"],
-                        params[p],
-                    )
+                # if xp.any(base_params[p]["age_bins"] != base_params["consts"]["age_bins"]):
+                #    params[p] = self.age_interp(
+                #        base_params["consts"]["age_bins"],
+                #        base_params[p]["age_bins"],
+                #        params[p],
+                #    )
 
             # fixed values (noop)
             else:
@@ -137,8 +182,9 @@ class buckyParams:
 
             # clip values
             if "clip" in base_params[p]:
-                clip_range = base_params[p]["clip"]
-                params[p] = xp.clip(params[p], clip_range[0], clip_range[1])
+                clip_lower = base_params[p]["clip_lower"]
+                clip_upper = base_params[p]["clip_upper"]
+                params[p] = xp.clip(params[p], clip_lower, clip_upper)
 
         return params
 
@@ -146,8 +192,8 @@ class buckyParams:
     def age_interp(x_bins_new, x_bins, y):
         """Interpolate parameters define in age groups to a new set of age groups"""
         # TODO we should probably account for population for the 65+ type bins...
-        x_mean_new = numpy.mean(numpy.array(x_bins_new), axis=1)
-        x_mean = numpy.mean(numpy.array(x_bins), axis=1)
+        x_mean_new = numpy.mean(numpy.array(xp.to_cpu(x_bins_new)), axis=1)
+        x_mean = numpy.mean(numpy.array(xp.to_cpu(x_bins)), axis=1)
         return numpy.interp(x_mean_new, x_mean, y)
 
     @staticmethod
