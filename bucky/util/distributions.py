@@ -84,9 +84,9 @@ def truncnorm(loc=0.0, scale=1.0, size=1, a_min=None, a_max=None):
 
     ret = xp.random.normal(loc, scale, size)
     if a_min is None:
-        a_min = -xp.inf
+        a_min = xp.array(-xp.inf)
     if a_max is None:
-        a_max = xp.inf
+        a_max = xp.array(xp.inf)
 
     while True:
         valid = (ret > a_min) & (ret < a_max)
