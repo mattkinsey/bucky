@@ -6,6 +6,10 @@ import copy
 from ..numerical_libs import reimport_numerical_libs, xp
 
 
+def slice_to_cpu(s):
+    return slice(xp.to_cpu(s.start), xp.to_cpu(s.stop), xp.to_cpu(s.step))
+
+
 class buckyState:  # pylint: disable=too-many-instance-attributes
     """Class to manage the state of the bucky compartments (and their indices)."""
 
@@ -33,16 +37,16 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
         current_index = 0
         for name, nbins in bin_counts.items():
             indices[name] = slice(current_index, current_index + nbins)
-            current_index += nbins
+            current_index = current_index + nbins
 
         # define some combined compartment indices
-        indices["N"] = xp.concatenate([xp.r_[v] for k, v in indices.items() if "inc" not in k])
-        indices["Itot"] = xp.concatenate([xp.r_[v] for k, v in indices.items() if k in ("I", "Ia", "Ic")])
-        indices["H"] = xp.concatenate([xp.r_[v] for k, v in indices.items() if k in ("Ic", "Rh")])
+        indices["N"] = xp.concatenate([xp.r_[slice_to_cpu(v)] for k, v in indices.items() if "inc" not in k])
+        indices["Itot"] = xp.concatenate([xp.r_[slice_to_cpu(v)] for k, v in indices.items() if k in ("I", "Ia", "Ic")])
+        indices["H"] = xp.concatenate([xp.r_[slice_to_cpu(v)] for k, v in indices.items() if k in ("Ic", "Rh")])
 
         self.indices = indices
 
-        self.n_compartments = sum([n for n in bin_counts.values()])
+        self.n_compartments = xp.to_cpu(sum([n for n in bin_counts.values()])).item()
 
         self.n_age_grps, self.n_nodes = Nij.shape
 
