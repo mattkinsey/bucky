@@ -112,6 +112,11 @@ class buckyModelCovid:
 
         self.g_data = self.load_graph(graph_file)
 
+    def update_params(self, update_dict):
+        self.bucky_params.update_params(update_dict)
+        self.consts = self.bucky_params.consts
+        self.dists = self.bucky_params.dists
+
     def load_graph(self, graph_file):
         """Load the graph data and calculate all the variables that are static across MC runs"""
         # TODO refactor to just ahve this return g_data
@@ -125,6 +130,7 @@ class buckyModelCovid:
         # TODO we should go through an replace lots of math using self.g_data.* with function IN buckyGraphData
         g_data = buckyGraphData(G, self.sparse)
 
+        """
         if "IFR" in G.nodes[list(G.nodes.keys())[0]]:
             logging.info("Using ifr from graph")
             self.use_G_ifr = True
@@ -132,6 +138,7 @@ class buckyModelCovid:
             self.ifr = xp.asarray((np.vstack(list(node_IFR.values()))).T)
         else:
             self.use_G_ifr = False
+        """
 
         # Make contact mats sym and normalized
         self.contact_mats = G.graph["contact_mats"]
@@ -237,6 +244,7 @@ class buckyModelCovid:
         self.params.H = xp.broadcast_to(self.params.H[:, None], self.Nij.shape)
         self.params.F = xp.broadcast_to(self.params.F[:, None], self.Nij.shape)
 
+        """
         if self.use_G_ifr:  # TODO this is pretty much overwriteen with the CHR rescale...
             self.ifr[xp.isnan(self.ifr)] = 0.0
             self.params.F = self.ifr / self.params["SYM_FRAC"]
@@ -244,6 +252,7 @@ class buckyModelCovid:
             ifr_scale = 0.0065 / adm0_ifr  # TODO this should be in par file (its from planning scenario5)
             self.params.F = xp.clip(self.params.F * ifr_scale, 0.0, 1.0)
             self.params.F_old = self.params.F.copy()
+        """
 
         if self.rescale_chr:
             # TODO this needs to be cleaned up BAD
@@ -760,6 +769,7 @@ def main(args=None):
     args = parser.parse_args(args=args)
 
     if args.gpu:
+        logging.info("Using GPU backend")
         use_cupy(optimize=args.opt)
 
     reimport_numerical_libs("model.main.main")
@@ -804,9 +814,6 @@ def main(args=None):
     write_thread = threading.Thread(target=writer, daemon=True)
     write_thread.start()
 
-    if args.gpu:
-        logging.info("Using GPU backend")
-
     logging.info(f"command line args: {args}")
     env = buckyModelCovid(
         debug=debug_mode,
@@ -824,11 +831,9 @@ def main(args=None):
     total_start = datetime.datetime.now()
     success = 0
     n_runs = 0
-    times = []
     pbar = tqdm.tqdm(total=args.n_mc, desc="Performing Monte Carlos", dynamic_ncols=True)
     try:
         while success < args.n_mc:
-            start_time = datetime.datetime.now()
             mc_seed = seed_seq.spawn(1)[0].generate_state(1)[0]  # inc spawn key then grab next seed
             pbar.set_postfix_str(
                 "seed="
@@ -845,10 +850,7 @@ def main(args=None):
                 pbar.update(1)
             except SimulationException:
                 pass
-            run_time = (datetime.datetime.now() - start_time).total_seconds()
-            times.append(run_time)
 
-            logging.info(f"{mc_seed}: {datetime.datetime.now() - start_time}")
     except (KeyboardInterrupt, SystemExit):
         logging.warning("Caught SIGINT, cleaning up")
         to_write.put(None)
