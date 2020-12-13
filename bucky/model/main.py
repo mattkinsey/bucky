@@ -170,8 +170,13 @@ class buckyModelCovid:
         # fill in npi_params either from file or as ones
         self.npi_params = get_npi_params(g_data, self.first_date, self.t_max, self.npi_file, self.disable_npi)
 
-        self.Cij = xp.broadcast_to(self.Cij, (n_nodes,) + self.Cij.shape)
-        self.npi_params["contact_weights"] = self.npi_params["contact_weights"][..., None, None]
+        if self.npi_params["npi_active"]:
+            self.Cij = xp.broadcast_to(self.Cij, (n_nodes,) + self.Cij.shape)
+            self.npi_params["contact_weights"] = self.npi_params["contact_weights"][..., None, None]
+        else:
+            self.Cij = xp.sum(self.Cij, axis=0)
+            self.Cij = (self.Cij + self.Cij.T) / 2.0
+            self.Cij = self.Cij / xp.sum(self.Cij, axis=1)
 
         self.adm0_cfr_reported = None
         self.adm1_cfr_reported = None
@@ -546,10 +551,11 @@ class buckyModelCovid:
 
         if npi["npi_active"]:
             Cij = npi["contact_weights"][t_index] * contact_mats
+            # TODO this should be c + c.T / 2
+            Cij = xp.sum(Cij, axis=1)
+            Cij /= xp.sum(Cij, axis=2, keepdims=True)
         else:
             Cij = contact_mats
-        Cij = xp.sum(Cij, axis=1)
-        Cij /= xp.sum(Cij, axis=2, keepdims=True)
 
         if npi["npi_active"]:
             if aij_sparse:
