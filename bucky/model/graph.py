@@ -72,6 +72,11 @@ class buckyGraphData:
         return xp.sum(self.Nij, axis=0)
 
     @cached_property
+    def N(self):
+        """Total population"""
+        return xp.sum(self.Nij)
+
+    @cached_property
     def adm0_Ni(self):
         """Age stratified adm0 population"""
         return xp.sum(self.Nij, axis=1)
