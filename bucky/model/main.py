@@ -664,7 +664,7 @@ class buckyModelCovid:
         # dD/dt
         dy.D = F_eff * THETA * y.Rh[-1]
 
-        dy.incH = SYM_FRAC * CASE_REPORT * HOSP * SIGMA * y.E[-1]
+        dy.incH = GAMMA_H * y.Ic[-1]  # SYM_FRAC * HOSP * SIGMA * y.E[-1]
         dy.incC = SYM_FRAC * CASE_REPORT * SIGMA * y.E[-1]
 
         # bring back to 1d for the ODE api
