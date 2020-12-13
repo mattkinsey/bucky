@@ -624,8 +624,9 @@ class buckyModelCovid:
 
         return dy_flat
 
-    def run_once(self, seed=None, outdir="raw_output/", output=True, output_queue=None):
+    def run_once(self, seed=None):
         """Perform one complete run of the simulation"""
+        # rename to integrate or something? it also resets...
 
         # reset everything
         logging.debug("Resetting state")
@@ -645,111 +646,207 @@ class buckyModelCovid:
         )
         logging.debug("Done integration")
 
-        y = sol.y.reshape(self.y.state_shape + (len(t_eval),))
+        return sol
+
+    def run_multiple(self, n_mc, base_seed=42, out_columns=None):
+        """Perform multiple monte carlos and return their postprocessed results"""
+        seed_seq = np.random.SeedSequence(base_seed)
+        success = 0
+        ret = []
+        pbar = tqdm.tqdm(total=n_mc, desc="Performing Monte Carlos", dynamic_ncols=True)
+        while success < n_mc:
+            mc_seed = seed_seq.spawn(1)[0].generate_state(1)[0]  # inc spawn key then grab next seed
+            pbar.set_postfix_str(
+                "seed=" + str(mc_seed),
+                refresh=True,
+            )
+            try:
+                with xp.optimize_kernels():
+                    sol = self.run_once(seed=mc_seed)
+                    df_data = self.postprocess_run(sol, mc_seed, out_columns)
+                ret.append(df_data)
+                success += 1
+                pbar.update(1)
+            except SimulationException:
+                pass
+
+        pbar.close()
+        return ret
+
+    # TODO Move this to a class thats like run_parser or something (that caches all the info it needs like Nij, and manages the write thread/queue)
+    # Also give it methods like to_dlpack, to_pytorch, etc
+    def to_feather(self, sol, base_filename, seed, output_queue):
+        """Postprocess and write to disk the output of run_once"""
+
+        df_data = self.postprocess_run(sol, seed)
+
+        # flatten the shape
+        for c in df_data:
+            df_data[c] = df_data[c].ravel()
+
+        # push the data off to the write thread
+        output_queue.put((base_filename, df_data))
+        # TODO we should output the per monte carlo param rolls, this got lost when we switched from hdf5
+
+    def postprocess_run(self, sol, seed, columns=None):
+        """Process the output of a run (sol, returned by the integrator) into the requested output vars"""
+        if columns is None:
+            columns = [
+                "adm2_id",
+                "date",
+                "rid",
+                "total_population",
+                "current_hospitalizations",
+                "active_asymptomatic_cases",
+                "cumulative_deaths",
+                "daily_hospitalizations",
+                "daily_cases",
+                "daily_reported_cases",
+                "daily_deaths",
+                "cumulative_cases",
+                "cumulative_reported_cases",
+                "current_icu_usage",
+                "current_vent_usage",
+                "case_reporting_rate",
+                "R_eff",
+                "doubling_t",
+            ]
+
+            columns = set(columns)
+
+        df_data = {}
 
         out = buckyState(self.consts, self.Nij)
+
+        y = sol.y.reshape(self.y.state_shape + (sol.y.shape[-1],))
+
+        # rescale by population
         out.state = self.Nij[None, ..., None] * y
 
         # collapse age groups
         out.state = xp.sum(out.state, axis=1)
 
-        population_conserved = (xp.diff(xp.around(xp.sum(out.N, axis=(0, 1)), 1)) == 0.0).all()
-        if not population_conserved:
-            pass  # TODO we're getting small fp errors here
-            # print(xp.sum(xp.diff(xp.around(xp.sum(out[:incH], axis=(0, 1)), 1))))
-            # logging.error("Population not conserved!")
-            # print(xp.sum(xp.sum(y[:incH],axis=0)-1.))
-            # raise SimulationException
+        # population_conserved = (xp.diff(xp.around(xp.sum(out.N, axis=(0, 1)), 1)) == 0.0).all()
+        # if not population_conserved:
+        #    pass  # TODO we're getting small fp errors here
+        #    # print(xp.sum(xp.diff(xp.around(xp.sum(out[:incH], axis=(0, 1)), 1))))
+        #    # logging.error("Population not conserved!")
+        #    # print(xp.sum(xp.sum(y[:incH],axis=0)-1.))
+        #    # raise SimulationException
 
-        adm2_ids = np.broadcast_to(self.g_data.adm2_id[:, None], out.state.shape[1:])
+        if "adm2_id" in columns:
+            adm2_ids = np.broadcast_to(self.g_data.adm2_id[:, None], out.state.shape[1:])
+            df_data["adm2_id"] = adm2_ids
 
-        if self.output_dates is None:
-            t_output = xp.to_cpu(sol.t)
-            dates = [pd.Timestamp(self.first_date + datetime.timedelta(days=np.round(t))) for t in t_output]
-            self.output_dates = np.broadcast_to(dates, out.state.shape[1:])
+        if "date" in columns:
+            if self.output_dates is None:
+                t_output = xp.to_cpu(sol.t)
+                dates = [pd.Timestamp(self.first_date + datetime.timedelta(days=np.round(t))) for t in t_output]
+                self.output_dates = np.broadcast_to(dates, out.state.shape[1:])
 
-        dates = self.output_dates
+            dates = self.output_dates
+            df_data["date"] = dates
 
-        icu = self.Nij[..., None] * self.params["ICU_FRAC"][:, None, None] * xp.sum(y[out.indices["H"]], axis=0)
-        vent = self.params.ICU_VENT_FRAC[:, None, None] * icu
+        if "rid" in columns:
+            df_data["rid"] = np.broadcast_to(seed, out.state.shape[1:])
 
-        # prepend the min cumulative cases over the last 2 days in case in the decreased
-        prepend_deaths = xp.minimum(self.g_data.cum_death_hist[-2], self.g_data.cum_death_hist[-1])
-        daily_deaths = xp.diff(out.D, prepend=prepend_deaths[:, None], axis=-1)
+        if "current_icu_usage" in columns or "current_vent_usage" in columns:
+            icu = self.Nij[..., None] * self.params["ICU_FRAC"][:, None, None] * xp.sum(y[out.indices["Rh"]], axis=0)
+            if "current_icu_usage" in columns:
+                df_data["current_icu_usage"] = xp.sum(icu, axis=0)
 
-        init_inc_death_mean = xp.mean(xp.sum(daily_deaths[:, 1:4], axis=0))
-        hist_inc_death_mean = xp.mean(xp.sum(self.g_data.inc_death_hist[-7:], axis=-1))
+            if "current_vent_usage" in columns:
+                vent = self.params.ICU_VENT_FRAC[:, None, None] * icu
+                df_data["current_vent_usage"] = xp.sum(vent, axis=0)
 
-        inc_death_rejection_fac = 2.0  # TODO These should come from the cli arg -r
-        if (
-            (init_inc_death_mean > inc_death_rejection_fac * hist_inc_death_mean)
-            or (inc_death_rejection_fac * init_inc_death_mean < hist_inc_death_mean)
-        ) and self.reject_runs:
-            logging.info("Inconsistent inc deaths, rejecting run")
-            raise SimulationException
+        if "daily_deaths" in columns:
+            # prepend the min cumulative cases over the last 2 days in case in the decreased
+            prepend_deaths = xp.minimum(self.g_data.cum_death_hist[-2], self.g_data.cum_death_hist[-1])
+            daily_deaths = xp.diff(out.D, prepend=prepend_deaths[:, None], axis=-1)
+            df_data["daily_deaths"] = daily_deaths
 
-        # prepend the min cumulative cases over the last 2 days in case in the decreased
-        prepend_cases = xp.minimum(self.g_data.cum_case_hist[-2], self.g_data.cum_case_hist[-1])
-        daily_reported_cases = xp.diff(out.incC, axis=-1, prepend=prepend_cases[:, None])
-        cum_cases_reported = out.incC
+            if self.reject_runs:
+                init_inc_death_mean = xp.mean(xp.sum(daily_deaths[:, 1:4], axis=0))
+                hist_inc_death_mean = xp.mean(xp.sum(self.g_data.inc_death_hist[-7:], axis=-1))
 
-        init_inc_case_mean = xp.mean(xp.sum(daily_reported_cases[:, 1:4], axis=0))
-        hist_inc_case_mean = xp.mean(xp.sum(self.g_data.inc_case_hist[-7:], axis=-1))
+                inc_death_rejection_fac = 2.0  # TODO These should come from the cli arg -r
+                if (init_inc_death_mean > inc_death_rejection_fac * hist_inc_death_mean) or (
+                    inc_death_rejection_fac * init_inc_death_mean < hist_inc_death_mean
+                ):
+                    logging.info("Inconsistent inc deaths, rejecting run")
+                    raise SimulationException
 
-        inc_case_rejection_fac = 1.5  # TODO These should come from the cli arg -r
-        if (
-            (init_inc_case_mean > inc_case_rejection_fac * hist_inc_case_mean)
-            or (inc_case_rejection_fac * init_inc_case_mean < hist_inc_case_mean)
-        ) and self.reject_runs:
-            logging.info("Inconsistent inc cases, rejecting run")
-            raise SimulationException
+        if "daily_cases" in columns or "daily_reported_cases" in columns:
+            # prepend the min cumulative cases over the last 2 days in case in the decreased
+            prepend_cases = xp.minimum(self.g_data.cum_case_hist[-2], self.g_data.cum_case_hist[-1])
+            daily_reported_cases = xp.diff(out.incC, axis=-1, prepend=prepend_cases[:, None])
 
-        daily_cases_total = daily_reported_cases / self.params.CASE_REPORT[:, None]
-        cum_cases_total = cum_cases_reported / self.params.CASE_REPORT[:, None]
+            if self.reject_runs:
+                init_inc_case_mean = xp.mean(xp.sum(daily_reported_cases[:, 1:4], axis=0))
+                hist_inc_case_mean = xp.mean(xp.sum(self.g_data.inc_case_hist[-7:], axis=-1))
 
-        out.incH[:, 0] = out.incH[:, 1]
-        daily_hosp = xp.diff(out.incH, axis=-1, prepend=out.incH[:, 0][..., None])
-        # if (daily_cases < 0)[..., 1:].any():
-        #    logging.error('Negative daily cases')
-        #    raise SimulationException
-        N = xp.broadcast_to(self.Nj[..., None], out.state.shape[1:])
+                inc_case_rejection_fac = 1.5  # TODO These should come from the cli arg -r
+                if (init_inc_case_mean > inc_case_rejection_fac * hist_inc_case_mean) or (
+                    inc_case_rejection_fac * init_inc_case_mean < hist_inc_case_mean
+                ):
+                    logging.info("Inconsistent inc cases, rejecting run")
+                    raise SimulationException
 
-        hosps = xp.sum(out.Ic, axis=0) + xp.sum(out.Rh, axis=0)  # why not just using .H?
+            if "daily_reported_cases" in columns:
+                df_data["daily_reported_cases"] = daily_reported_cases
 
-        out.state = out.state.reshape(y.shape[0], -1)
+            if "daily_cases" in columns:
+                daily_cases_total = daily_reported_cases / self.params.CASE_REPORT[:, None]
+                df_data["daily_cases"] = daily_cases_total
 
-        # Grab pretty much everything interesting
-        df_data = {
-            "adm2_id": adm2_ids.ravel(),
-            "date": dates.ravel(),
-            "rid": np.broadcast_to(seed, out.state.shape[-1]).ravel(),
-            "total_population": N.ravel(),
-            "current_hospitalizations": hosps.ravel(),
-            "active_asymptomatic_cases": out.Ia,  # TODO remove?
-            "cumulative_deaths": out.D,
-            "daily_hospitalizations": daily_hosp.ravel(),
-            "daily_cases": daily_cases_total.ravel(),
-            "daily_reported_cases": daily_reported_cases.ravel(),
-            "daily_deaths": daily_deaths.ravel(),
-            "cumulative_cases": cum_cases_total.ravel(),
-            "cumulative_reported_cases": cum_cases_reported.ravel(),
-            "current_icu_usage": xp.sum(icu, axis=0).ravel(),
-            "current_vent_usage": xp.sum(vent, axis=0).ravel(),
-            "case_reporting_rate": np.broadcast_to(self.params.CASE_REPORT[:, None], adm2_ids.shape).ravel(),
-            "R_eff": (
-                self.npi_params["r0_reduct"].T
-                * np.broadcast_to((self.params.R0 * self.g_data.Aij.diag)[:, None], adm2_ids.shape)
-            ).ravel(),
-            "doubling_t": np.broadcast_to(self.doubling_t[:, None], adm2_ids.shape).ravel(),
-        }
+        if "cumulative_reported_cases" in columns:
+            cum_cases_reported = out.incC
+            df_data["cumulative_reported_cases"] = cum_cases_reported
+
+        if "cumulative_cases" in columns:
+            cum_cases_total = out.incC / self.params.CASE_REPORT[:, None]
+            df_data["cumulative_cases"] = cum_cases_total
+
+        if "daily_hospitalizations" in columns:
+            out.incH[:, 0] = out.incH[:, 1]
+            daily_hosp = xp.diff(out.incH, axis=-1, prepend=out.incH[:, 0][..., None])
+            df_data["daily_hospitalizations"] = daily_hosp
+
+        if "total_population" in columns:
+            N = xp.broadcast_to(self.Nj[..., None], out.state.shape[1:])
+            df_data["total_population"] = N
+
+        if "current_hospitalizations" in columns:
+            hosps = xp.sum(out.Rh, axis=0)  # why not just using .H?
+            df_data["current_hospitalizations"] = hosps
+
+        if "cumulative_deaths" in columns:
+            cum_deaths = out.D
+            df_data["cumulative_deaths"] = cum_deaths
+
+        if "active_asymptomatic_cases" in columns:
+            asym_I = xp.sum(out.Ia, axis=0)
+            df_data["active_asymptomatic_cases"] = asym_I
+
+        if "case_reporting_rate" in columns:
+            crr = xp.broadcast_to(self.params.CASE_REPORT[:, None], adm2_ids.shape)
+            df_data["case_reporting_rate"] = crr
+
+        if "R_eff" in columns:
+            r_eff = self.npi_params["r0_reduct"].T * np.broadcast_to(
+                (self.params.R0 * self.g_data.Aij.diag)[:, None], adm2_ids.shape
+            )
+            df_data["R_eff"] = r_eff
+
+        if "doubling_t" in columns:
+            Td = np.broadcast_to(self.doubling_t[:, None], adm2_ids.shape)
+            df_data["doubling_t"] = Td
 
         # Collapse the gamma-distributed compartments and move everything to cpu
         negative_values = False
         for k in df_data:
-            if df_data[k].ndim == 2:
-                df_data[k] = xp.sum(df_data[k], axis=0)
-
-            # df_data[k] = xp.to_cpu(df_data[k])
+            # if df_data[k].ndim == 2:
+            #    df_data[k] = xp.sum(df_data[k], axis=0)
 
             if k != "date" and xp.any(xp.around(df_data[k], 2) < 0.0):
                 logging.info("Negative values present in " + k)
@@ -759,8 +856,7 @@ class buckyModelCovid:
             logging.info("Rejecting run b/c of negative values in output")
             raise SimulationException
 
-        # Append data to the hdf5 file
-        output_folder = os.path.join(outdir, self.run_id)
+        return df_data
 
         if output:
             os.makedirs(output_folder, exist_ok=True)
@@ -787,9 +883,12 @@ def main(args=None):
 
     loglevel = 30 - 10 * min(args.verbosity, 2)
     runid = get_runid()
-    if not os.path.exists(args.output_dir + "/" + runid):
-        os.mkdir(args.output_dir + "/" + runid)
-    fh = logging.FileHandler(args.output_dir + "/" + runid + "/stdout")
+
+    # Setup output folder TODO change over to pathlib
+    output_folder = os.path.join(args.output_dir, runid)
+    if not os.path.exists(output_folder):
+        os.mkdir(output_folder)
+    fh = logging.FileHandler(output_folder + "/stdout")
     fh.setLevel(logging.DEBUG)
     logging.basicConfig(
         level=loglevel,
@@ -851,7 +950,10 @@ def main(args=None):
             try:
                 n_runs += 1
                 with xp.optimize_kernels():
-                    env.run_once(seed=mc_seed, outdir=args.output_dir, output_queue=to_write)
+                    sol = env.run_once(seed=mc_seed)
+                    base_filename = os.path.join(output_folder, str(mc_seed))
+                    env.to_feather(sol, base_filename, mc_seed, output_queue=to_write)
+
                 success += 1
                 pbar.update(1)
             except SimulationException:
