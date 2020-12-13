@@ -108,6 +108,7 @@ class buckyModelCovid:
         # COVID/model params from par file
         self.bucky_params = buckyParams(par_file)
         self.consts = self.bucky_params.consts
+        self.dists = self.bucky_params.dists
 
         self.g_data = self.load_graph(graph_file)
 
@@ -254,10 +255,11 @@ class buckyModelCovid:
             adm1_F = xp.mean(adm1_Fi, axis=1)
 
             adm1_F_fac = self.adm1_current_cfr / adm1_F
-            adm1_F_fac[xp.isnan(adm1_F_fac)] = 1.0
+            adm0_F_fac = xp.nanmean(adm1_N * adm1_F_fac) / xp.sum(adm1_N)
+            adm1_F_fac[xp.isnan(adm1_F_fac)] = adm0_F_fac
 
-            # F_RR_fac = truncnorm(xp, 1.0, self.consts.reroll_variance, size=adm1_F_fac.size, a_min=1e-6)
-            # adm1_F_fac = adm1_F_fac * F_RR_fac
+            F_RR_fac = truncnorm(1.0, self.dists.F_RR_var, size=adm1_F_fac.size, a_min=1e-6)
+            adm1_F_fac = adm1_F_fac * F_RR_fac
             adm1_F_fac = xp.clip(adm1_F_fac, a_min=0.1, a_max=10.0)  # prevent extreme values
             if self.debug:
                 logging.debug("adm1 cfr rescaling factor: " + pformat(adm1_F_fac))
@@ -311,7 +313,7 @@ class buckyModelCovid:
         self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0.0, 1.0)
 
         Rt = estimate_Rt(self.g_data, self.params)
-        Rt_fac = approx_mPERT_sample(mu=xp.ones(Rt.shape), a=0.9, b=1.1, gamma=5.0)
+        Rt_fac = approx_mPERT_sample(mu=xp.ones(Rt.shape), **(self.dists.Rt_dist))
         Rt *= Rt_fac  # truncnorm(1.0, 1.5 * self.consts.reroll_variance, size=Rt.shape, a_min=1e-6)
         self.params["R0"] = Rt
         self.params["BETA"] = Rt * self.params["GAMMA"] / self.g_data.Aij.diag
@@ -328,10 +330,10 @@ class buckyModelCovid:
         current_I[current_I < 0.0] = 0.0
         current_I *= 1.0 / (self.params["CASE_REPORT"])
 
-        # TODO should be in param file
-        R_fac = 0.5 * approx_mPERT_sample(mu=1.0, a=0.9, b=1.1, gamma=100.0)
-        E_fac = approx_mPERT_sample(mu=1.3, a=0.9, b=1.7, gamma=10.0)
-        H_fac = approx_mPERT_sample(mu=1.0, a=0.8, b=1.2, gamma=10.0)
+        # Roll some random factors for the init compartment values
+        R_fac = approx_mPERT_sample(**(self.dists.R_fac_dist))
+        E_fac = approx_mPERT_sample(**(self.dists.E_fac_dist))
+        H_fac = approx_mPERT_sample(**(self.dists.H_fac_dist))
 
         I_init = E_fac * current_I[None, :] / self.Nij / self.n_age_grps
         D_init = self.g_data.cum_death_hist[-1][None, :] / self.Nij / self.n_age_grps
