@@ -633,7 +633,8 @@ class buckyModelCovid:
         else:
             I_tmp = I_tot @ Aij  # using identity (A@B).T = B.T @ A.T
 
-        beta_mat = y.S * xp.squeeze((Cij @ I_tmp.T[..., None]), axis=-1).T
+        # beta_mat = y.S * xp.squeeze((Cij @ I_tmp.T[..., None]), axis=-1).T
+        beta_mat = y.S * (Cij @ xp.atleast_3d(I_tmp.T)).T[0]
         beta_mat /= Nij
 
         # dS/dt
