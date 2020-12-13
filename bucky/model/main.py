@@ -207,13 +207,43 @@ class buckyModelCovid:
                 logging.debug("Current hospitalizations: " + pformat(self.adm1_current_hosp))
 
         # Estimate the recent CFR during the period covered by the historical data
-        cfr_delay = 5
-        last_cases = g_data.rolling_cum_cases[-cfr_delay] - g_data.rolling_cum_cases[0]
-        last_deaths = g_data.rolling_cum_deaths[-1] - g_data.rolling_cum_deaths[cfr_delay]
+        cfr_delay = 15  # TODO This should come from CDC and Nij
+        n_cfr = 7
+        # last_cases = g_data.rolling_cum_cases[-cfr_delay-n_cfr:-cfr_delay] - g_data.rolling_cum_cases[0]
+        # last_deaths = g_data.rolling_cum_deaths[-1] - g_data.rolling_cum_deaths[cfr_delay]
+        last_cases = (
+            g_data.rolling_cum_cases[-cfr_delay - n_cfr : -cfr_delay] - g_data.rolling_cum_cases[-cfr_delay - n_cfr - 1]
+        )
+        last_deaths = g_data.rolling_cum_deaths[-n_cfr:] - g_data.rolling_cum_deaths[-n_cfr - 1]
         adm1_cases = g_data.sum_adm1(last_cases.T)
         adm1_deaths = g_data.sum_adm1(last_deaths.T)
-        self.adm1_current_cfr = adm1_deaths / adm1_cases
+        adm1_cfr = adm1_deaths / adm1_cases
+        # take harmonic mean over n days
+        self.adm1_current_cfr = 1.0 / xp.mean(1.0 / adm1_cfr, axis=1)
+        # from IPython import embed
+        # embed()
 
+        chr_delay = 6  # TODO This should come from I_TO_H_TIME and Nij
+        n_chr = 7
+        tmp = hhs_data.loc[hhs_data.date > str(self.first_date - datetime.timedelta(days=n_chr))]
+        tmp = tmp.loc[tmp.date <= str(self.first_date)]
+        tmp = tmp.set_index(["adm1", "date"]).sort_index()
+        tmp = tmp.previous_day_admission_adult_covid_confirmed + tmp.previous_day_admission_pediatric_covid_confirmed
+        cum_hosps = xp.zeros(adm1_cfr.shape)
+        tmp = tmp.unstack()
+        # embed()
+        tmp_data = tmp.T.cumsum().to_numpy()
+        tmp_ind = tmp.index.to_numpy()
+        cum_hosps[tmp_ind] = tmp_data.T
+        last_cases = (
+            g_data.rolling_cum_cases[-chr_delay - n_chr : -chr_delay] - g_data.rolling_cum_cases[-chr_delay - n_chr - 1]
+        )
+        # last_hosps = cum_hosps #g_data.rolling_cum_deaths[-n_chr:] - g_data.rolling_cum_deaths[-n_chr-1]
+        adm1_cases = g_data.sum_adm1(last_cases.T)
+        adm1_hosps = cum_hosps  # g_data.sum_adm1(last_hosps.T)
+        adm1_chr = adm1_hosps / adm1_cases
+        # take harmonic mean over n days
+        self.adm1_current_chr = 1.0 / xp.mean(1.0 / adm1_chr, axis=1)
         if self.debug:
             logging.debug("Current CFR: " + pformat(self.adm1_current_cfr))
 
@@ -263,10 +293,11 @@ class buckyModelCovid:
             # TODO this needs to be cleaned up BAD
             # should add a util function to do the rollups to adm1 (it shows up in case_reporting/doubling t calc too)
             # TODO this could be a population distribute type func...
-            adm1_Fi = self.g_data.sum_adm1((self.params.F * self.Nij).T)
-            adm1_Ni = self.g_data.sum_adm1(self.Nij.T)
-            adm1_Fi = adm1_Fi / adm1_Ni
-            adm1_F = xp.mean(adm1_Fi, axis=1)
+            adm1_Fi = self.g_data.sum_adm1((self.params.F * self.Nij).T).T
+            adm1_Ni = self.g_data.adm1_Nij  # sum_adm1(self.Nij.T)
+            adm1_N = self.g_data.adm1_Nj  # sum_adm1(self.Nj)
+            adm1_Fi = adm1_Fi / adm1_Ni  # TODO this will always be F, not sure what I was going for here...
+            adm1_F = xp.nanmean(adm1_Fi, axis=0)
 
             adm1_F_fac = self.adm1_current_cfr / adm1_F
             adm0_F_fac = xp.nanmean(adm1_N * adm1_F_fac) / xp.sum(adm1_N)
@@ -278,7 +309,24 @@ class buckyModelCovid:
             if self.debug:
                 logging.debug("adm1 cfr rescaling factor: " + pformat(adm1_F_fac))
             self.params.F = self.params.F * adm1_F_fac[self.g_data.adm1_id]
+
             self.params.F = xp.clip(self.params.F, a_min=1.0e-10, a_max=1.0)
+
+            adm1_Hi = self.g_data.sum_adm1((self.params.H * self.Nij).T).T
+            # adm1_Ni = self.g_data.sum_adm1(self.Nij.T)
+            adm1_Hi = adm1_Hi / adm1_Ni
+            adm1_H = xp.nanmean(adm1_Hi, axis=0)
+
+            adm1_H_fac = self.adm1_current_chr / adm1_H
+            adm0_H_fac = xp.nanmean(adm1_N * adm1_H_fac) / xp.sum(adm1_N)
+            adm1_H_fac[xp.isnan(adm1_H_fac)] = adm0_H_fac
+
+            H_RR_fac = truncnorm(1.0, self.dists.H_RR_var, size=adm1_H_fac.size, a_min=1e-6)
+            adm1_H_fac = adm1_H_fac * H_RR_fac
+            adm1_H_fac = xp.clip(adm1_H_fac, a_min=0.1, a_max=10.0)  # prevent extreme values
+            if self.debug:
+                logging.debug("adm1 chr rescaling factor: " + pformat(adm1_H_fac))
+            self.params.H = self.params.H * adm1_H_fac[self.g_data.adm1_id]
             self.params.H = xp.clip(self.params.H, a_min=self.params.F, a_max=1.0)
 
         # crr_days_needed = max( #TODO this depends on all the Td params, and D_REPORT_TIME...
@@ -358,7 +406,7 @@ class buckyModelCovid:
             (recovered_init) / self.Nij / self.n_age_grps - D_init - I_init / self.params["SYM_FRAC"]
         )  # rh handled later
 
-        self.params.H = self.params.H * H_fac
+        # self.params.H = self.params.H * H_fac
 
         # ic_frac = 1.0 / (1.0 + self.params.THETA / self.params.GAMMA_H)
         # hosp_frac = 1.0 / (1.0 + self.params.GAMMA_H / self.params.THETA)
@@ -374,29 +422,33 @@ class buckyModelCovid:
             / self.params.SIGMA
         )
 
+        ic_fac = 1.0
+
         yy.I = (1.0 - self.params.H) * I_init / yy.Im
-        yy.Ic = self.params.CASE_REPORT * self.params.H * I_init / yy.Im
-        yy.Rh = self.params.CASE_REPORT * self.params.H * I_init * self.params.GAMMA_H / self.params.THETA / yy.Rhn
+        yy.Ic = ic_fac * self.params.H * I_init / yy.Im
+        yy.Rh = self.params.H * I_init * self.params.GAMMA_H / self.params.THETA / yy.Rhn
 
         if self.rescale_chr:
             adm1_hosp = xp.zeros((self.g_data.max_adm1 + 1,), dtype=float)
-            xp.scatter_add(adm1_hosp, self.g_data.adm1_id, xp.sum(yy.H * self.Nij, axis=(0, 1)))
+            xp.scatter_add(adm1_hosp, self.g_data.adm1_id, xp.sum(yy.Rh * self.Nij, axis=(0, 1)))
             adm2_hosp_frac = (self.adm1_current_hosp / adm1_hosp)[self.g_data.adm1_id]
             adm0_hosp_frac = xp.nansum(self.adm1_current_hosp) / xp.nansum(adm1_hosp)
             adm2_hosp_frac[xp.isnan(adm2_hosp_frac)] = adm0_hosp_frac
-            self.params.H = xp.clip(H_fac * self.params.H * adm2_hosp_frac[None, :], self.params.F, 1.0)
+            # self.params.F = 2. * xp.clip(1.0 / (H_fac * adm2_hosp_frac[None, :]) * self.params.F, 1.0e-10, 1.0)
+            # self.params.H = xp.clip(H_fac * self.params.H * adm2_hosp_frac[None, :], self.params.F, 1.0)
 
             # TODO this .85 should be in param file...
-            scaling_F = 0.7
+            scaling_F = self.consts.F_scaling
+            scaling_H = adm2_hosp_frac * H_fac
             self.params["F_eff"] = xp.clip(scaling_F * self.params["F"] / self.params["H"], 0.0, 1.0)
 
-            yy.I = (1.0 - self.params.H) * I_init / yy.Im
+            # yy.I = (1.0 - self.params.H) * I_init / yy.Im
             # y[Ici] = ic_frac * self.params.H * I_init / (len(Ici))
             # y[Rhi] = hosp_frac * self.params.H * I_init / (Rhn)
-            yy.Ic = self.params.CASE_REPORT * self.params.H * I_init / yy.Im
+            yy.Ic = scaling_H * ic_fac * self.params.H * I_init / yy.Im
             yy.Rh = (
-                scaling_F
-                * self.params.CASE_REPORT
+                scaling_H
+                # * self.params.CASE_REPORT
                 * self.params.H
                 * I_init
                 * self.params.GAMMA_H
