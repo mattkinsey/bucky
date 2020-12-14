@@ -279,7 +279,7 @@ if __name__ == "__main__":
 
         # No columns should contain negatives or NaNs
         nan_vals = tot_df.isna().sum()
-        if nan_vals > 0:
+        if nan_vals.sum() > 0:
             logging.error("NANs are present in output data: \n" + str(nan_vals))
 
         numerical_cols = tot_df.columns.difference(["date"])
