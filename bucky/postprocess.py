@@ -255,8 +255,8 @@ if __name__ == "__main__":
         else:
             end_date = tot_df["date"].max()
 
-            # Drop data not within requested time range
-            tot_df = tot_df.loc[(tot_df["date"] <= end_date)]
+        # Drop data not within requested time range
+        tot_df = tot_df.loc[(tot_df["date"] <= end_date)]
 
         # Some lookups only contain a subset of counties, drop extras if necessary
         # TODO this replaced with a left join now that the keys are consistant (if its faster)
@@ -279,7 +279,7 @@ if __name__ == "__main__":
 
         # No columns should contain negatives or NaNs
         nan_vals = tot_df.isna().sum()
-        if nan_vals.sum() > 0:
+        if nan_vals > 0:
             logging.error("NANs are present in output data: \n" + str(nan_vals))
 
         numerical_cols = tot_df.columns.difference(["date"])
