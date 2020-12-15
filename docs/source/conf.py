@@ -132,7 +132,7 @@ def linkcode_resolve(domain, info):
         filename = "bucky/%s#L%d-L%d" % find_source()
     except Exception:
         filename = info["module"].replace(".", "/") + ".py"
-    tag = "refactor"  #'master' if 'dev' in release else ('v' + release)
+    tag = "master" if "dev" in release else ("v" + release)
     return "https://github.com/mattkinsey/bucky/blob/%s/%s" % (tag, filename)
 
 

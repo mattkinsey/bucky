@@ -10,7 +10,7 @@ bucky.make_input_graph
 bucky.model
 +++++++++++
 .. argparse::
-      :ref: bucky.model.parser
+      :ref: bucky.model.main.parser
       :prog: model
 
 bucky.postprocess
