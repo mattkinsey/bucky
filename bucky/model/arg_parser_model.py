@@ -1,4 +1,4 @@
-"""arg parser for bucky.model
+"""arg parser for bucky.model.
 
 This module handles all the CLI argument parsing for bucky.model and autodetects CuPy.
 
@@ -9,15 +9,16 @@ import importlib
 import logging
 import os
 
-from .util.read_config import bucky_cfg
+from ..util.read_config import bucky_cfg
 
 # TODO this logic should be in numerical_libs so we can apply it everywhere
-cupy_spec = importlib.util.find_spec("cupy")
-cupy_found = cupy_spec is not None
-
 if bool(os.getenv("BUCKY_CPU")) or False:
     logging.info("BUCKY_CPU found, forcing cpu usage")
-    cupy_found = False
+    force_cpu = True
+else:
+    force_cpu = False
+
+cupy_found = (importlib.util.find_spec("cupy") is not None) and (not force_cpu)
 
 most_recent_graph = max(
     glob.glob(bucky_cfg["data_dir"] + "/input_graphs/*.p"),
@@ -68,18 +69,6 @@ parser.add_argument(
     dest="verbosity",
     help="quiet output (only show ERROR and higher)",
 )
-parser.add_argument(
-    "-c",
-    "--cache",
-    action="store_true",
-    help="Cache python files/par file/graph pickle for the run",
-)
-parser.add_argument(
-    "-nmc",
-    "--no_mc",
-    action="store_true",
-    help="Just do one run with the mean param values",
-)  # TODO rename to --mean or something
 
 # TODO this doesnt do anything other than let you throw and error if there's no cupy...
 parser.add_argument(

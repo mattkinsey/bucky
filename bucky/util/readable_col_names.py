@@ -1,4 +1,4 @@
-"""Defines the dict readable_col_names that maps output columsn to plain english"""
+"""Defines the dict readable_col_names that maps output columsn to plain english."""
 readable_col_names = {
     "cumulative_cases": "Cumulative Cases",
     "cumulative_deaths": "Cumulative Deaths",
@@ -17,4 +17,7 @@ readable_col_names = {
     "current_icu_usage": "ICU Beds Usage",
     "total_population": "Population",
     "daily_hospitalizations": "Incident Hospitalizations",
+    "cumulative_reported_cases_per_100k": "Cumulative Reported Cases per 100,000",
+    "daily_reported_cases_per_100k": "Daily Reported Cases per 100,000",
+    "daily_deaths_per_100k": "Daily Deaths per 100,000",
 }

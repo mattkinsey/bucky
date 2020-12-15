@@ -1,4 +1,4 @@
-"""Creates a CSSE formated case/death history file from the data on an input graph"""
+"""Creates a CSSE formated case/death history file from the data on an input graph."""
 import argparse
 import pickle
 
@@ -18,7 +18,7 @@ if __name__ == "__main__":
     with open(args.graph, "rb") as f:
         g = pickle.load(f)  # nosec
 
-    adm2 = nx.get_node_attributes(g, "adm2_int")
+    adm2 = nx.get_node_attributes(g, "adm2")
     cases = nx.get_node_attributes(g, "case_hist")
     deaths = nx.get_node_attributes(g, "death_hist")
     end_date = g.graph["start_date"]

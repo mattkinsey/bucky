@@ -53,25 +53,25 @@ The following datasets will be automatically downloaded:
 
 * COVID-19 Data Repository by the Center for Systems Science and Engineering at Johns Hopkins University
     * COVID-19 Case and death data on the county level
-    * `GitHub <https://github.com/CSSEGISandData/COVID-19)>`_
+    * `CSSE Repo <https://github.com/CSSEGISandData/COVID-19)>`_
 * Descartes Labs: Data for Mobility Changes in Response to COVID-19
     * State and county-level mobility statistics
-    * `GitHub <https://github.com/descarteslabs/DL-COVID-19>`_
+    * `DL Repo <https://github.com/descarteslabs/DL-COVID-19>`_
 * COVID Exposure Indices from PlaceIQ movement data
     * State and county-level location exposure indices
     * Reference: *Measuring movement and social contact with smartphone data: a real-time application to COVID-19* by Couture, Dingel, Green, Handbury, and Williams `Link <https://github.com/COVIDExposureIndices/COVIDExposureIndices/blob/master/CDGHW.pdf>`_
-    * `GitHub <https://github.com/COVIDExposureIndices/COVIDExposureIndices>`_
+    * `CEI Repo <https://github.com/COVIDExposureIndices/COVIDExposureIndices>`_
 * The COVID Tracking Project at The Atlantic
     * COVID-19 case and death data at the state level
-    * `GitHub <https://github.com/COVID19Tracking/covid-tracking-data>`_
+    * `CTP Repo <https://github.com/COVID19Tracking/covid-tracking-data>`_
 * US TIGER shapefiles from the US Census 
-    * `Link <https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html>`_
+    * `TL Website <https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html>`_
 * US Census Bridged-Race Population estimates
-    * `Link <https://www.cdc.gov/nchs/nvss/bridged_race/Documentation-Bridged-PostcenV2018.pdf>`_
+    * `Census Website <https://www.cdc.gov/nchs/nvss/bridged_race/Documentation-Bridged-PostcenV2018.pdf>`_
 * Social Contact Matrices for 152 Countries
     * *Projecting social contact matrices in 152 countries using contact surveys and demographic data*, Prem et al.
     * `Paper <https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1005697>`_
 * USAFacts Coronavirus Stats and Data
     * County-level coronavirus cases and deaths
-    * `Link <https://usafacts.org/issues/coronavirus/>`_
+    * `USAFacts Website <https://usafacts.org/issues/coronavirus/>`_
 

@@ -146,6 +146,189 @@ parser.add_argument(
 )
 
 
+def get_plot_title(l_table, adm_key, adm_value):
+    """Determine plot title for a given area based on adm code and lookup table.
+
+    For ADM0 and ADM1 plots, uses names. For ADM2 plots, the ADM1 name is
+    included in addition to the ADM2 name.
+
+    Parameters
+    ----------
+    l_table : pandas.DataFrame
+        Dataframe containing information relating different geographic
+        areas
+    adm_key : str
+        Admin level key
+    adm_value : int
+        Admin code value for area
+
+    Returns
+    -------
+    plot_title : str
+        Formatted string to use for plot title
+    """
+    plot_title = l_table.loc[l_table[adm_key] == adm_value][adm_key + "_name"].values[0]
+
+    # If admin2-level, get admin1-level as well
+    if adm_key == "adm2":
+
+        admin1_name = l_table.loc[l_table[adm_key] == adm_value]["adm1_name"].values[0]
+        plot_title = admin1_name + " : " + plot_title
+
+    return plot_title
+
+
+def add_col_data_to_plot(axis, col, sim_data, quantiles_list):
+    """Adds simulation data for requested column to initialized matplotlib axis object.
+
+    Parameters
+    ----------
+    axis : matplotlib.axes.Axes
+        Previously initialized axis object
+    col : str
+        Column to add to plot
+    sim_data : pandas.DataFrame
+        Area simulation data
+    quantiles_list : list of float, or None
+        List of quantiles to plot. If None, will plot all available
+        quantiles in data.
+
+    Returns
+    -------
+    axis : matplotlib.axes.Axes
+        Modified axis object with added data
+    """
+    # Set index
+    sim_data = sim_data.set_index(["date", "quantile"])
+
+    # Middle is median
+    num_q = len(quantiles_list)
+    median_data = sim_data.xs(quantiles_list[int(num_q / 2)], level=1)[col]
+    dates = median_data.index.values
+
+    # Plot median and outer quantiles
+    median_data.plot(
+        linewidth=1.5,
+        color="k",
+        alpha=0.75,
+        label=readable_col_names[col],
+        ax=axis,
+    )
+
+    # Iterate over pairs of quantiles
+    num_quantiles = len(quantiles_list)
+
+    # Scale opacity
+    alpha = 1.0 / (num_quantiles // 2)
+    for q in range(num_quantiles // 2):
+
+        lower_q = quantiles_list[q]
+        upper_q = quantiles_list[num_quantiles - 1 - q]
+
+        lower_data = sim_data.xs(lower_q, level=1)[col]
+        upper_data = sim_data.xs(upper_q, level=1)[col]
+
+        axis.fill_between(
+            dates,
+            lower_data,
+            upper_data,
+            linewidth=0,
+            alpha=alpha,
+            color="b",
+            interpolate=True,
+        )
+
+    sim_data = sim_data.reset_index()
+
+    return axis
+
+
+def add_hist_data_to_plot(axis, historical_data, adm_key, adm_value, col, sim_max_date):
+    """Add historical data for requested column and area to initialized matplotlib axis object.
+
+    Parameters
+    ----------
+    axis : matplotlib.axes.Axes
+        Previously initialized axis object
+    historical_data : pandas.DataFrame
+        Dataframe of historical data
+    adm_key : str
+        Admin key to use to relate simulation data and geographic areas
+    adm_value : int
+        Admin code value for area
+    col : str
+        Column to add to plot
+    sim_max_date : pandas.Timestamp
+        Latest date in simulation data
+
+    Returns
+    -------
+    axis : matplotlib.axes.Axes
+        Modified axis object with added data
+    """
+    # Get historical data for area
+    actuals = historical_data.loc[historical_data[adm_key] == adm_value]
+
+    if not actuals.empty and col in historical_data.columns:
+
+        actuals = actuals.assign(date=pd.to_datetime(actuals["date"]))
+        hist_label = "Historical " + readable_col_names[col]
+        actuals.plot(x="date", y=col, ax=axis, color="r", marker="o", ls="", label=hist_label)
+
+        # Set xlim
+        axis.set_xlim(actuals["date"].min(), sim_max_date)
+
+    else:
+        logging.warning("Historical data missing for " + adm_key + " " + str(adm_value))
+
+    return axis
+
+
+def preprocess_historical_dates(historical_data, hist_start_date, plot_start, plot_end, min_data_points):
+    """Check that historical data has the correct date range and requested number of data points.
+
+    Parameters
+    ----------
+    historical_data : pandas.DataFrame
+        Dataframe with requested historical data
+    hist_start_date : str or None
+        Plot historical data from this point (formatted as YYYY-MM-DD).
+        If None, aligns with simulation start date.
+    plot_start : pandas.Timestamp
+        Earliest date appearing in simulation data
+    plot_end : pandas.Timestamp
+        Latest date appearing in simulation data
+    min_data_points : int
+        Minimum number of historical data points to plot
+
+    Returns
+    -------
+    historical_data : pandas.DataFrame
+        Historical data with the correct date range and number of points
+    """
+    # Drop data not within requested time range
+    historical_data = historical_data.reset_index()
+    historical_data = historical_data.assign(date=pd.to_datetime(historical_data["date"]))
+
+    # Use plot start as start date unless otherwise specified
+    start_date = plot_start
+
+    if hist_start_date is not None:
+        start_date = hist_start_date
+
+    # Check that there are the minimum number of points
+    last_hist_date = historical_data["date"].max()
+    num_points = (last_hist_date - pd.to_datetime(start_date)).days
+
+    # Shift start date if necessary
+    if num_points < min_data_points:
+        start_date = last_hist_date - pd.Timedelta(str(min_data_points) + " days")
+
+    historical_data = historical_data.loc[(historical_data["date"] < plot_end) & (historical_data["date"] > start_date)]
+
+    return historical_data
+
+
 def plot(
     out_dir,
     lookup_df,
@@ -157,7 +340,7 @@ def plot(
 ):
     """Given a dataframe and a key, creates plots with requested columns.
 
-    For example, a DataFrame with state-level data would create a plot for
+    For example, a pandas.DataFrame with state-level data would create a plot for
     each unique state. Simulation data is plotted as a line with shaded
     confidence intervals. Historical data is added as scatter points if
     requested.
@@ -166,16 +349,16 @@ def plot(
     ----------
     out_dir : str
         Location to place created plots.
-    lookup_df : DataFrame
+    lookup_df : pandas.DataFrame
         Dataframe containing information relating different geographic
         areas
     key : str
         Key to use to relate simulation data and geographic areas. Must
         appear in lookup and simulation data (and historical data if
         applicable)
-    sim_data : DataFrame
+    sim_data : pandas.DataFrame
         Simulation data to plot
-    hist_data : DataFrame
+    hist_data : pandas.DataFrame
         Historical data to add to plot
     plot_columns : list of str
         Columns to plot
@@ -187,10 +370,7 @@ def plot(
     if quantiles is None:
         quantiles = sim_data["quantile"].unique()
 
-    # Get number of quantiles
-    num_intervals = len(quantiles)
-
-    # make sure they're sorted
+    # make sure quantiles are sorted
     quantiles.sort()
 
     # Drop lookup nans
@@ -208,20 +388,14 @@ def plot(
     else:
         unique_areas = unique_lookup_areas
 
-    for area in tqdm.tqdm(unique_areas, total=len(unique_areas), desc="Plotting " + key, dynamic_ncols=True):
+    # Loop over unique areas at requested admin level
+    for area_code in tqdm.tqdm(unique_areas, total=len(unique_areas), desc="Plotting " + key, dynamic_ncols=True):
 
         # Get name
-        name = lookup_df.loc[lookup_df[key] == area][key + "_name"].values[0]
-
-        # If admin2-level, get admin1-level as well
-        # TODO change to function call with descriptive name
-        if key == "adm2":
-
-            admin1_name = lookup_df.loc[lookup_df[key] == area]["adm1_name"].values[0]
-            name = admin1_name + " : " + name
+        name = get_plot_title(lookup_df, key, area_code)
 
         # Get data for this area
-        area_data = sim_data.loc[sim_data[key] == area]
+        area_data = sim_data.loc[sim_data[key] == area_code]
         area_data = area_data.assign(date=pd.to_datetime(area_data["date"]))
 
         # Initialize figure
@@ -233,67 +407,17 @@ def plot(
         )
         fig.suptitle(name.upper())
 
-        for i, col in enumerate(plot_columns):
+        # Loop over requested columns
+        for i, p_col in enumerate(plot_columns):
 
-            # Set index
-            area_data = area_data.set_index(["date", "quantile"])
-
-            # Middle is median
-            median_data = area_data.xs(quantiles[int(num_intervals / 2)], level=1)[col]
-            dates = median_data.index.values
-
-            # Plot median and outer quantiles
-            median_data.plot(
-                linewidth=1.5,
-                color="k",
-                alpha=0.75,
-                label=readable_col_names[col],
-                ax=axs[i],
-            )
-
-            # Iterate over pairs of quantiles
-            num_quantiles = len(quantiles)
-
-            # Scale opacity
-            alpha = 1.0 / (num_quantiles // 2)
-            for q in range(num_quantiles // 2):
-
-                lower_q = quantiles[q]
-                upper_q = quantiles[num_quantiles - 1 - q]
-
-                lower_data = area_data.xs(lower_q, level=1)[col]
-                upper_data = area_data.xs(upper_q, level=1)[col]
-
-                axs[i].fill_between(
-                    dates,
-                    lower_data,
-                    upper_data,
-                    linewidth=0,
-                    alpha=alpha,
-                    color="b",
-                    interpolate=True,
-                )
-
-            # axs[i].set_ylim([.8*oq_lower.min(), 1.2*oq_upper.max()])
-            area_data = area_data.reset_index()
+            axs[i] = add_col_data_to_plot(axs[i], p_col, area_data, quantiles)
 
             # Plot historical data which is already at the correct level
             if hist_data is not None and i <= (len(plot_columns) - 1):
+                max_date = area_data["date"].max()
+                axs[i] = add_hist_data_to_plot(axs[i], hist_data, key, area_code, p_col, max_date)
 
-                actuals = hist_data.loc[hist_data[key] == area]
-                if not actuals.empty and plot_columns[i] in hist_data.columns:
-
-                    actuals = actuals.assign(date=pd.to_datetime(actuals["date"]))
-                    # actuals.set_index('date', inplace=True)
-                    hist_label = "Historical " + readable_col_names[plot_columns[i]]
-                    actuals.plot(x="date", y=plot_columns[i], ax=axs[i], color="r", marker="o", ls="", label=hist_label)
-
-                    # Set xlim
-                    axs[i].set_xlim(actuals["date"].min(), dates.max())
-                    # axs[i].scatter(actual_dates[ind:], actual_vals[ind:], label='Historical data', color='b')
-                else:
-                    logging.warning("Historical data missing for area: " + name + ", column=" + plot_columns[i])
-
+            # Axis styling
             axs[i].grid(True)
             axs[i].legend()
             axs[i].set_ylabel("Count")
@@ -335,7 +459,7 @@ def make_plots(
         Location of simulation data
     output_directory : str
         Parent directory to place created plots.
-    lookup : DataFrame
+    lookup_df : pandas.DataFrame
         Lookup table for geographic mapping information
     plot_hist : bool
         If True, will plot historical data.
@@ -349,7 +473,7 @@ def make_plots(
     end_date : str
         Plot data until this date. Must be formatted as YYYY-MM-DD.
         If None, uses last date in simulation.
-    hist_file : string
+    hist_file : str
         Path to historical data file. If None, uses either CSSE or
         Covid Tracking data depending on columns requested.
     min_hist_points : int
@@ -358,7 +482,7 @@ def make_plots(
         List of admin1 values to make plots for. If None, a plot will be
         created for every unique admin1 values. Otherwise, plots are
         only made for those requested.
-    hist_start : str
+    hist_start : str, or None
         Plot historical data from this point (formatted as YYYY-MM-DD).
         If None, aligns with simulation start date.
     """
@@ -409,23 +533,7 @@ def make_plots(
                 logging.warning("No historical data could be found for: " + str(plot_columns))
 
             else:
-                hist_data = hist_data.reset_index()
-
-                # Drop data not within requested time range
-                hist_data = hist_data.assign(date=pd.to_datetime(hist_data["date"]))
-
-                if hist_start is not None:
-                    start_date = hist_start
-
-                # Check that there are the minimum number of points
-                last_hist_date = hist_data["date"].max()
-                num_points = (last_hist_date - pd.to_datetime(start_date)).days
-
-                # Shift start date if necessary
-                if num_points < min_hist_points:
-                    start_date = last_hist_date - pd.Timedelta(str(min_hist_points) + " days")
-
-                hist_data = hist_data.loc[(hist_data["date"] < end_date) & (hist_data["date"] > start_date)]
+                hist_data = preprocess_historical_dates(hist_data, hist_start, start_date, end_date, min_hist_points)
         plot(
             out_dir=plot_dir,
             lookup_df=lookup_df,
@@ -437,7 +545,10 @@ def make_plots(
         )
 
 
-if __name__ == "__main__":
+def main(args=None):
+
+    if args is None:
+        args = sys.argv[1:]
 
     # Logging
     logging.basicConfig(
@@ -505,3 +616,7 @@ if __name__ == "__main__":
         args.adm1_name,
         hist_start_date,
     )
+
+
+if __name__ == "__main__":
+    main()

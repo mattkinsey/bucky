@@ -6,6 +6,8 @@
 
 # -- Path setup --------------------------------------------------------------
 
+import inspect
+
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -13,17 +15,17 @@
 import os
 import sys
 
-import recommonmark
+import six
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-import sphinx_rtd_theme
-from recommonmark.transform import AutoStructify
+# import sphinx_rtd_theme
 
 # sys.path.insert(0, os.path.abspath('../../..'))
 sys.path.insert(0, os.path.abspath("../.."))
 
+import bucky  # isort:skip
 
 repo_root_url = "http://gitlab.com/kinsemc/bucky/"
 
@@ -42,18 +44,48 @@ master_doc = "index"
 # -- General configuration ---------------------------------------------------
 
 extensions = [
-    "sphinx.ext.autodoc",
-    "sphinx.ext.autosummary",
+    # "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
-    "sphinx_rtd_theme",
+    # "sphinx_rtd_theme",
     "sphinx.ext.mathjax",
-    "recommonmark",
     "sphinxcontrib.tikz",
     "sphinxarg.ext",
     "sphinxcontrib.bibtex",
     "sphinx_copybutton",
-    "numpydoc",
+    # "numpydoc",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.linkcode",
+    "autoapi.extension",
 ]
+
+autoapi_dirs = ["../../bucky"]
+autoapi_add_toctree_entry = False
+autoapi_member_order = "groupwise"
+autoapi_options = [
+    "members",
+    "undoc-members",
+    "private-members",
+    "show-inheritance",
+    "show-module-summary",
+    "special-members",
+    "imported-members",
+    "special-members",
+]
+
+napoleon_google_docstring = False
+napoleon_numpy_docstring = True
+napoleon_include_private_with_doc = True
+napoleon_include_special_with_doc = True
+napoleon_use_admonition_for_examples = True
+napoleon_use_admonition_for_notes = True
+napoleon_use_admonition_for_references = True
+napoleon_use_ivar = True
+napoleon_use_param = True
+napoleon_preprocess_types = True
+
+napoleon_type_aliases = {
+    "ndarray": ":class:`numpy.ndarray` or :class:`cupy.ndarray` if using CuPy",
+}
 
 # Be picky about warnings
 nitpicky = True
@@ -61,8 +93,48 @@ nitpicky = True
 # Ignores stuff we can't easily resolve on other project's sphinx manuals
 nitpick_ignore = []
 
-# Turn on sphinx.ext.autosummary
-autosummary_generate = True
+for line in open("nitpick-exceptions"):
+    if line.strip() == "" or line.startswith("#"):
+        continue
+    dtype, target = line.split(None, 1)
+    target = target.strip()
+    nitpick_ignore.append((dtype, six.u(target)))
+
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/dev", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "cupy": ("https://docs.cupy.dev/en/stable/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/reference", None),
+    "pandas": ("https://pandas.pydata.org/pandas-docs/stable", None),
+    "matplotlib": ("https://matplotlib.org", None),
+    "geopandas": ("https://geopandas.org", None),
+}
+
+# numpydoc_show_class_members=False
+
+# Resolve function for the linkcode extension.
+def linkcode_resolve(domain, info):
+    def find_source():
+        # try to find the file and line number, based on code from numpy:
+        # https://github.com/numpy/numpy/blob/master/doc/source/conf.py#L286
+        obj = sys.modules[info["module"]]
+        for part in info["fullname"].split("."):
+            obj = getattr(obj, part)
+
+        fn = inspect.getsourcefile(obj)
+        fn = os.path.relpath(fn, start=os.path.dirname(bucky.__file__))
+        source, lineno = inspect.getsourcelines(obj)
+        return fn, lineno, lineno + len(source) - 1
+
+    if domain != "py" or not info["module"]:
+        return None
+    try:
+        filename = "bucky/%s#L%d-L%d" % find_source()
+    except Exception:
+        filename = info["module"].replace(".", "/") + ".py"
+    tag = "refactor"  #'master' if 'dev' in release else ('v' + release)
+    return "https://github.com/mattkinsey/bucky/blob/%s/%s" % (tag, filename)
+
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -86,23 +158,16 @@ tikz_latex_preamble = "\\newcommand{\\asym}{\\alpha_i}\n \
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "sphinx_rtd_theme"
+# html_theme = "sphinx_rtd_theme"
 # html_theme = 'alabaster'
+html_theme = "pydata_sphinx_theme"
 html_logo = "../../logo.png"
-html_theme_options = {"collapse_navigation": False}
+html_theme_options = {
+    "show_toc_level": 4,
+    "github_url": "https://github.com/mattkinsey/bucky",
+    "external_links": [{"name": "Bucky on GitHub", "url": "https://github.com/mattkinsey/bucky"}],
+}
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
-
-
-def setup(app):
-    app.add_config_value(
-        "recommonmark_config",
-        {
-            "url_resolver": lambda url: repo_doc_root + url,
-            "auto_toc_tree_section": "Usage",
-        },
-        True,
-    )
-    app.add_transform(AutoStructify)

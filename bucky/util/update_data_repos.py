@@ -30,25 +30,28 @@ ADD_AMERICAN_SAMOA = False
 # CSSE UIDs for Michigan prison information
 MI_PRISON_UIDS = [84070004, 84070005]
 
+# CSSE IDs for Utah local health districts
+UT_LHD_UIDS = [84070015, 84070016, 84070017, 84070018, 84070019, 84070020]
+
 
 def get_timeseries_data(col_name, filename, fips_key="FIPS", is_csse=True):
     """Transforms a historical data file to a dataframe with FIPs, date, and case or death data.
 
     Parameters
     ----------
-    col_name : string
+    col_name : str
         Column name to extract from data.
-    filename : string
+    filename : str
         Location of filename to read.
-    fips_key : string, optional
+    fips_key : str, optional
         Key used in file for indicating county-level field.
-    is_csse : boolean
+    is_csse : bool, optional
         Indicates whether the file is CSSE data. If True, certain areas
         without FIPS are included.
 
     Returns
     -------
-    df : Pandas DataFrame
+    df : pandas.DataFrame
         Dataframe with the historical data indexed by FIPS, date
 
     """
@@ -62,6 +65,11 @@ def get_timeseries_data(col_name, filename, fips_key="FIPS", is_csse=True):
         mi_data = mi_data.assign(FIPS=mi_data["UID"])
 
         df.loc[mi_data.index] = mi_data.values  # noqa: PD011
+
+        # Utah health districts have NAN FIPS, replace with UID
+        utah_local_dist_data = df.loc[df["UID"].isin(UT_LHD_UIDS)]
+        utah_local_dist_data = utah_local_dist_data.assign(FIPS=utah_local_dist_data["UID"])
+        df.loc[utah_local_dist_data.index] = utah_local_dist_data.values
 
     # Get dates and FIPS columns only
     cols = list(df.columns)
@@ -98,17 +106,17 @@ def distribute_unallocated_csse(confirmed_file, deaths_file, hist_df):
 
     Parameters
     ----------
-    confirmed_file : string
+    confirmed_file : str
         filename of CSSE confirmed data
-    deaths_file : string
+    deaths_file : str
         filename of CSSE death data
-    hist_df : Pandas DataFrame
+    hist_df : pandas.DataFrame
         current historical DataFrame containing confirmed and death data
         indexed by date and FIPS code
 
     Returns
     -------
-    hist_df : Pandas DataFrame
+    hist_df : pandas.DataFrame
         modified historical DataFrame with cases and deaths distributed
 
     """
@@ -207,22 +215,22 @@ def distribute_data_by_population(total_df, dist_vect, data_to_dist, replace):
 
     Parameters
     ----------
-    total_df : Pandas DataFrame
+    total_df : pandas.DataFrame
         DataFrame containing confirmed and death data indexed by date and
         FIPS code
-    dist_vect : Pandas DataFrame
+    dist_vect : pandas.DataFrame
         Population data for each county as proportion of total state
         population, indexed by FIPS code
-    data_to_dist: Pandas DataFrame
+    data_to_dist: pandas.DataFrame
         Data to distribute, indexed by data
-    replace : boolean
+    replace : bool
         If true, distributed values overwrite current historical data in
         DataFrame. If false, distributed values are added to current data
 
 
     Returns
     -------
-    total_df : Pandas DataFrame
+    total_df : pandas.DataFrame
         Modified input dataframe with distributed data
 
     """
@@ -257,15 +265,15 @@ def get_county_population_data(csse_deaths_file, county_fips):
 
     Parameters
     ----------
-    csse_deaths_file : string
+    csse_deaths_file : str
         filename of CSSE deaths file
-    county_fips: array-like
+    county_fips: numpy.ndarray
         list of FIPS to return population data for
 
 
     Returns
     -------
-    population_df: Pandas DataFrame
+    population_df: pandas.DataFrame
         DataFrame with population fraction data indexed by FIPS
 
     """
@@ -278,19 +286,74 @@ def get_county_population_data(csse_deaths_file, county_fips):
     return population_df
 
 
-def distribute_nyc_data(df):
-    """Distributes NYC case data across the six NYC counties.
+def distribute_utah_data(df, csse_deaths_file):
+    """Distributes Utah case data for local health departments spanning multiple counties.
+
+    Utah has 13 local health districts, six of which span multiple counties. This
+    function distributes those cases and deaths by population across their constituent
+    counties.
 
     Parameters
     ----------
-    df : Pandas DataFrame
+    df : pandas.DataFrame
         DataFrame containing historical data indexed by FIPS and date
-
-    TODO add deprecation warning b/c csse has fixed this
+    csse_deaths_file : str
+        File location of CSSE deaths file
 
     Returns
     -------
-    df : Pandas DataFrame
+    df : pandas.DataFrame
+        Modified DataFrame containing corrected Utah historical data
+        indexed by FIPS and date
+    """
+    local_districts = {
+        # Box Elder, Cache, Rich
+        84070015: {"name": "Bear River, Utah, US", "FIPS": [49003, 49005, 49033]},
+        # Juab, Millard, Piute, Sevier, Wayne, Sanpete
+        84070016: {"name": "Central Utah, Utah, US", "FIPS": [49023, 49027, 49031, 49041, 49055, 49039]},
+        # Carbon, Emery, Grand
+        84070017: {"name": "Southeast Utah, Utah, US", "FIPS": [49007, 49015, 49019]},
+        # Garfield, Iron, Kane, Washington, Beaver
+        84070018: {"name": "Southwest Utah, Utah, US", "FIPS": [49017, 49021, 49025, 49053, 49001]},
+        # Daggett, Duchesne, Uintah
+        84070019: {"name": "TriCounty, Utah, Utah, US", "FIPS": [49009, 49013, 49047]},
+        # Weber, Morgan
+        84070020: {"name": "Weber-Morgan, Utah, US", "FIPS": [49057, 49029]},
+    }
+
+    for district_uid in local_districts.keys():
+
+        # Get list of fips
+        fips_list = local_districts[district_uid]["FIPS"]
+
+        # Deaths file has population data
+        county_pop = get_county_population_data(csse_deaths_file, fips_list)
+
+        # Get district data
+        district_data = df.loc[district_uid]
+
+        # Add to Michigan data, do not replace
+        df = distribute_data_by_population(df, county_pop, district_data, True)
+
+    # Drop health districts data from dataframe
+    df = df.loc[~df.index.get_level_values(0).isin(UT_LHD_UIDS)]
+
+    return df
+
+
+def distribute_nyc_data(df):
+    """Distributes NYC case data across the six NYC counties.
+
+    TODO add deprecation warning b/c csse has fixed this
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame containing historical data indexed by FIPS and date
+
+    Returns
+    -------
+    df : pandas.DataFrame
         Modified DataFrame containing corrected NYC historical data
         indexed by FIPS and date
 
@@ -329,15 +392,15 @@ def distribute_mdoc(df, csse_deaths_file):
 
     Parameters
     ----------
-    df : Pandas DataFrame
+    df : pandas.DataFrame
         Current historical DataFrame indexed by FIPS and date, which
         includes MDOC and FCI data
-    csse_deaths_file : string
+    csse_deaths_file : str
         File location of CSSE deaths file (contains population data)
 
     Returns
     -------
-    df : Pandas DataFrame
+    df : pandas.DataFrame
         Modified historical dataframe with Michigan prison data distributed
         and added to Michigan data
 
@@ -372,15 +435,15 @@ def distribute_territory_data(df, add_american_samoa):
 
     Parameters
     ----------
-    df : Pandas DataFrame
+    df : pandas.DataFrame
         Current historical DataFrame indexed by FIPS and date, which
         includes territory-wide case and death data
-    add_american_samoa: boolean
+    add_american_samoa: bool
         If true, adds 1 case to American Samoa
 
     Returns
     -------
-    df : Pandas DataFrame
+    df : pandas.DataFrame
         Modified historical dataframe with territory-wide data
         distributed to counties
 
@@ -483,6 +546,7 @@ def process_csse_data():
     # Distribute territory and Michigan DOC data
     data = distribute_territory_data(data, ADD_AMERICAN_SAMOA)
     data = distribute_mdoc(data, deaths_file)
+    data = distribute_utah_data(data, deaths_file)
 
     data = data.reset_index()
     data = data.assign(date=pd.to_datetime(data["date"]))
@@ -540,14 +604,14 @@ def process_usafacts(case_file, deaths_file):
 
     Parameters
     ----------
-    case_file : string
+    case_file : str
         Location of USAFacts case file
-    deaths_file : string
+    deaths_file : str
         Location of USAFacts death file
 
     Returns
     -------
-    combined_df : Pandas DataFrame
+    combined_df : pandas.DataFrame
         USAFacts data containing cases and deaths indexed by FIPS and
         date.
 
@@ -649,7 +713,30 @@ def update_usafacts_data():
     data.to_csv(bucky_cfg["data_dir"] + "/cases/usafacts_hist.csv")
 
 
-def update_repos():
+def update_hhs_hosp_data():
+    """Retrieves updated historical data from healthdata.gov and writes to CSV."""
+
+    logging.info("Downloading HHS Hospitalization data")
+    hosp_url = "https://healthdata.gov/node/3565481/download"
+
+    filename = bucky_cfg["data_dir"] + "/cases/hhs_hosps.csv"
+
+    # Download case and death data
+    context = ssl._create_unverified_context()  # pylint: disable=W0212  # nosec
+    # Create filename
+    with urllib.request.urlopen(hosp_url, context=context) as testfile, open(filename, "w") as f:  # nosec
+        f.write(testfile.read().decode())
+
+    # Map state abbreviation to ADM1
+    hhs_data = pd.read_csv(filename)
+    abbrev_to_adm1_code = pd.read_csv(bucky_cfg["data_dir"] + "/us_adm1_abbrev_map.csv")
+    abbrev_to_adm1_code = abbrev_to_adm1_code.set_index("state")
+    abbrev_map = abbrev_to_adm1_code.to_dict()["adm1"]
+    hhs_data["adm1"] = hhs_data["state"].map(abbrev_map)
+    hhs_data.to_csv(filename)
+
+
+def main():
     """Uses git to update public data repos."""
     # Repos to update
     repos = [
@@ -668,7 +755,10 @@ def update_repos():
     update_covid_tracking_data()
 
     # Process USA Facts
-    update_usafacts_data()
+    # update_usafacts_data()
+
+    # Get HHS hospitalization data
+    update_hhs_hosp_data()
 
 
 def git_pull(abs_path):
@@ -676,7 +766,7 @@ def git_pull(abs_path):
 
     Parameters
     ----------
-    abs_path : string
+    abs_path : str
         Abs path location of repository to update
     """
     git_command = "git pull --rebase origin master"
@@ -694,4 +784,4 @@ def git_pull(abs_path):
 
 
 if __name__ == "__main__":
-    update_repos()
+    main()

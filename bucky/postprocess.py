@@ -21,14 +21,14 @@ def divide_by_pop(dataframe, cols):
 
     Parameters
     ----------
-    dataframe : DataFrame
+    dataframe : pandas.DataFrame
         Simulation data
     cols : list of str
         Column names to scale by population
 
     Returns
     -------
-    dataframe : DataFrame
+    dataframe : pandas.DataFrame
         Original dataframe with the requested columns scaled
 
     """
@@ -216,6 +216,7 @@ if __name__ == "__main__":
     to_write = JoinableQueue()
 
     def _writer(q):
+        """Write thread that will pull from a queue"""
         # Call to_write.get() until it returns None
         has_header_dict = {}
         for fname, df in iter(q.get, None):
@@ -232,6 +233,7 @@ if __name__ == "__main__":
     write_thread.start()
 
     def _process_date(date, write_queue=to_write):
+        """Perform the postprocessing for all the MC runs for a single output date"""
         date_files = glob.glob(args.file + "/*_" + str(date) + ".feather")  # [:NFILES]
 
         # Read feather files
@@ -253,8 +255,8 @@ if __name__ == "__main__":
         else:
             end_date = tot_df["date"].max()
 
-            # Drop data not within requested time range
-            tot_df = tot_df.loc[(tot_df["date"] <= end_date)]
+        # Drop data not within requested time range
+        tot_df = tot_df.loc[(tot_df["date"] <= end_date)]
 
         # Some lookups only contain a subset of counties, drop extras if necessary
         # TODO this replaced with a left join now that the keys are consistant (if its faster)
@@ -262,7 +264,13 @@ if __name__ == "__main__":
         tot_df = tot_df.loc[tot_df[admin2_key].isin(unique_adm2)]
 
         # List of columns that will be output per 100k population as well
-        per_capita_cols = ["cumulative_reported_cases", "cumulative_deaths", "current_hospitalizations"]
+        per_capita_cols = [
+            "cumulative_reported_cases",
+            "cumulative_deaths",
+            "current_hospitalizations",
+            "daily_reported_cases",
+            "daily_deaths",
+        ]
 
         # Multiply column by N, then at end divide by aggregated N
         pop_mean_cols = ["case_reporting_rate", "R_eff", "doubling_t"]
@@ -324,6 +332,7 @@ if __name__ == "__main__":
             # Compute quantiles
 
             def quantiles_group(tot_df):
+                """Calculate the quantiles for a single region"""
                 # TODO why is this in the for loop? pretty sure we can move it but check for deps
                 # Kernel opt currently only works on reductions (@v8.0.0) but maybe someday it'll help here
                 with xp.optimize_kernels():
@@ -370,6 +379,9 @@ if __name__ == "__main__":
 
             if "adm0" in q_df.columns and level != "adm0":
                 del q_df["adm0"]
+
+            if "Unnamed: 0" in q_df.columns:
+                del q_df["Unnamed: 0"]
 
             if verbose:
                 logging.info("\nQuantiles dataframe:")

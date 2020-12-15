@@ -1,9 +1,42 @@
-"""Module to parse npi csv files"""
+"""Module to parse npi csv files."""
 import datetime
 import logging
 
 import numpy as np
 import pandas as pd
+
+from ..numerical_libs import reimport_numerical_libs, xp
+
+
+def get_npi_params(g_data, first_date, t_max, npi_file=None, disable_npi=False):
+    """Read an npi scenario file or if none is provided provide correctly shaped 'no future changes' npi_params"""
+    reimport_numerical_libs("model.npi.get_npi_params")
+
+    n_nodes = g_data.Nij.shape[-1]
+    if npi_file is not None:
+        logging.info(f"Using NPI from: {npi_file}")
+        npi_params = read_npi_file(
+            npi_file,
+            first_date,
+            t_max,
+            g_data.adm2_id,
+            disable_npi,
+        )
+        for k in npi_params:
+            npi_params[k] = xp.array(npi_params[k])
+            if k == "contact_weights":
+                npi_params[k] = xp.broadcast_to(npi_params[k], (t_max + 1, n_nodes, 4))
+            else:
+                npi_params[k] = xp.broadcast_to(npi_params[k], (t_max + 1, n_nodes))
+        npi_params["npi_active"] = True
+    else:
+        npi_params = {
+            "npi_active": False,
+            "r0_reduct": xp.broadcast_to(xp.ones(1), (t_max + 1, n_nodes)),
+            "contact_weights": xp.broadcast_to(xp.ones(1), (t_max + 1, n_nodes, 4)),
+            "mobility_reduct": xp.broadcast_to(xp.ones(1), (t_max + 1, n_nodes)),
+        }
+    return npi_params
 
 
 def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
@@ -11,21 +44,24 @@ def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
 
     Parameters
     ----------
-    fname : string
+    fname : str
         Filename of NPI file
-    start_date : string
+    start_date : str
         Start date to use
     end_t : int
         Number of days after start date
-    adm2_map : NumPy array
+    adm2_map : ndarray
         Array of adm2 IDs
-    disable_npi : bool (default: False)
-        Bool indicating whether NPIs should be disabled
+    disable_npi : bool, optional
+        Bool indicating whether NPIs should be disabled after being initialized for the first day
+
     Returns
     -------
     npi_params : dict
         TODO
     """
+    # reimport_numerical_libs("model.npi.read_npi_file")
+
     # filter by overlap with simulation date range
     df = pd.read_csv(fname)
     df["date"] = pd.to_datetime(df.date)  # force a parse in case it's an odd format
@@ -49,7 +85,7 @@ def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
     for _, group in df.sort_values(by=["date"]).groupby("date"):
         # convert adm2 id to int
         group["admin2"] = group.adm2.astype(int)
-        date_group = group.set_index("adm2").reindex(adm2_map)
+        date_group = group.set_index("adm2").reindex(xp.to_cpu(adm2_map))
         r0_reduction = np.array(date_group[["r0_reduction"]])
         mobility_reduction = np.array(date_group[["mobility_reduction"]])
         contact_weight = np.array(date_group[["home", "other_locations", "school", "work"]])
