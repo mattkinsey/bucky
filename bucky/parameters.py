@@ -1,5 +1,3 @@
-"""TODO: Summary
-"""
 import copy
 import logging
 from pprint import pformat
@@ -12,147 +10,38 @@ from .util.distributions import mPERT_sample, truncnorm
 
 
 def calc_Te(Tg, Ts, n, f):
-    """TODO: Summary
-
-    Parameters
-    ----------
-    Tg : TYPE
-        TODO: Description
-    Ts : TYPE
-        TODO: Description
-    n : TYPE
-        TODO: Description
-    f : TYPE
-        TODO: Description
-
-    Returns
-    -------
-    TYPE
-        TODO: Description
-    """
     num = 2.0 * n * f / (n + 1.0) * Tg - Ts
     den = 2.0 * n * f / (n + 1.0) - 1.0
     return num / den
 
 
 def calc_Reff(m, n, Tg, Te, r):
-    """TODO: Summary
-
-    Parameters
-    ----------
-    m : TYPE
-        TODO: Description
-    n : TYPE
-        TODO: Description
-    Tg : TYPE
-        TODO: Description
-    Te : TYPE
-        TODO: Description
-    r : TYPE
-        TODO: Description
-
-    Returns
-    -------
-    TYPE
-        TODO: Description
-    """
     num = 2.0 * n * r / (n + 1.0) * (Tg - Te) * (1.0 + r * Te / m) ** m
     den = 1.0 - (1.0 + 2.0 * r / (n + 1.0) * (Tg - Te)) ** (-n)
     return num / den
 
 
 def calc_Ti(Te, Tg, n):
-    """TODO: Summary
-
-    Parameters
-    ----------
-    Te : TYPE
-        TODO: Description
-    Tg : TYPE
-        TODO: Description
-    n : TYPE
-        TODO: Description
-
-    Returns
-    -------
-    TYPE
-        TODO: Description
-    """
     return (Tg - Te) * 2.0 * n / (n + 1.0)
 
 
 def calc_beta(Te):
-    """TODO: Summary
-
-    Parameters
-    ----------
-    Te : TYPE
-        TODO: Description
-
-    Returns
-    -------
-    TYPE
-        TODO: Description
-    """
     return 1.0 / Te
 
 
 def calc_gamma(Ti):
-    """TODO: Summary
-
-    Parameters
-    ----------
-    Ti : TYPE
-        TODO: Description
-
-    Returns
-    -------
-    TYPE
-        TODO: Description
-    """
     return 1.0 / Ti
 
 
 def CI_to_std(CI):
-    """TODO: Summary
-
-    Parameters
-    ----------
-    CI : TYPE
-        TODO: Description
-
-    Returns
-    -------
-    TYPE
-        TODO: Description
-    """
     lower, upper = CI
     std95 = np.sqrt(1.0 / 0.05)
     return (upper + lower) / 2.0, (upper - lower) / std95 / 2.0
 
 
 class buckyParams:
-
-    """TODO: Summary
-
-    Attributes
-    ----------
-    base_params : TYPE
-    TODO: Description
-    consts : TYPE
-    TODO: Description
-    par_file : TYPE
-    TODO: Description
-    """
-
     def __init__(self, par_file=None):
-        """TODO: Summary
 
-        Parameters
-        ----------
-        par_file : None, optional
-            TODO: Description
-        """
         self.par_file = par_file
         if par_file is not None:
             self.base_params = self.read_yml(par_file)
@@ -162,35 +51,11 @@ class buckyParams:
 
     @staticmethod
     def read_yml(par_file):
-        """TODO: Summary
-
-        Parameters
-        ----------
-        par_file : TYPE
-            TODO: Description
-
-        Returns
-        -------
-        TYPE
-            TODO: Description
-        """
         # TODO check file exists
         with open(par_file, "rb") as f:
             return yaml.load(f, yaml.SafeLoader)  # nosec
 
     def generate_params(self, var=0.2):
-        """TODO: Summary
-
-        Parameters
-        ----------
-        var : float, optional
-            TODO: Description
-
-        Returns
-        -------
-        TYPE
-            TODO: Description
-        """
         if var is None:
             var = 0.0
         while True:  # WTB python do-while...
@@ -201,20 +66,6 @@ class buckyParams:
             logging.debug("Rejected params: " + pformat(params))
 
     def reroll_params(self, base_params, var):
-        """TODO: Summary
-
-        Parameters
-        ----------
-        base_params : TYPE
-            TODO: Description
-        var : TYPE
-            TODO: Description
-
-        Returns
-        -------
-        TYPE
-            TODO: Description
-        """
         params = dotdict({})
         for p in base_params:
             # Scalars
@@ -257,46 +108,12 @@ class buckyParams:
 
     @staticmethod
     def age_interp(x_bins_new, x_bins, y):  # TODO we should probably account for population for the 65+ type bins...
-        """TODO: Summary
-
-        Parameters
-        ----------
-        x_bins_new : TYPE
-            TODO: Description
-        x_bins : TYPE
-            TODO: Description
-        y : TYPE
-            TODO: Description
-
-        Returns
-        -------
-        TYPE
-            TODO: Description
-        """
         x_mean_new = np.mean(np.array(x_bins_new), axis=1)
         x_mean = np.mean(np.array(x_bins), axis=1)
         return np.interp(x_mean_new, x_mean, y)
 
     @staticmethod
     def rescale_doubling_rate(D, params, xp, A_diag=None):
-        """TODO: Summary
-
-        Parameters
-        ----------
-        D : TYPE
-            TODO: Description
-        params : TYPE
-            TODO: Description
-        xp : TYPE
-            TODO: Description
-        A_diag : None, optional
-            TODO: Description
-
-        Returns
-        -------
-        TYPE
-            TODO: Description
-        """
         # TODO rename D to Td everwhere for consistency
         r = xp.log(2.0) / D
         params["R0"] = calc_Reff(
@@ -314,18 +131,6 @@ class buckyParams:
 
     @staticmethod
     def calc_derived_params(params):
-        """TODO: Summary
-
-        Parameters
-        ----------
-        params : TYPE
-            TODO: Description
-
-        Returns
-        -------
-        TYPE
-            TODO: Description
-        """
         params["Te"] = calc_Te(
             params["Tg"],
             params["Ts"],

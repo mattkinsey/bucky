@@ -1,29 +1,19 @@
-"""Provides various scoring metrics for probabilistic forecasts.
+""" Provides various scoring metrics for probabilistic forecasts.
 """
 import numpy as np
 
 
 def logistic(x, x0=0.0, k=1.0, L=1.0):
-    """TODO: Summary
+    """
 
     Parameters
     ----------
-    x : TYPE
-        TODO: Description
-    x0 : float, optional
-        TODO: Description
-    k : float, optional
-        TODO: Description
-    L : float, optional
-        TODO: Description
-
-    Returns
-    -------
     :
         TODO
-
-    Deleted Parameters
-    ------------------
+    :
+        TODO
+    Returns
+    -------
     :
         TODO
     """
@@ -31,26 +21,16 @@ def logistic(x, x0=0.0, k=1.0, L=1.0):
 
 
 def IS(x, lower, upper, alp):
-    """TODO: Summary
+    """
 
     Parameters
     ----------
-    x : TYPE
-        TODO: Description
-    lower : TYPE
-        TODO: Description
-    upper : TYPE
-        TODO: Description
-    alp : TYPE
-        TODO: Description
-
-    Returns
-    -------
     :
         TODO
-
-    Deleted Parameters
-    ------------------
+    :
+        TODO
+    Returns
+    -------
     :
         TODO
     """
@@ -58,26 +38,16 @@ def IS(x, lower, upper, alp):
 
 
 def smooth_IS(x, lower, upper, alp):
-    """TODO: Summary
+    """
 
     Parameters
     ----------
-    x : TYPE
-        TODO: Description
-    lower : TYPE
-        TODO: Description
-    upper : TYPE
-        TODO: Description
-    alp : TYPE
-        TODO: Description
-
-    Returns
-    -------
     :
         TODO
-
-    Deleted Parameters
-    ------------------
+    :
+        TODO
+    Returns
+    -------
     :
         TODO
     """
@@ -91,30 +61,15 @@ def smooth_IS(x, lower, upper, alp):
 
 def WIS(x, q, x_q, norm=False, log=False, smooth=False):
     """
-    TODO: Summary
 
     Parameters
     ----------
-    x : TYPE
-        TODO: Description
-    q : TYPE
-        TODO: Description
-    x_q : TYPE
-        TODO: Description
-    norm : bool, optional
-        TODO: Description
-    log : bool, optional
-        TODO: Description
-    smooth : bool, optional
-        TODO: Description
-
-    Returns
-    -------
     :
         TODO
-
-    Deleted Parameters
-    ------------------
+    :
+        TODO
+    Returns
+    -------
     :
         TODO
     """
