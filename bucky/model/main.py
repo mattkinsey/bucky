@@ -375,7 +375,7 @@ class buckyModelCovid:
         self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0.0, 1.0)
 
         Rt = estimate_Rt(self.g_data, self.params)
-        Rt_fac = approx_mPERT_sample(mu=xp.ones(Rt.shape), **(self.dists.Rt_dist))
+        Rt_fac = approx_mPERT_sample(**(self.dists.Rt_dist))
         Rt *= Rt_fac  # truncnorm(1.0, 1.5 * self.consts.reroll_variance, size=Rt.shape, a_min=1e-6)
         self.params["R0"] = Rt
         self.params["BETA"] = Rt * self.params["GAMMA"] / self.g_data.Aij.diag
