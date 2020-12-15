@@ -1,3 +1,5 @@
+"""utilities to read historical data that cooresponds to a bucky output file."""
+import glob
 import logging
 import os
 
@@ -7,35 +9,51 @@ from .read_config import bucky_cfg
 
 covid_tracking = os.path.join(bucky_cfg["data_dir"], "cases/covid_tracking.csv")
 csse = os.path.join(bucky_cfg["data_dir"], "cases/csse_hist_timeseries.csv")
+hhs_hosp = os.path.join(bucky_cfg["data_dir"], "cases/hhs_hosps.csv")
 
 # Specify file and column name
 data_locations = {
     "cumulative_cases": {"file": csse, "column": "cumulative_reported_cases"},
     "cumulative_reported_cases": {"file": csse, "column": "cumulative_reported_cases"},
     "cumulative_deaths": {"file": csse, "column": "cumulative_deaths"},
-    "current_hospitalizations": {"file": covid_tracking, "column": "hospitalizedCurrently"},
+    "current_hospitalizations": {
+        "file": hhs_hosp,
+        "column": [
+            "total_adult_patients_hospitalized_confirmed_covid",
+            "total_pediatric_patients_hospitalized_confirmed_covid",
+        ],
+    },
     "daily_reported_cases": {"file": csse, "column": "daily_reported_cases"},
     "daily_cases": {"file": csse, "column": "daily_reported_cases"},
     "daily_deaths": {"file": csse, "column": "daily_deaths"},
     "current_vent_usage": {"file": covid_tracking, "column": "onVentilatorCurrently"},
-    "current_icu_usage": {"file": covid_tracking, "column": "inIcuCurrently"},
-    "daily_hospitalizations": {"file": covid_tracking, "column": "hospitalizedIncrease"},
+    "current_icu_usage": {
+        "file": hhs_hosp,
+        "column": [
+            "staffed_icu_adult_patients_confirmed_covid",
+            "staffed_icu_pediatric_patients_confirmed_covid",
+        ],
+    },
+    "daily_hospitalizations": {
+        "file": hhs_hosp,
+        "column": ["previous_day_admission_adult_covid_confirmed", "previous_day_admission_pediatric_covid_confirmed"],
+    },
 }
 
 
 def add_daily_history(history_data, window_size=None):
-    """Applies a window to cumulative historical data to get daily data.
+    """Return daily historical data from a diff of the historical cumulative data.
 
     Parameters
     ----------
-    history_data : Pandas DataFrame
+    history_data : pandas.DataFrame
         Cumulative case and death data
     window_size : int or None
         Size of window in days
 
     Returns
     -------
-    history_data : Pandas DataFrame
+    history_data : pandas.DataFrame
         Historical data with added columns for daily case and death data
     """
     history_data = history_data.set_index(["adm2", "date"]).sort_index()  # TODO do we need it sorted?
@@ -69,7 +87,7 @@ def add_daily_history(history_data, window_size=None):
 
 
 def get_historical_data(columns, level, lookup_df, window_size, hist_file):
-    """Gets historical data for the columns requested.
+    """Return historical data for requested columns.
 
     Parameters
     ----------
@@ -77,17 +95,17 @@ def get_historical_data(columns, level, lookup_df, window_size, hist_file):
         Column names for historical data
     level : str
         Geographic level to get historical data for, e.g. adm1
-    lookup_df : Pandas DataFrame
+    lookup_df : pandas.DataFrame
         Dataframe with names and values for admin0, admin1, and admin2
         levels
     window_size : int
         Size of window in days
-    hist_file : string or None
+    hist_file : str or None
         Historical data file to use if not using defaults.
 
     Returns
     -------
-    history_data : Pandas DataFrame
+    history_data : pandas.DataFrame
         Historical data indexed by data and geographic level
         containing only requested columns
     """
@@ -140,7 +158,11 @@ def get_historical_data(columns, level, lookup_df, window_size, hist_file):
 
             # Aggregate on geographic level
             agg_data = data.groupby(["date", level]).sum()
-            agg_data = agg_data.rename(columns={column_name: requested_col})
+            if isinstance(column_name, list):
+                # Sum columns
+                agg_data[requested_col] = agg_data[column_name].sum(axis=1)
+            else:
+                agg_data = agg_data.rename(columns={column_name: requested_col})
             agg_data = agg_data.round(3)
 
             # If first column, initialize dataframe
@@ -155,6 +177,7 @@ def get_historical_data(columns, level, lookup_df, window_size, hist_file):
     return df
 
 
+# TODO all this main stuff should be in test/
 if __name__ == "__main__":
 
     from bucky.viz.geoid import read_geoid_from_graph
@@ -165,8 +188,9 @@ if __name__ == "__main__":
     )
 
     look = read_geoid_from_graph(graph_file)
-    levels = ["adm0"]
-    cols = ["current_vent_usage", "daily_reported_cases"]
-    for level in levels:
+    levels = ["adm1"]
+    cols = ["current_hospitalizations"]
+    for _level in levels:
 
-        df = get_historical_data(cols, level, look, 7)
+        _df = get_historical_data(cols, _level, look, 7, None)
+        logging.info(_df)

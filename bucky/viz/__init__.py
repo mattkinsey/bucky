@@ -1,1 +1,1 @@
-"""Submodule containing all the code to visualize model outputs"""
+"""Submodule containing all the code to visualize model outputs."""

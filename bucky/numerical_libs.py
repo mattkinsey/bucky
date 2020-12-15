@@ -3,28 +3,58 @@
 The main goal of this is to smooth over the differences between numpy and cupy so that
 the rest of the code can use them interchangably. We also need to  monkey patch scipy's ivp solver
 to work on cupy arrays.
-.. note:: Linters **HATE** this module because it's really abusing the import system (by design).
+
+Notes
+-----
+Linters **HATE** this module because it's really abusing the import system (by design).
 
 """
 
 import contextlib
+import importlib
+import inspect
+
+import numpy as xp
+import scipy.integrate._ivp.ivp as xp_ivp
+import scipy.sparse as xp_sparse
+import scipy.special
 
 # Default imports for cpu code
 # This will be overwritten with a call to .numerical_libs.use_cupy()
-import numpy as xp
-import scipy.integrate._ivp.ivp as ivp  # noqa: F401  # pylint: disable=unused-import
-import scipy.sparse as sparse  # noqa: F401  # pylint: disable=unused-import
+import bucky
 
 xp.scatter_add = xp.add.at
 xp.optimize_kernels = contextlib.nullcontext
 xp.to_cpu = lambda x, **kwargs: x  # one arg noop
+xp.special = scipy.special
+
+bucky.xp = xp
+bucky.xp_sparse = xp_sparse
+bucky.xp_ivp = xp_ivp
 
 
-class ExperimentalWarning(Warning):
-    """Simple class to mock the optuna warning if we don't have optuna"""
+class MockExperimentalWarning(Warning):
+    """Simple class to mock the optuna warning if we don't have optuna."""
 
 
-xp.ExperimentalWarning = ExperimentalWarning
+xp.ExperimentalWarning = MockExperimentalWarning
+
+
+reimport_cache = set()
+
+
+def reimport_numerical_libs(context=None):
+    """Reimport xp, xp_sparse, xp_ivp from the global context (in case they've been update to cupy)."""
+    global reimport_cache
+    if context in reimport_cache:
+        return
+    for lib in ("xp", "xp_sparse", "xp_ivp"):
+        caller_globals = dict(inspect.getmembers(inspect.stack()[1][0]))["f_globals"]
+        if lib in caller_globals:
+            bucky_module = importlib.import_module("bucky")
+            caller_globals[lib] = getattr(bucky_module, lib)
+            if context is not None:
+                reimport_cache.add(context)
 
 
 def use_cupy(optimize=False):
@@ -57,7 +87,6 @@ def use_cupy(optimize=False):
         fully implemented.
 
     """
-    import importlib  # pylint: disable=import-outside-toplevel
     import logging  # pylint: disable=import-outside-toplevel
     import sys  # pylint: disable=import-outside-toplevel
 
@@ -66,14 +95,13 @@ def use_cupy(optimize=False):
         logging.info("CuPy not found, reverting to cpu/numpy")
         return 1
 
-    global xp, ivp, sparse  # pylint: disable=global-statement
-
     if xp.__name__ == "cupy":
         logging.info("CuPy already loaded, skipping")
         return 0
 
     # modify src before importing
     def modify_and_import(module_name, package, modification_func):
+        """Return an imported class after applying the modification function to the source files."""
         spec = importlib.util.find_spec(module_name, package)
         source = spec.loader.get_source(module_name)
         new_source = modification_func(source)
@@ -92,6 +120,12 @@ def use_cupy(optimize=False):
     if ~hasattr(cp, "searchsorted"):
         # NB: this isn't correct in general but it works for what scipy solve_ivp needs...
         def cp_searchsorted(a, v, side="right", sorter=None):
+            """Provide a cupy version of search sorted thats good enough for scipy.ivp
+
+            This was added to cupy sometime between v6.0.0 and v7.0.0 so it won't be needed for up to date installs.
+
+            .. warning:: This isn't correct in general but it works for what scipy.ivp needs..
+            """
             if side != "right":
                 raise NotImplementedError
             if sorter is not None:
@@ -104,7 +138,7 @@ def use_cupy(optimize=False):
         cp.searchsorted = cp_searchsorted
 
     for name in ("common", "base", "rk", "ivp"):
-        ivp = modify_and_import(
+        bucky.xp_ivp = modify_and_import(
             "scipy.integrate._ivp." + name,
             None,
             lambda src: src.replace("import numpy", "import cupy"),
@@ -118,7 +152,7 @@ def use_cupy(optimize=False):
     if spec is None:
         logging.info("Optuna not installed, kernel opt is disabled")
         cp.optimize_kernels = contextlib.nullcontext
-        cp.ExperimentalWarning = ExperimentalWarning
+        cp.ExperimentalWarning = MockExperimentalWarning
     elif optimize:
         import optuna  # pylint: disable=import-outside-toplevel
 
@@ -128,25 +162,40 @@ def use_cupy(optimize=False):
         cp.ExperimentalWarning = optuna.exceptions.ExperimentalWarning
     else:
         cp.optimize_kernels = contextlib.nullcontext
-        cp.ExperimentalWarning = ExperimentalWarning
+        cp.ExperimentalWarning = MockExperimentalWarning
 
     def cp_to_cpu(x, stream=None, out=None):
+        """Take a np/cupy array and always return it in host memory (as an np array)."""
         if "cupy" in type(x).__module__:
             return x.get(stream=stream, out=out)
         return x
 
     cp.to_cpu = cp_to_cpu
 
-    # Add a version of np.r_ to cupy that just calls numpy
-    # has to be a class b/c r_ uses sq brackets
-    class cp_r_:
-        def __getitem__(self, inds):
-            return cp.array(np.r_[inds])
+    if ~hasattr(cp, "r_"):
+        # Add a version of np.r_ to cupy that just calls numpy
+        # has to be a class b/c r_ uses sq brackets
+        class cp_r_:  # pylint: disable=too-few-public-methods
+            """Hackish version of a cupy version of r_.
 
-    cp.r_ = cp_r_()
+            It just uses numpy and wraps it to have the same signature.
+            """  # noqa: RST306
 
-    xp = cp
-    import cupyx.scipy.sparse as sparse  # pylint: disable=import-outside-toplevel,redefined-outer-name
+            def __getitem__(self, inds):
+                """Call np.r_ and case the result to cupy."""  # noqa: RST306
+                return cp.array(np.r_[inds])
+
+        cp.r_ = cp_r_()
+
+    import cupyx.scipy.special  # pylint: disable=import-outside-toplevel
+
+    cp.special = cupyx.scipy.special
+
+    bucky.xp = cp
+
+    import cupyx.scipy.sparse as xp_sparse  # pylint: disable=import-outside-toplevel, redefined-outer-name
+
+    bucky.xp_sparse = xp_sparse
 
     # TODO need to check cupy version is >9.0.0a1 in order to use sparse
 
