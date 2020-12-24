@@ -25,6 +25,7 @@ class buckyGraphData:
         # TODO add adm0 to support multiple countries
         self.adm2_id = _read_node_attr(G, G.graph["adm2_key"], dtype=int)[0]
         self.adm1_id = _read_node_attr(G, G.graph["adm1_key"], dtype=int)[0]
+        self.adm0_name = G.graph["adm0_name"]
 
         # in case we want to alloc something indexed by adm1/2
         self.max_adm2 = xp.to_cpu(xp.max(self.adm2_id))
@@ -51,14 +52,20 @@ class buckyGraphData:
     # TODO maybe provide a decorator or take a lambda or something to generalize it?
     # also this would be good if it supported rolling up to adm0 for multiple countries
     # memo so we don'y have to handle caching this on the input data?
-    def sum_adm1(self, adm2_arr):
+    def sum_adm1(self, adm2_arr, mask=None):
         """Return the adm1 sum of a variable defined at the adm2 level using the mapping on the graphi."""
         # TODO add in axis param, we call this a bunch on array.T
         # assumes 1st dim is adm2 indexes
         # TODO should take an axis argument and handle reshape, then remove all the transposes floating around
+        # TODO we should use xp.unique(return_inverse=True) to compress these rather than allocing all the adm1 ids that dont exist, see the new postprocess
         shp = (self.max_adm1 + 1,) + adm2_arr.shape[1:]
         out = xp.zeros(shp, dtype=adm2_arr.dtype)
-        xp.scatter_add(out, self.adm1_id, adm2_arr)
+        if mask is None:
+            adm1_ids = self.adm1_id
+        else:
+            adm1_ids = self.adm1_id[mask]
+            # adm2_arr = adm2_arr[mask]
+        xp.scatter_add(out, adm1_ids, adm2_arr)
         return out
 
     # TODO add scatter_adm2 with weights. Noone should need to check self.adm1/2_id outside this class
