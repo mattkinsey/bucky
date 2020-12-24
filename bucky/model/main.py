@@ -15,6 +15,9 @@ from pprint import pformat  # TODO set some defaults for width/etc with partial?
 import networkx as nx
 import numpy as np
 import pandas as pd
+import pyarrow as pa
+import pyarrow.feather as paf
+import pyarrow.parquet as pap
 import tqdm
 
 from ..numerical_libs import reimport_numerical_libs, use_cupy, xp, xp_ivp
@@ -718,7 +721,7 @@ class buckyModelCovid:
 
     # TODO Move this to a class thats like run_parser or something (that caches all the info it needs like Nij, and manages the write thread/queue)
     # Also give it methods like to_dlpack, to_pytorch, etc
-    def to_feather(self, sol, base_filename, seed, output_queue):
+    def save_run(self, sol, base_filename, seed, output_queue):
         """Postprocess and write to disk the output of run_once"""
 
         df_data = self.postprocess_run(sol, seed)
@@ -728,7 +731,28 @@ class buckyModelCovid:
             df_data[c] = df_data[c].ravel()
 
         # push the data off to the write thread
-        output_queue.put((base_filename, df_data))
+        data_folder = os.path.join(base_filename, "data")
+        output_queue.put((base_filename + "/data", df_data))
+        metadata_folder = os.path.join(base_filename, "metadata")
+        if not os.path.exists(metadata_folder):
+            os.mkdir(metadata_folder)
+
+            # write dates
+            uniq_dates = pd.Series(df_data["date"]).unique()
+            pd.DataFrame({"date": uniq_dates}).to_csv(os.path.join(metadata_folder, "dates.csv"), index=False)
+
+            # write out adm mapping
+            adm_map = pd.DataFrame(
+                {
+                    "adm2": xp.to_cpu(self.g_data.adm2_id),
+                    "adm1": xp.to_cpu(self.g_data.adm1_id),
+                    "adm0": self.g_data.adm0_name,
+                }
+            )
+            adm_map.to_csv(os.path.join(metadata_folder, "adm_mapping.csv"), index=False)
+
+        # TODO write params out (to yaml?) in another subfolder
+
         # TODO we should output the per monte carlo param rolls, this got lost when we switched from hdf5
 
     def postprocess_run(self, sol, seed, columns=None):
@@ -784,7 +808,7 @@ class buckyModelCovid:
         if "date" in columns:
             if self.output_dates is None:
                 t_output = xp.to_cpu(sol.t)
-                dates = [pd.Timestamp(self.first_date + datetime.timedelta(days=np.round(t))) for t in t_output]
+                dates = [str(self.first_date + datetime.timedelta(days=np.round(t))) for t in t_output]
                 self.output_dates = np.broadcast_to(dates, out.state.shape[1:])
 
             dates = self.output_dates
@@ -952,12 +976,11 @@ def main(args=None):
         stream = xp.cuda.Stream(non_blocking=True) if args.gpu else None
         for base_fname, df_data in iter(to_write.get, None):
             cpu_data = {k: xp.to_cpu(v, stream=stream) for k, v in df_data.items()}
+            cpu_data = {k: pa.array(xp.to_cpu(v, stream=stream)) for k, v in df_data.items()}
             if stream is not None:
                 stream.synchronize()
-            df = pd.DataFrame(cpu_data)
-            for date, date_df in df.groupby("date", as_index=False):
-                fname = base_fname + "_" + str(date.date()) + ".feather"
-                date_df.reset_index().to_feather(fname)
+            table = pa.table(cpu_data, nthreads=8)
+            pap.write_to_dataset(table, base_fname, partition_cols=["date"])
 
     write_thread = threading.Thread(target=writer, daemon=True)
     write_thread.start()
@@ -996,8 +1019,7 @@ def main(args=None):
                 n_runs += 1
                 with xp.optimize_kernels():
                     sol = env.run_once(seed=mc_seed)
-                    base_filename = os.path.join(output_folder, str(mc_seed))
-                    env.to_feather(sol, base_filename, mc_seed, output_queue=to_write)
+                    env.save_run(sol, output_folder, mc_seed, output_queue=to_write)
 
                 success += 1
                 pbar.update(1)
