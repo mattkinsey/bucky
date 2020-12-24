@@ -925,11 +925,6 @@ class buckyModelCovid:
 
         return df_data
 
-        if output:
-            os.makedirs(output_folder, exist_ok=True)
-            output_queue.put((os.path.join(output_folder, str(seed)), df_data))
-        # TODO we should output the per monte carlo param rolls, this got lost when we switched from hdf5
-
 
 def main(args=None):
     """Main method for a complete simulation called with a set of CLI args"""
