@@ -279,16 +279,6 @@ class buckyModelCovid:
         self.params.H = xp.broadcast_to(self.params.H[:, None], self.Nij.shape)
         self.params.F = xp.broadcast_to(self.params.F[:, None], self.Nij.shape)
 
-        """
-        if self.use_G_ifr:  # TODO this is pretty much overwriteen with the CHR rescale...
-            self.ifr[xp.isnan(self.ifr)] = 0.0
-            self.params.F = self.ifr / self.params["SYM_FRAC"]
-            adm0_ifr = xp.sum(self.ifr * self.Nij) / xp.sum(self.Nj)
-            ifr_scale = 0.0065 / adm0_ifr  # TODO this should be in par file (its from planning scenario5)
-            self.params.F = xp.clip(self.params.F * ifr_scale, 0.0, 1.0)
-            self.params.F_old = self.params.F.copy()
-        """
-
         if self.rescale_chr:
             # TODO this needs to be cleaned up BAD
             # should add a util function to do the rollups to adm1 (it shows up in case_reporting/doubling t calc too)
@@ -941,8 +931,8 @@ def main(args=None):
     output_folder = os.path.join(args.output_dir, runid)
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
-    fh = logging.FileHandler(output_folder + "/stdout")
-    fh.setLevel(logging.DEBUG)
+    # fh = logging.FileHandler(output_folder + "/stdout")
+    # fh.setLevel(logging.DEBUG)
     logging.basicConfig(
         level=loglevel,
         format="%(asctime)s - %(levelname)s - %(filename)s:%(funcName)s:%(lineno)d - %(message)s",
@@ -992,6 +982,8 @@ def main(args=None):
     pbar = tqdm.tqdm(total=args.n_mc, desc="Performing Monte Carlos", dynamic_ncols=True)
     try:
         while success < args.n_mc:
+            # from IPython import embed
+            # embed()
             mc_seed = seed_seq.spawn(1)[0].generate_state(1)[0]  # inc spawn key then grab next seed
             pbar.set_postfix_str(
                 "seed="
