@@ -2,6 +2,8 @@
 """
 import numpy as np
 
+from ..numerical_libs import reimport_numerical_libs, xp
+
 
 def logistic(x, x0=0.0, k=1.0, L=1.0):
     """
@@ -17,7 +19,7 @@ def logistic(x, x0=0.0, k=1.0, L=1.0):
     :
         TODO
     """
-    return L / (1.0 + np.exp(-k * x - x0))
+    return L / (1.0 + xp.exp(-k * x - x0))
 
 
 def IS(x, lower, upper, alp):
@@ -73,19 +75,30 @@ def WIS(x, q, x_q, norm=False, log=False, smooth=False):
     :
         TODO
     """
+    reimport_numerical_libs("util.scoring.WIS")
     # todo sort q and x_q based on q
     K = len(q) // 2
-    alps = np.array([1 - q[-i - 1] + q[i] for i in range(K)])
-    Fs = np.array([[x_q[i], x_q[-i - 1]] for i in range(K)])
+    alps = xp.array([1 - q[-i - 1] + q[i] for i in range(K)])
+    Fs = xp.array([[x_q[i], x_q[-i - 1]] for i in range(K)])
     m = x_q[K + 1]
     w0 = 0.5
     wk = alps / 2.0
+    # from IPython import embed
+    # embed()
     if smooth:
-        ret = 1.0 / (K + 1.0) * (w0 * 2 * np.abs(x - m) + np.sum(wk * smooth_IS(x, Fs[:, 0], Fs[:, 1], alps)))
+        ret = 1.0 / (K + 1.0) * (w0 * 2 * xp.abs(x - m) + xp.sum(wk * smooth_IS(x, Fs[:, 0], Fs[:, 1], alps)))
     else:
-        ret = 1.0 / (K + 1.0) * (w0 * 2 * np.abs(x - m) + np.sum(wk * IS(x, Fs[:, 0], Fs[:, 1], alps)))
+        ret = (
+            1.0
+            / (K + 1.0)
+            * (
+                w0 * 2 * xp.abs(x - m)
+                + xp.sum(wk[..., None] * IS(x[None, ...], Fs[:, 0], Fs[:, 1], alps[..., None]), axis=0)
+            )
+        )
     if norm:
-        ret /= x
+        mask = xp.nonzero(x)
+        ret[mask] = ret[mask] / x[mask]
     if log:
-        ret = np.log(ret)
+        ret = xp.log1p(ret)
     return ret
