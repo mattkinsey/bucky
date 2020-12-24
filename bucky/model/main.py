@@ -12,11 +12,9 @@ import warnings
 from functools import lru_cache
 from pprint import pformat  # TODO set some defaults for width/etc with partial?
 
-import networkx as nx
 import numpy as np
 import pandas as pd
 import pyarrow as pa
-import pyarrow.feather as paf
 import pyarrow.parquet as pap
 import tqdm
 
@@ -132,16 +130,6 @@ class buckyModelCovid:
         # Load data from input graph
         # TODO we should go through an replace lots of math using self.g_data.* with function IN buckyGraphData
         g_data = buckyGraphData(G, self.sparse)
-
-        """
-        if "IFR" in G.nodes[list(G.nodes.keys())[0]]:
-            logging.info("Using ifr from graph")
-            self.use_G_ifr = True
-            node_IFR = nx.get_node_attributes(G, "IFR")
-            self.ifr = xp.asarray((np.vstack(list(node_IFR.values()))).T)
-        else:
-            self.use_G_ifr = False
-        """
 
         # Make contact mats sym and normalized
         self.contact_mats = G.graph["contact_mats"]
@@ -498,7 +486,6 @@ class buckyModelCovid:
             self.adm0_cfr_reported = xp.sum(recent_cum_deaths[-days_back:], axis=1) / xp.sum(cases_lagged, axis=1)
         adm0_case_report = adm0_cfr_param / self.adm0_cfr_reported
 
-        """
         if self.debug:
             logging.debug("Adm0 case reporting rate: " + pformat(adm0_case_report))
         if xp.any(~xp.isfinite(adm0_case_report)):
@@ -507,7 +494,6 @@ class buckyModelCovid:
                 logging.debug(adm0_cfr_param)
                 logging.debug(self.adm0_cfr_reported)
             raise SimulationException
-        """
 
         case_report = xp.repeat(adm0_case_report[:, None], cases_lagged.shape[-1], axis=1)
 
@@ -732,7 +718,7 @@ class buckyModelCovid:
 
         # push the data off to the write thread
         data_folder = os.path.join(base_filename, "data")
-        output_queue.put((base_filename + "/data", df_data))
+        output_queue.put((data_folder, df_data))
         metadata_folder = os.path.join(base_filename, "metadata")
         if not os.path.exists(metadata_folder):
             os.mkdir(metadata_folder)

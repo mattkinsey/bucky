@@ -1,15 +1,11 @@
 """Postprocesses data across dates and simulation runs before aggregating at geographic levels (ADM0, ADM1, or ADM2)."""
 import argparse
-import copy
-import gc
 import glob
 import logging
 import os
 import queue
 import sys
 import threading
-
-# from multiprocessing import JoinableQueue, Process
 from pathlib import Path
 
 import numpy as np
@@ -131,6 +127,7 @@ parser.add_argument("--verify", action="store_true", help="Verify the quality of
 parser.add_argument("-v", "--verbose", action="store_true", help="Print extra information")
 
 
+# TODO move this to util
 def pinned_array(array):
     # first constructing pinned memory
     mem = xp.cuda.alloc_pinned_memory(array.nbytes)
@@ -243,7 +240,8 @@ def main(args=None):
     write_thread = threading.Thread(target=_writer, daemon=True)
     write_thread.start()
 
-    def pa_array_quantiles(array):
+    # TODO this depends on out of scope vars, need to clean that up
+    def pa_array_quantiles(array, level):
         data = array.to_numpy().reshape(-1, n_adm2)
         data = data[:, adm2_sorted_ind]
 
@@ -279,7 +277,7 @@ def main(args=None):
         for level in args.levels:
             all_q_data = {}
             for col in table.column_names:  # TODO can we do all at once since we dropped date?
-                all_q_data[col] = pa_array_quantiles(table[col])
+                all_q_data[col] = pa_array_quantiles(table[col], level)
 
             # all_q_data = {col: pa_array_quantiles(table[col]) for col in table.column_names}
 
