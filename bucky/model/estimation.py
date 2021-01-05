@@ -22,8 +22,8 @@ def estimate_Rt(
 
     mean = params["Ts"]
     theta = mean / k
-    x = xp.arange(-1.0, t_max - 1.0)
-    x[0] = 0.0
+    x = xp.arange(0.0, t_max)
+
     w = 1.0 / (xp.special.gamma(k) * theta ** k) * x ** (k - 1) * xp.exp(-x / theta)
     w = w / (1.0 - w)
     w = w[::-1]
@@ -75,6 +75,7 @@ def estimate_Rt(
     else:
         Rt = xp.mean(Rt, axis=0)
 
+    valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist[-7], axis=0) > 25) & (Rt > 0.0)
     Rt_out[valid_mask] = Rt[valid_mask]
 
     return Rt_out
