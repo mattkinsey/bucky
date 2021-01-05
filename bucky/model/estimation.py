@@ -1,3 +1,5 @@
+"""Submodule that manages some of the calculations for estimating params from the historical data"""
+
 from ..numerical_libs import reimport_numerical_libs, xp
 
 
@@ -5,6 +7,7 @@ def estimate_Rt(
     g_data,
     params,
     days_back=7,
+    use_geo_mean=False,
 ):
     """Estimate R_t from the recent case data"""
 
@@ -34,7 +37,11 @@ def estimate_Rt(
         d = i + 1
         Rt[i] = rolling_case_hist_adm0[-d] / (xp.sum(w[d:, None] * tot_case_hist_adm0[:-d], axis=0))
 
-    Rt = xp.mean(Rt, axis=0)
+    # tmp = Rt.copy()
+    if use_geo_mean:
+        Rt = xp.exp(xp.mean(xp.log(Rt), axis=0))
+    else:
+        Rt = xp.mean(Rt, axis=0)
 
     Rt_out = xp.full((rolling_case_hist.shape[1],), Rt)
 
@@ -47,7 +54,11 @@ def estimate_Rt(
     for i in range(days_back):
         d = i + 1
         Rt[i] = rolling_case_hist_adm1[-d] / (xp.sum(w[d:, None] * tot_case_hist_adm1[:-d], axis=0))
-    Rt = xp.mean(Rt, axis=0)
+    if use_geo_mean:
+        Rt = xp.exp(xp.mean(xp.log(Rt), axis=0))
+    else:
+        Rt = xp.mean(Rt, axis=0)
+
     Rt = Rt[g_data.adm1_id]
     valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist_adm1[-7], axis=0) > 25)
     Rt_out[valid_mask] = Rt[valid_mask]
@@ -59,8 +70,11 @@ def estimate_Rt(
         d = i + 1
         Rt[i] = rolling_case_hist[-d] / (xp.sum(w[d:, None] * tot_case_hist[:-d], axis=0))
     # Rt = xp.mean(Rt, axis=0)
-    Rt = xp.exp(xp.mean(xp.log(Rt), axis=0))
-    valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist[-7], axis=0) > 25)
+    if use_geo_mean:
+        Rt = xp.exp(xp.mean(xp.log(Rt), axis=0))
+    else:
+        Rt = xp.mean(Rt, axis=0)
+
     Rt_out[valid_mask] = Rt[valid_mask]
 
     return Rt_out
