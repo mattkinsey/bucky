@@ -167,12 +167,8 @@ def distribute_unallocated_csse(confirmed_file, deaths_file, hist_df):
     )
 
     # Reformat dates to match processed data's format
-    extra_cases = extra_cases.rename(
-        columns={x: datetime.strptime(x, "%m/%d/%y").strftime("%Y-%m-%d") for x in extra_cases.columns},
-    )
-    extra_deaths = extra_deaths.rename(
-        columns={x: datetime.strptime(x, "%m/%d/%y").strftime("%Y-%m-%d") for x in extra_deaths.columns},
-    )
+    extra_cases.columns = pd.to_datetime(extra_cases.columns)
+    extra_deaths.columns = pd.to_datetime(extra_deaths.columns)
 
     # Iterate over states in historical data
     for state_fips in tqdm.tqdm(
