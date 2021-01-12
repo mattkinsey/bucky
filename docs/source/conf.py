@@ -154,6 +154,8 @@ tikz_latex_preamble = "\\newcommand{\\asym}{\\alpha_i}\n \
         \\tikzstyle{square} = [rectangle, minimum width=1.3cm, minimum height=1cm,text centered, draw=black, fill=gray!10]\n \
         \\tikzstyle{arrow} = [thick, ->]"
 
+bibtex_bibfiles = ["refs.bib"]
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
