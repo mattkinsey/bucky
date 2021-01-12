@@ -558,7 +558,7 @@ class buckyModelCovid:
         y.state = y_flat.reshape(y.state_shape)
 
         # Clip state to be in bounds (except allocs b/c thats a counter)
-        xp.clip(y.state, a_min=lower, a_max=upper, out=y.state)
+        y.state = xp.clip(y.state, a_min=lower, a_max=upper, out=y.state)
 
         # init d(state)/dt
         dy = y.zeros_like()
