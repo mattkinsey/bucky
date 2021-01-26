@@ -220,7 +220,7 @@ class buckyModelCovid:
         tmp = tmp.loc[tmp.date <= str(self.first_date)]
         tmp = tmp.set_index(["adm1", "date"]).sort_index()
         tmp = tmp.previous_day_admission_adult_covid_confirmed + tmp.previous_day_admission_pediatric_covid_confirmed
-        cum_hosps = xp.zeros(adm1_cfr.shape)
+        cum_hosps = xp.zeros((adm1_cfr.shape[0], n_chr))
         tmp = tmp.unstack()
         # embed()
         tmp_data = tmp.T.cumsum().to_numpy()
