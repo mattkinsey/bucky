@@ -129,6 +129,7 @@ parser.add_argument("-v", "--verbose", action="store_true", help="Print extra in
 
 # TODO move this to util
 def pinned_array(array):
+    """Allocate a cudy pinned array that shares mem with an input numpy array"""
     # first constructing pinned memory
     mem = xp.cuda.alloc_pinned_memory(array.nbytes)
     src = np.frombuffer(mem, array.dtype, array.size).reshape(array.shape)
@@ -210,6 +211,13 @@ def main(args=None):
     adm_level_values = {k: xp.to_cpu(xp.unique(v)) for k, v in adm_map.items()}
     adm_level_values["adm0"] = np.array(["US"])
 
+    if args.lookup is not None and "weight" in lookup_df.columns:
+        weight_series = lookup_df.set_index("adm2")["weight"].reindex(adm_mapping["adm2"], fill_value=0.0)
+        weights = np.array(weight_series.to_numpy())
+        # TODO we should ignore all the adm2 not in weights rather than just 0ing them (it'll go alot faster)
+    else:
+        weights = np.ones_like(adm2_sorted_ind, dtype=float)
+
     write_queue = queue.Queue()
 
     def _writer():
@@ -242,6 +250,7 @@ def main(args=None):
 
     # TODO this depends on out of scope vars, need to clean that up
     def pa_array_quantiles(array, level):
+        """Calculate the quantiles of a pyarrow array after shipping it to the GPU"""
         data = array.to_numpy().reshape(-1, n_adm2)
         data = data[:, adm2_sorted_ind]
 
@@ -269,6 +278,11 @@ def main(args=None):
         table = table.drop(("date", "rid", "adm2_id"))  # we don't need these b/c metadata
         pop_weight_table = table.select(pop_weighted_cols)
         table = table.drop(pop_weighted_cols)
+
+        w = np.ravel(np.broadcast_to(weights, (table.shape[0] // weights.shape[0], weights.shape[0])))
+        for i, col in enumerate(table.column_names):
+            tmp = pac.multiply_checked(table.column(i), w)
+            table = table.set_column(i, col, tmp)
 
         for col in pop_weighted_cols:
             tmp = pac.multiply_checked(pop_weight_table[col], table["total_population"])
