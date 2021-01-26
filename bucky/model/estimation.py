@@ -7,6 +7,7 @@ def estimate_Rt(
     g_data,
     params,
     days_back=7,
+    case_reporting=None,
     use_geo_mean=False,
 ):
     """Estimate R_t from the recent case data"""
@@ -14,6 +15,8 @@ def estimate_Rt(
     reimport_numerical_libs("model.estimation.estimate_Rt")
 
     rolling_case_hist = g_data.rolling_inc_cases / params["CASE_REPORT"]
+
+    rolling_case_hist = g_data.rolling_inc_cases[-case_reporting.shape[0] :] / case_reporting
 
     tot_case_hist = (g_data.Aij.A.T * rolling_case_hist.T).T
 
