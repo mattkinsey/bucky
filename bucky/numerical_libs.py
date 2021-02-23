@@ -116,32 +116,22 @@ def use_cupy(optimize=False):
 
     cp.cuda.set_allocator(cp.cuda.MemoryPool(cp.cuda.memory.malloc_managed).malloc)
 
-    # add cupy search sorted for scipy.ivp (this was only added to cupy sometime between v6.0.0 and v7.0.0)
-    if ~hasattr(cp, "searchsorted"):
-        # NB: this isn't correct in general but it works for what scipy solve_ivp needs...
-        def cp_searchsorted(a, v, side="right", sorter=None):
-            """Provide a cupy version of search sorted thats good enough for scipy.ivp
+    def scipy_import_replacement(src):
+        # replace numpy w/ cupy
+        src = src.replace("import numpy", "import cupy")
+        # fix a call to searchsorted by making sure it's params are typed correctly for the cupy version
+        src = src.replace(
+            "t_eval_i_new = np.searchsorted(t_eval, t, side='right')",
+            "t_eval_i_new = np.searchsorted(t_eval, np.array([t]), side='right')",
+        )
 
-            This was added to cupy sometime between v6.0.0 and v7.0.0 so it won't be needed for up to date installs.
-
-            .. warning:: This isn't correct in general but it works for what scipy.ivp needs..
-            """
-            if side != "right":
-                raise NotImplementedError
-            if sorter is not None:
-                raise NotImplementedError  # sorter = list(range(len(a)))
-            tmp = v >= a
-            if cp.all(tmp):
-                return len(a)
-            return cp.argmax(~tmp)
-
-        cp.searchsorted = cp_searchsorted
+        return src
 
     for name in ("common", "base", "rk", "ivp"):
         bucky.xp_ivp = modify_and_import(
             "scipy.integrate._ivp." + name,
             None,
-            lambda src: src.replace("import numpy", "import cupy"),
+            scipy_import_replacement,
         )
 
     import cupyx  # pylint: disable=import-outside-toplevel
