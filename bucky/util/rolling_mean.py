@@ -16,46 +16,60 @@ def rolling_mean(arr, window_size=7, axis=0, weights=None, mean_type="arithmetic
         raise RuntimeError  # TODO what type of err should go here?
 
 
+def rolling_window(a, window_size):
+    """Use stride_tricks to add an extra dim on the end of an ndarray for each elements window"""
+    reimport_numerical_libs("util.rolling_mean.rolling_window")
+    pad = xp.zeros(len(a.shape), dtype=xp.int32)
+    pad[-1] = window_size - 1
+    pad = list(zip(list(xp.to_cpu(pad)), list(xp.to_cpu(xp.zeros(len(a.shape), dtype=xp.int32)))))
+    a = xp.pad(a, pad, mode="reflect")
+    shape = a.shape[:-1] + (a.shape[-1] - window_size + 1, window_size)
+    strides = a.strides + (a.strides[-1],)
+    return xp.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+
+
 def _rolling_arithmetic_mean(arr, window_size=7, axis=0, weights=None):
     """Compute a rolling arithmetic mean"""
     arr = xp.swapaxes(arr, axis, -1)
-    shp = arr.shape[:-1] + (arr.shape[-1] - window_size + 1,)
-    rolling_arr = xp.empty(shp)
+
     if weights is None:
-        window = xp.ones(window_size) / window_size
+        rolling_arr = xp.mean(rolling_window(arr, window_size), axis=-1)
     else:
-        window = weights / xp.sum(weights)
-    arr = arr.reshape(-1, arr.shape[-1])
-    for i in range(arr.shape[0]):  # we can use stride_tricks to speed this up if needed
-        rolling_arr[i] = xp.convolve(arr[i], window, mode="valid")
-        rolling_arr = rolling_arr.reshape(shp)
+        window = weights / xp.sum(weights) * window_size
+        window = xp.broadcast_to(window, arr.shape + (window_size,))
+        rolling_arr = xp.mean(window * rolling_window(arr, window_size), axis=-1)
+
     rolling_arr = xp.swapaxes(rolling_arr, axis, -1)
     return rolling_arr
 
 
 def _rolling_geometric_mean(arr, window_size, axis=0, weights=None):
     """Compute a rolling geometric mean"""
-    # add support for weights (need to use a log identity)
-    if weights is not None:
-        raise NotImplementedError
+    # TODO add some error checking (for negatives, etc)
     arr = xp.swapaxes(arr, axis, -1)
-    shp = arr.shape[:-1] + (arr.shape[-1] - window_size + 1,)
-    rolling_arr = xp.empty(shp)
-    window = xp.ones(window_size) / window_size
-    arr = arr.reshape(-1, arr.shape[-1])
-    log_abs_arr = xp.log(xp.abs(arr))
-    neg_mask = arr < 0.0
-    log_abs_arr[xp.abs(arr) < 1.0] = -1000.0
-    for i in range(arr.shape[0]):
-        tmp = xp.convolve(log_abs_arr[i], window, mode="valid")
-        n_neg = xp.convolve(1.0 * neg_mask[i], xp.ones(window_size), mode="valid")
-        # n_neg = xp.sum(arr[i] < 0.)
-        rolling_arr[i] = ((-1.0) ** n_neg) ** (1.0 / window_size) * xp.exp(tmp)
-    rolling_arr = rolling_arr.reshape(shp)
+
+    if weights is None:
+        rolling_arr = xp.exp(xp.nanmean(rolling_window(xp.log(arr), window_size), axis=-1))
+    else:
+        window = weights / xp.sum(weights) * window_size
+        window = xp.broadcast_to(window, arr.shape + (window_size,))
+        rolling_arr = xp.exp(xp.nanmean(window * rolling_window(xp.log(arr), window_size), axis=-1))
+
     rolling_arr = xp.swapaxes(rolling_arr, axis, -1)
     return rolling_arr
 
 
 def _rolling_harmonic_mean(arr, window_size, axis=0, weights=None):
     """Compute a rolling harmonic mean"""
-    raise NotImplementedError
+    # TODO check for 0s
+    arr = xp.swapaxes(arr, axis, -1).astype(float)
+
+    if weights is None:
+        rolling_arr = xp.reciprocal(xp.nanmean(rolling_window(xp.reciprocal(tmp), window_size), axis=-1))
+    else:
+        window = weights / xp.sum(weights) * window_size
+        window = xp.broadcast_to(window, arr.shape + (window_size,))
+        rolling_arr = xp.reciprocal(xp.nanmean(window * rolling_window(xp.reciprocal(tmp), window_size), axis=-1))
+
+    rolling_arr = xp.swapaxes(rolling_arr, axis, -1)
+    return rolling_arr
