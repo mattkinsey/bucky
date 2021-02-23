@@ -117,6 +117,7 @@ def use_cupy(optimize=False):
     cp.cuda.set_allocator(cp.cuda.MemoryPool(cp.cuda.memory.malloc_managed).malloc)
 
     def scipy_import_replacement(src):
+        """Perform the required numpy->cupy str replacements on the scipy source files"""
         # replace numpy w/ cupy
         src = src.replace("import numpy", "import cupy")
         # fix a call to searchsorted by making sure it's params are typed correctly for the cupy version
