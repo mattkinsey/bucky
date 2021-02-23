@@ -17,6 +17,15 @@ class buckyGraphData:
 
         reimport_numerical_libs("model.graph.buckyGraphData.__init__")
 
+        # make sure G is sorted by adm2 id
+        adm2_ids = _read_node_attr(G, G.graph["adm2_key"], dtype=int)[0]
+        if ~(xp.diff(adm2_ids) >= 0).all():  # this is pretty much std::is_sorted without the errorchecking
+            H = nx.DiGraph()
+            H.add_nodes_from(sorted(G.nodes(data=True), key=lambda node: node[1][G.graph["adm2_key"]]))
+            H.add_edges_from(G.edges(data=True))
+            H.graph = G.graph
+            G = H.copy()
+
         G = nx.convert_node_labels_to_integers(G)
         self.cum_case_hist, self.inc_case_hist = _read_node_attr(G, "case_hist", diff=True, a_min=0.0)
         self.cum_death_hist, self.inc_death_hist = _read_node_attr(G, "death_hist", diff=True, a_min=0.0)
