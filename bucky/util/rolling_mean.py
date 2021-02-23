@@ -65,11 +65,11 @@ def _rolling_harmonic_mean(arr, window_size, axis=0, weights=None):
     arr = xp.swapaxes(arr, axis, -1).astype(float)
 
     if weights is None:
-        rolling_arr = xp.reciprocal(xp.nanmean(rolling_window(xp.reciprocal(tmp), window_size), axis=-1))
+        rolling_arr = xp.reciprocal(xp.nanmean(rolling_window(xp.reciprocal(arr), window_size), axis=-1))
     else:
         window = weights / xp.sum(weights) * window_size
         window = xp.broadcast_to(window, arr.shape + (window_size,))
-        rolling_arr = xp.reciprocal(xp.nanmean(window * rolling_window(xp.reciprocal(tmp), window_size), axis=-1))
+        rolling_arr = xp.reciprocal(xp.nanmean(window * rolling_window(xp.reciprocal(arr), window_size), axis=-1))
 
     rolling_arr = xp.swapaxes(rolling_arr, axis, -1)
     return rolling_arr
