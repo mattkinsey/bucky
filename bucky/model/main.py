@@ -156,10 +156,10 @@ class buckyModelCovid:
 
         n_nodes = self.Nij.shape[-1]  # TODO factor out
 
-        self.first_date = datetime.date.fromisoformat(G.graph["start_date"])
+        self.init_date = datetime.date.fromisoformat(G.graph["start_date"])
 
         # fill in npi_params either from file or as ones
-        self.npi_params = get_npi_params(g_data, self.first_date, self.t_max, self.npi_file, self.disable_npi)
+        self.npi_params = get_npi_params(g_data, self.init_date, self.t_max, self.npi_file, self.disable_npi)
 
         if self.npi_params["npi_active"]:
             self.Cij = xp.broadcast_to(self.Cij, (n_nodes,) + self.Cij.shape)
@@ -187,7 +187,7 @@ class buckyModelCovid:
                 .drop(columns="adm1")
                 .reset_index()
             )
-            hhs_curr_data = hhs_data.loc[hhs_data.date == str(self.first_date)]
+            hhs_curr_data = hhs_data.loc[hhs_data.date == str(self.init_date)]
             hhs_curr_data = hhs_curr_data.set_index("adm1").sort_index()
             tot_hosps = (
                 hhs_curr_data.total_adult_patients_hospitalized_confirmed_covid
@@ -794,7 +794,7 @@ class buckyModelCovid:
         if "date" in columns:
             if self.output_dates is None:
                 t_output = xp.to_cpu(sol.t)
-                dates = [str(self.first_date + datetime.timedelta(days=np.round(t))) for t in t_output]
+                dates = [str(self.init_date + datetime.timedelta(days=np.round(t))) for t in t_output]
                 self.output_dates = np.broadcast_to(dates, out.state.shape[1:])
 
             dates = self.output_dates
