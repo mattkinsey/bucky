@@ -155,14 +155,16 @@ class buckyParams:
                 params[p] = approx_mPERT_sample(mu, gamma=base_params[p]["gamma"])
 
             elif "mean" in base_params[p]:
-                # if "CI" in base_params[p]:
-                #    if var:
-                #        params[p] = truncnorm(*CI_to_std(base_params[p]["CI"]), a_min=1e-6)
-                #    else:  # just use mean if we set var to 0
-                #        params[p] = copy.deepcopy(base_params[p]["mean"])
-                # else:
-                params[p] = xp.atleast_1d(copy.deepcopy(base_params[p]["mean"]))
-                params[p] = params[p] * truncnorm(loc=self.one, scale=var, a_min=self.eps)
+                if "stddev" in base_params[p]:
+                    if var:
+                        params[p] = truncnorm(
+                            loc=base_params[p]["mean"], scale=base_params[p]["stddev"], a_min=self.eps
+                        )
+                    else:  # just use mean if we set var to 0
+                        params[p] = xp.atleast_1d(copy.deepcopy(base_params[p]["mean"]))
+                else:
+                    params[p] = xp.atleast_1d(copy.deepcopy(base_params[p]["mean"]))
+                    params[p] = params[p] * truncnorm(loc=self.one, scale=var, a_min=self.eps)
 
             # age-based vectors
             elif "values" in base_params[p]:
