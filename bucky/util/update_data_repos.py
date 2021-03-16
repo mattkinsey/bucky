@@ -713,7 +713,8 @@ def update_hhs_hosp_data():
     """Retrieves updated historical data from healthdata.gov and writes to CSV."""
 
     logging.info("Downloading HHS Hospitalization data")
-    hosp_url = "https://healthdata.gov/node/3565481/download"
+    # hosp_url = "https://healthdata.gov/node/3565481/download"
+    hosp_url = "https://healthdata.gov/api/views/g62h-syeh/rows.csv?accessType=DOWNLOAD"
 
     filename = bucky_cfg["data_dir"] + "/cases/hhs_hosps.csv"
 
