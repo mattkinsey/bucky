@@ -178,6 +178,7 @@ class buckyModelCovid:
         if self.rescale_chr:
             self.adm1_current_hosp = xp.zeros((g_data.max_adm1 + 1,), dtype=float)
             hhs_data = G.graph["hhs_data"].reset_index()
+            hhs_data["date"] = pd.to_datetime(hhs_data["date"])
             hhs_data = (
                 hhs_data.set_index("date")
                 .sort_index()
@@ -187,7 +188,7 @@ class buckyModelCovid:
                 .drop(columns="adm1")
                 .reset_index()
             )
-            hhs_curr_data = hhs_data.loc[hhs_data.date == str(self.init_date)]
+            hhs_curr_data = hhs_data.loc[hhs_data.date == pd.Timestamp(self.init_date)]
             hhs_curr_data = hhs_curr_data.set_index("adm1").sort_index()
             tot_hosps = (
                 hhs_curr_data.total_adult_patients_hospitalized_confirmed_covid
