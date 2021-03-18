@@ -24,6 +24,7 @@ from ..util.util import TqdmLoggingHandler, _banner
 from .arg_parser_model import parser
 from .estimation import estimate_doubling_time, estimate_Rt
 from .graph import buckyGraphData
+from .mc_instance import buckyMCInstance
 from .npi import get_npi_params
 from .parameters import buckyParams
 from .state import buckyState
@@ -95,7 +96,6 @@ class buckyModelCovid:
         # w/ override (maybe when #adm2 > 5k and some sparsity critera?)
 
         # Integrator params
-        self.dt = 1.0  # time step for model output (the internal step is adaptive...)
         self.t_max = t_max
         self.run_id = get_runid()
         logging.info(f"Run ID: {self.run_id}")
@@ -120,8 +120,7 @@ class buckyModelCovid:
 
     def load_graph(self, graph_file):
         """Load the graph data and calculate all the variables that are static across MC runs"""
-        # TODO refactor to just ahve this return g_data
-        # (it's currently the code block that used to be at the top of reset)
+        # TODO refactor to just have this return g_data
 
         logging.info("loading graph")
         with open(graph_file, "rb") as f:
@@ -154,20 +153,15 @@ class buckyModelCovid:
         self.Nj = g_data.Nj
         self.n_age_grps = self.Nij.shape[0]  # TODO factor out
 
-        n_nodes = self.Nij.shape[-1]  # TODO factor out
-
         self.init_date = datetime.date.fromisoformat(G.graph["start_date"])
+
+        self.base_mc_instance = buckyMCInstance(self.init_date, self.t_max, self.Nij, self.Cij)
 
         # fill in npi_params either from file or as ones
         self.npi_params = get_npi_params(g_data, self.init_date, self.t_max, self.npi_file, self.disable_npi)
 
         if self.npi_params["npi_active"]:
-            self.Cij = xp.broadcast_to(self.Cij, (n_nodes,) + self.Cij.shape)
-            self.npi_params["contact_weights"] = self.npi_params["contact_weights"][..., None, None]
-        else:
-            self.Cij = xp.sum(self.Cij, axis=0)
-            self.Cij = (self.Cij + self.Cij.T) / 2.0
-            self.Cij = self.Cij / xp.sum(self.Cij, axis=1)
+            self.base_mc_instance.add_npi(self.npi_params)
 
         self.adm0_cfr_reported = None
         self.adm1_cfr_reported = None
@@ -250,8 +244,6 @@ class buckyModelCovid:
             random.seed(seed)
             np.random.seed(seed)
             xp.random.seed(seed)
-
-        self.iter = 0
 
         # reroll model params if we're doing that kind of thing
         self.g_data.Aij.perturb(self.consts.reroll_variance)
@@ -461,7 +453,7 @@ class buckyModelCovid:
 
         # return y
 
-    # @staticmethod need to mode the caching out b/c its in the self namespace
+    # @staticmethod need to move the caching out b/c its in the self namespace
     def estimate_reporting(self, g_data, params, cfr, days_back=14, case_lag=None, min_deaths=100.0):
         """Estimate the case reporting rate based off observed vs. expected CFR"""
 
@@ -545,7 +537,7 @@ class buckyModelCovid:
     #
 
     @staticmethod
-    def RHS_func(t, y_flat, Nij, contact_mats, Aij, par, npi, aij_sparse, y):
+    def RHS_func(t, y_flat, mc_inst):
         """RHS function for the ODEs, get's called in ivp.solve_ivp"""
         # constraint on values
         lower, upper = (0.0, 1.0)  # bounds for state vars
@@ -556,21 +548,24 @@ class buckyModelCovid:
 
         # TODO we're passing in y.state just to overwrite it, we probably need another class
         # reshape to the usual state tensor (compartment, age, node)
+        y = mc_inst.state
         y.state = y_flat.reshape(y.state_shape)
 
-        # Clip state to be in bounds (except allocs b/c thats a counter)
+        # Clip state to be in bounds
         y.state = xp.clip(y.state, a_min=lower, a_max=upper, out=y.state)
 
         # init d(state)/dt
         dy = y.zeros_like()
 
-        # effective params after damping w/ allocated stuff
-        if npi["npi_active"]:
-            # We want to avoid doing this int cast if we arent using npis b/c it forces a sync
-            t_index = min(int(t), npi["r0_reduct"].shape[0] - 1)  # prevent OOB error when integrator overshoots
-            BETA_eff = npi["r0_reduct"][t_index] * par["BETA"]
+        if mc_inst.npi_active or mc_inst.vacc_active:
+            t_index = min(int(t), mc_inst.t_max)  # prevent OOB error when the integrator overshoots
         else:
-            BETA_eff = par["BETA"]
+            t_index = None
+
+        # TODO add a function to mc instance that fills all these in using nonlocal?
+        npi = mc_inst.npi_params
+        par = mc_inst.epi_params
+        BETA_eff = mc_inst.BETA_eff(t_index)
 
         F_eff = par["F_eff"]
         HOSP = par["H"]
@@ -581,22 +576,17 @@ class buckyModelCovid:
         SYM_FRAC = par["SYM_FRAC"]
         CASE_REPORT = par["CASE_REPORT"]
 
-        if npi["npi_active"]:
-            Cij = npi["contact_weights"][t_index] * contact_mats
-            # TODO this should be c + c.T / 2
-            Cij = xp.sum(Cij, axis=1)
-            Cij /= xp.sum(Cij, axis=2, keepdims=True)
-        else:
-            Cij = contact_mats
+        Cij = mc_inst.Cij(t_index)
+        Aij = mc_inst.Aij
 
-        if npi["npi_active"]:
-            if aij_sparse:
-                Aij_eff = Aij.multiply(npi["mobility_reduct"][t_index])
-            else:
-                Aij_eff = npi["mobility_reduct"][t_index] * Aij
-
+        if mc_inst.npi_active:
+            Aij_eff = npi["mobility_reduct"][t_index] * Aij
         else:
             Aij_eff = Aij
+
+        S_eff = mc_inst.S_eff(t_index, y)
+        # print(S_eff)
+        Nij = mc_inst.Nij
 
         # perturb Aij
         # new_R0_fracij = truncnorm(xp, 1.0, .1, size=Aij.shape, a_min=1e-6)
@@ -607,14 +597,10 @@ class buckyModelCovid:
         # Infectivity matrix (I made this name up, idk what its really called)
         I_tot = xp.sum(Nij * y.Itot, axis=0) - (1.0 - par["rel_inf_asym"]) * xp.sum(Nij * y.Ia, axis=0)
 
-        # I_tmp = (Aij.T @ I_tot.T).T
-        if aij_sparse:
-            I_tmp = (Aij_eff.T * I_tot.T).T
-        else:
-            I_tmp = I_tot @ Aij  # using identity (A@B).T = B.T @ A.T
+        I_tmp = I_tot @ Aij  # using identity (A@B).T = B.T @ A.T
 
         # beta_mat = y.S * xp.squeeze((Cij @ I_tmp.T[..., None]), axis=-1).T
-        beta_mat = y.S * (Cij @ xp.atleast_3d(I_tmp.T)).T[0]
+        beta_mat = S_eff * (Cij @ xp.atleast_3d(I_tmp.T)).T[0]
         beta_mat /= Nij
 
         # dS/dt
@@ -666,16 +652,22 @@ class buckyModelCovid:
         self.reset(seed=seed)
         logging.debug("Done reset")
 
+        self.base_mc_instance.epi_params = self.params
+        self.base_mc_instance.state = self.y
+        self.base_mc_instance.Aij = self.g_data.Aij.A
+        self.base_mc_instance.rhs = self.RHS_func
+
         # do integration
         logging.debug("Starting integration")
-        t_eval = xp.arange(0, self.t_max + self.dt, self.dt)
         sol = xp_ivp.solve_ivp(
-            self.RHS_func,
-            method="RK23",
-            t_span=(0.0, self.t_max),
-            y0=self.y.state.ravel(),
-            t_eval=t_eval,
-            args=(self.Nij, self.Cij, self.g_data.Aij.A, self.params, self.npi_params, self.g_data.Aij.sparse, self.y),
+            # self.RHS_func,
+            # y0=self.y.state.ravel(),
+            # args=(
+            #    #self.g_data.Aij.A,
+            #    self.base_mc_instance,
+            #    #self.base_mc_instance.state,
+            # ),
+            **self.base_mc_instance.integrator_args
         )
         logging.debug("Done integration")
 
