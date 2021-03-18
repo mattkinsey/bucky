@@ -7,6 +7,7 @@ from ..numerical_libs import reimport_numerical_libs, xp
 
 
 def slice_to_cpu(s):
+    """Ensure the values of the slice aren't cupy arrays to prevent an unsupported implict conversionin xp.r_"""
     return slice(xp.to_cpu(s.start), xp.to_cpu(s.stop), xp.to_cpu(s.step))
 
 

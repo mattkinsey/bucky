@@ -70,7 +70,9 @@ parser.add_argument(
     help="quiet output (only show ERROR and higher)",
 )
 
-# TODO this doesnt do anything other than let you throw and error if there's no cupy...
+# TODO this doesnt do anything other than let you throw an error if there's no cupy...
+# main checks args.gpu though so we need to have the value of cupy_found live
+# in another namespace (numerical_libs?)
 parser.add_argument(
     "-gpu",
     "--gpu",
