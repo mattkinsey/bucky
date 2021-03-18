@@ -5,7 +5,7 @@ import networkx as nx
 
 from ..numerical_libs import reimport_numerical_libs, xp
 from ..util.cached_prop import cached_property
-from ..util.rolling_mean import rolling_mean
+from ..util.rolling_mean import rolling_mean, rolling_window
 from .adjmat import buckyAij
 
 
@@ -30,6 +30,28 @@ class buckyGraphData:
         self.cum_case_hist, self.inc_case_hist = _read_node_attr(G, "case_hist", diff=True, a_min=0.0)
         self.cum_death_hist, self.inc_death_hist = _read_node_attr(G, "death_hist", diff=True, a_min=0.0)
         self.Nij = _read_node_attr(G, "N_age_init", a_min=1e-5)
+
+        # Perform some outlier detection/correction on the cases/deaths
+        # TODO this should be a cleaned up and made a utility function for general timeseries
+        old_cases = self.inc_case_hist.copy()
+        old_deaths = self.inc_death_hist.copy()
+        old_ccases = self.cum_case_hist.copy()
+        old_cdeaths = self.cum_death_hist.copy()
+        # clean up incidence data to remove data dumps
+        for arrs in ((self.inc_case_hist, self.cum_case_hist),):  # (self.inc_death_hist, self.cum_death_hist)):
+            tmp = arrs[0].T
+            cum_arr = arrs[1]
+            rmedian = xp.median(rolling_window(tmp, 7), axis=-1)
+            rstd = xp.var(rolling_window(tmp, 7), axis=-1)
+            rmean = xp.mean(rolling_window(tmp, 7), axis=-1)
+            mask = xp.abs(tmp - rmedian) > 10.0 * (rmedian + rmean) / 2.0
+            mask = mask.T
+            rmedian = rmedian.T
+            tmp = arrs[0].copy()
+            arrs[0][mask] = rmedian[mask]
+            cum_change = xp.zeros_like(arrs[1])
+            cum_change[1:] = xp.cumsum(tmp - arrs[0], axis=0)
+            arrs[1][:] = cum_arr - cum_change
 
         # TODO add adm0 to support multiple countries
         self.adm2_id = _read_node_attr(G, G.graph["adm2_key"], dtype=int)[0]
@@ -61,8 +83,10 @@ class buckyGraphData:
     # TODO maybe provide a decorator or take a lambda or something to generalize it?
     # also this would be good if it supported rolling up to adm0 for multiple countries
     # memo so we don'y have to handle caching this on the input data?
+    # TODO! this should be operating on last index, its super fragmented atm
+    # also if we sort node indices by adm2 that will at least bring them all together...
     def sum_adm1(self, adm2_arr, mask=None):
-        """Return the adm1 sum of a variable defined at the adm2 level using the mapping on the graphi."""
+        """Return the adm1 sum of a variable defined at the adm2 level using the mapping on the graph."""
         # TODO add in axis param, we call this a bunch on array.T
         # assumes 1st dim is adm2 indexes
         # TODO should take an axis argument and handle reshape, then remove all the transposes floating around
