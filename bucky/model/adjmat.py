@@ -42,12 +42,12 @@ class buckyAij:
     @property
     def A(self):
         """property refering to the dense/sparse matrix"""
-        return self._Aij
+        return (self._Aij + xp_sparse.eye(m=self._Aij.shape[0], format="csr")) / 2.0
 
     @property
     def diag(self):
         """property refering to the cache diagional of the matrix"""
-        return self._Aij_diag
+        return (self._Aij_diag + 1.0) / 2.0
 
     def perturb(self, var):
         """Apply a normal perturbation to the matrix (and keep its diag in sync)"""
