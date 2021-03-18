@@ -241,7 +241,7 @@ class buckyModelCovid:
 
         # if you set a seed using the constructor, you're stuck using it forever (TODO this isn't true anymore?)
         if seed is not None:
-            random.seed(seed)
+            random.seed(int(seed))
             np.random.seed(seed)
             xp.random.seed(seed)
 
