@@ -197,7 +197,7 @@ class buckyGraphData:
         return xp.sum(self.inc_death_hist, axis=1)
 
 
-def _read_node_attr(G, name, diff=False, dtype=float, a_min=None, a_max=None):
+def _read_node_attr(G, name, diff=False, dtype=xp.float32, a_min=None, a_max=None):
     """Read an attribute from every node into a cupy/numpy array and optionally clip and/or diff it."""
     clipping = (a_min is not None) or (a_max is not None)
     node_list = list(nx.get_node_attributes(G, name).values())

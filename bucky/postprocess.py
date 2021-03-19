@@ -13,6 +13,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.compute as pac
 import pyarrow.dataset as ds
+import pyarrow.types as pat
 import tqdm
 
 from .numerical_libs import reimport_numerical_libs, use_cupy, xp
@@ -213,10 +214,10 @@ def main(args=None):
 
     if args.lookup is not None and "weight" in lookup_df.columns:
         weight_series = lookup_df.set_index("adm2")["weight"].reindex(adm_mapping["adm2"], fill_value=0.0)
-        weights = np.array(weight_series.to_numpy())
+        weights = np.array(weight_series.to_numpy(), dtype=np.float32)
         # TODO we should ignore all the adm2 not in weights rather than just 0ing them (it'll go alot faster)
     else:
-        weights = np.ones_like(adm2_sorted_ind, dtype=float)
+        weights = np.ones_like(adm2_sorted_ind, dtype=np.float32)
 
     write_queue = queue.Queue()
 
@@ -281,11 +282,20 @@ def main(args=None):
 
         w = np.ravel(np.broadcast_to(weights, (table.shape[0] // weights.shape[0], weights.shape[0])))
         for i, col in enumerate(table.column_names):
-            tmp = pac.multiply_checked(table.column(i), w)
+            if pat.is_float64(table.column(i).type):
+                typed_w = w.astype(np.float64)
+            else:
+                typed_w = w.astype(np.float32)
+
+            tmp = pac.multiply_checked(table.column(i), typed_w)
             table = table.set_column(i, col, tmp)
 
         for col in pop_weighted_cols:
-            tmp = pac.multiply_checked(pop_weight_table[col], table["total_population"])
+            if pat.is_float64(table.column(i).type):
+                typed_w = table["total_population"].to_numpy().astype(np.float64)
+            else:
+                typed_w = table["total_population"].to_numpy().astype(np.float32)
+            tmp = pac.multiply_checked(pop_weight_table[col], typed_w)
             table = table.append_column(col, tmp)
 
         for level in args.levels:

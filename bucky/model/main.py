@@ -171,13 +171,14 @@ class buckyModelCovid:
         self.rescale_chr = "hhs_data" in G.graph
         if self.rescale_chr:
             self.adm1_current_hosp = xp.zeros((g_data.max_adm1 + 1,), dtype=float)
+            # TODO move hosp data to the graph nodes and handle it with graph.py the way cases/deaths are
             hhs_data = G.graph["hhs_data"].reset_index()
             hhs_data["date"] = pd.to_datetime(hhs_data["date"])
             hhs_data = (
                 hhs_data.set_index("date")
                 .sort_index()
                 .groupby("adm1")
-                .rolling(7)  # , center=True)
+                .rolling(7)
                 .mean()
                 .drop(columns="adm1")
                 .reset_index()
@@ -193,10 +194,9 @@ class buckyModelCovid:
                 logging.debug("Current hospitalizations: " + pformat(self.adm1_current_hosp))
 
         # Estimate the recent CFR during the period covered by the historical data
-        cfr_delay = 15  # TODO This should come from CDC and Nij
-        n_cfr = 7
-        # last_cases = g_data.rolling_cum_cases[-cfr_delay-n_cfr:-cfr_delay] - g_data.rolling_cum_cases[0]
-        # last_deaths = g_data.rolling_cum_deaths[-1] - g_data.rolling_cum_deaths[cfr_delay]
+        cfr_delay = 12  # 14  # TODO This should come from CDC and Nij
+        n_cfr = 14
+
         last_cases = (
             g_data.rolling_cum_cases[-cfr_delay - n_cfr : -cfr_delay] - g_data.rolling_cum_cases[-cfr_delay - n_cfr - 1]
         )
@@ -204,32 +204,32 @@ class buckyModelCovid:
         adm1_cases = g_data.sum_adm1(last_cases.T)
         adm1_deaths = g_data.sum_adm1(last_deaths.T)
         adm1_cfr = adm1_deaths / adm1_cases
-        # take harmonic mean over n days
-        self.adm1_current_cfr = 1.0 / xp.mean(1.0 / adm1_cfr, axis=1)
-        # from IPython import embed
-        # embed()
+        # take mean over n days
+        self.adm1_current_cfr = xp.mean(adm1_cfr, axis=1)
 
-        chr_delay = 6  # TODO This should come from I_TO_H_TIME and Nij
+        # Estimate recent CHR
+        # TODO we really need to move the hosp data to the graph...
+        chr_delay = 20  # TODO This should come from I_TO_H_TIME and Nij as a float (it's ~5.8)
         n_chr = 7
-        tmp = hhs_data.loc[hhs_data.date > str(self.first_date - datetime.timedelta(days=n_chr))]
-        tmp = tmp.loc[tmp.date <= str(self.first_date)]
+        tmp = hhs_data.loc[hhs_data.date > pd.Timestamp(self.init_date - datetime.timedelta(days=n_chr))]
+        tmp = tmp.loc[tmp.date <= pd.Timestamp(self.init_date)]
         tmp = tmp.set_index(["adm1", "date"]).sort_index()
         tmp = tmp.previous_day_admission_adult_covid_confirmed + tmp.previous_day_admission_pediatric_covid_confirmed
         cum_hosps = xp.zeros((adm1_cfr.shape[0], n_chr))
         tmp = tmp.unstack()
-        # embed()
         tmp_data = tmp.T.cumsum().to_numpy()
         tmp_ind = tmp.index.to_numpy()
         cum_hosps[tmp_ind] = tmp_data.T
         last_cases = (
             g_data.rolling_cum_cases[-chr_delay - n_chr : -chr_delay] - g_data.rolling_cum_cases[-chr_delay - n_chr - 1]
         )
-        # last_hosps = cum_hosps #g_data.rolling_cum_deaths[-n_chr:] - g_data.rolling_cum_deaths[-n_chr-1]
         adm1_cases = g_data.sum_adm1(last_cases.T)
         adm1_hosps = cum_hosps  # g_data.sum_adm1(last_hosps.T)
         adm1_chr = adm1_hosps / adm1_cases
-        # take harmonic mean over n days
-        self.adm1_current_chr = 1.0 / xp.mean(1.0 / adm1_chr, axis=1)
+        # take mean over n days
+        self.adm1_current_chr = xp.mean(adm1_chr, axis=1)
+        # self.adm1_current_chr = self.calc_lagged_rate(g_data.adm1_cum_case_hist, cum_hosps.T, chr_delay, n_chr)
+
         if self.debug:
             logging.debug("Current CFR: " + pformat(self.adm1_current_cfr))
 
@@ -239,7 +239,6 @@ class buckyModelCovid:
         """Reset the state of the model and generate new inital data from a new random seed"""
         # TODO we should refactor reset of the compartments to be real pop numbers then /Nij at the end
 
-        # if you set a seed using the constructor, you're stuck using it forever (TODO this isn't true anymore?)
         if seed is not None:
             random.seed(int(seed))
             np.random.seed(seed)
@@ -265,11 +264,9 @@ class buckyModelCovid:
 
         if self.rescale_chr:
             # TODO this needs to be cleaned up BAD
-            # should add a util function to do the rollups to adm1 (it shows up in case_reporting/doubling t calc too)
-            # TODO this could be a population distribute type func...
             adm1_Fi = self.g_data.sum_adm1((self.params.F * self.Nij).T).T
-            adm1_Ni = self.g_data.adm1_Nij  # sum_adm1(self.Nij.T)
-            adm1_N = self.g_data.adm1_Nj  # sum_adm1(self.Nj)
+            adm1_Ni = self.g_data.adm1_Nij
+            adm1_N = self.g_data.adm1_Nj
             adm1_Fi = adm1_Fi / adm1_Ni  # TODO this will always be F, not sure what I was going for here...
             adm1_F = xp.nanmean(adm1_Fi, axis=0)
 
@@ -278,16 +275,16 @@ class buckyModelCovid:
             adm1_F_fac[xp.isnan(adm1_F_fac)] = adm0_F_fac
 
             F_RR_fac = truncnorm(1.0, self.dists.F_RR_var, size=adm1_F_fac.size, a_min=1e-6)
-            adm1_F_fac = adm1_F_fac * F_RR_fac
-            adm1_F_fac = xp.clip(adm1_F_fac, a_min=0.1, a_max=10.0)  # prevent extreme values
+            # adm1_F_fac = adm1_F_fac * F_RR_fac
+            # adm1_F_fac = xp.clip(adm1_F_fac, a_min=0.1, a_max=10.0)  # prevent extreme values
+
             if self.debug:
                 logging.debug("adm1 cfr rescaling factor: " + pformat(adm1_F_fac))
-            self.params.F = self.params.F * adm1_F_fac[self.g_data.adm1_id]
+            self.params.F = self.params.F * F_RR_fac[self.g_data.adm1_id]  # * adm1_F_fac[self.g_data.adm1_id]
 
             self.params.F = xp.clip(self.params.F, a_min=1.0e-10, a_max=1.0)
 
             adm1_Hi = self.g_data.sum_adm1((self.params.H * self.Nij).T).T
-            # adm1_Ni = self.g_data.sum_adm1(self.Nij.T)
             adm1_Hi = adm1_Hi / adm1_Ni
             adm1_H = xp.nanmean(adm1_Hi, axis=0)
 
@@ -297,7 +294,7 @@ class buckyModelCovid:
 
             H_RR_fac = truncnorm(1.0, self.dists.H_RR_var, size=adm1_H_fac.size, a_min=1e-6)
             adm1_H_fac = adm1_H_fac * H_RR_fac
-            adm1_H_fac = xp.clip(adm1_H_fac, a_min=0.1, a_max=10.0)  # prevent extreme values
+            # adm1_H_fac = xp.clip(adm1_H_fac, a_min=0.1, a_max=10.0)  # prevent extreme values
             if self.debug:
                 logging.debug("adm1 chr rescaling factor: " + pformat(adm1_H_fac))
             self.params.H = self.params.H * adm1_H_fac[self.g_data.adm1_id]
@@ -308,14 +305,15 @@ class buckyModelCovid:
             self.g_data,
             self.params,
             cfr=self.params.F,
-            days_back=22,
+            # case_lag=14,
+            days_back=25,
             min_deaths=self.consts.case_reporting_min_deaths,
         )
 
         self.case_reporting = approx_mPERT_sample(  # TODO these facs should go in param file
-            mu=xp.clip(case_reporting, a_min=0.2, a_max=1.0),
-            a=xp.clip(0.8 * case_reporting, a_min=0.2, a_max=None),
-            b=xp.clip(1.2 * case_reporting, a_min=None, a_max=1.0),
+            mu=xp.clip(case_reporting, a_min=0.01, a_max=1.0),
+            a=xp.clip(0.7 * case_reporting, a_min=0.01, a_max=None),
+            b=xp.clip(1.3 * case_reporting, a_min=None, a_max=1.0),
             gamma=50.0,
         )
 
@@ -348,19 +346,13 @@ class buckyModelCovid:
         self.params["GAMMA_H"] = xp.broadcast_to(self.params["GAMMA_H"][:, None], self.Nij.shape)
         self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0.0, 1.0)
 
-        Rt = estimate_Rt(self.g_data, self.params, 7, self.case_reporting)
-        Rt_fac = approx_mPERT_sample(**(self.dists.Rt_dist))
-        Rt *= Rt_fac  # truncnorm(1.0, 1.5 * self.consts.reroll_variance, size=Rt.shape, a_min=1e-6)
-        self.params["R0"] = Rt
-        self.params["BETA"] = Rt * self.params["GAMMA"] / self.g_data.Aij.diag
-
-        # init state vector (self.y)
+        # state building init state vector (self.y)
         yy = buckyState(self.consts, self.Nij)
 
         if self.debug:
             logging.debug("case init")
         Ti = self.params.Ti
-        current_I = xp.sum(frac_last_n_vals(self.g_data.inc_case_hist, Ti, axis=0), axis=0)
+        current_I = xp.sum(frac_last_n_vals(self.g_data.rolling_inc_cases, Ti, axis=0), axis=0)
 
         current_I[xp.isnan(current_I)] = 0.0
         current_I[current_I < 0.0] = 0.0
@@ -371,81 +363,117 @@ class buckyModelCovid:
         E_fac = approx_mPERT_sample(**(self.dists.E_fac_dist))
         H_fac = approx_mPERT_sample(**(self.dists.H_fac_dist))
 
-        I_init = E_fac * current_I[None, :] / self.Nij / self.n_age_grps
-        D_init = self.g_data.cum_death_hist[-1][None, :] / self.Nij / self.n_age_grps
-        recovered_init = (
-            self.g_data.cum_case_hist[-1] / self.params["SYM_FRAC"] / (self.params["CASE_REPORT"])
-        ) * R_fac
+        age_dist_fac = self.Nij / xp.sum(self.Nij, axis=0, keepdims=True)
+        I_init = E_fac * current_I[None, :] * age_dist_fac / self.Nij  # / self.n_age_grps
+        D_init = self.g_data.cum_death_hist[-1][None, :] * age_dist_fac / self.Nij  # / self.n_age_grps
+        recovered_init = (self.g_data.cum_case_hist[-1] / self.params["SYM_FRAC"]) * R_fac
         R_init = (
-            (recovered_init) / self.Nij / self.n_age_grps - D_init - I_init / self.params["SYM_FRAC"]
-        )  # rh handled later
+            (recovered_init) * age_dist_fac / self.Nij - D_init - I_init / self.params["SYM_FRAC"]
+        )  # Rh is factored in later
 
-        # self.params.H = self.params.H * H_fac
+        Rt = estimate_Rt(self.g_data, self.params, 7, self.case_reporting)
+        Rt_fac = approx_mPERT_sample(**(self.dists.Rt_dist))
+        Rt = Rt * Rt_fac
 
-        # ic_frac = 1.0 / (1.0 + self.params.THETA / self.params.GAMMA_H)
-        # hosp_frac = 1.0 / (1.0 + self.params.GAMMA_H / self.params.THETA)
+        self.params["R0"] = Rt
+        self.params["BETA"] = Rt * self.params["GAMMA"] / self.g_data.Aij.diag
 
-        # print(ic_frac + hosp_frac)
         exp_frac = (
             E_fac
             * xp.ones(I_init.shape[-1])
-            # * np.diag(self.A)
-            # * np.sum(self.A, axis=1)
-            * (self.params.R0)  # @ self.A)
+            * (self.params.R0)
             * self.params.GAMMA
             / self.params.SIGMA
+            / (1.0 - R_init)
+            / self.params["SYM_FRAC"]
         )
 
-        ic_fac = 1.0
-
         yy.I = (1.0 - self.params.H) * I_init / yy.Im
-        yy.Ic = ic_fac * self.params.H * I_init / yy.Im
-        yy.Rh = self.params.H * I_init * self.params.GAMMA_H / self.params.THETA / yy.Rhn
+        yy.Ic = self.params.H * I_init / yy.Im
+        # TODO this is an estimate, we should rescale it to the real data if we have it
+        rh_fac = 1.0  # .4
+        yy.Rh = self.params.H * I_init / yy.Rhn
 
         if self.rescale_chr:
             adm1_hosp = xp.zeros((self.g_data.max_adm1 + 1,), dtype=float)
             xp.scatter_add(adm1_hosp, self.g_data.adm1_id, xp.sum(yy.Rh * self.Nij, axis=(0, 1)))
             adm2_hosp_frac = (self.adm1_current_hosp / adm1_hosp)[self.g_data.adm1_id]
             adm0_hosp_frac = xp.nansum(self.adm1_current_hosp) / xp.nansum(adm1_hosp)
-            adm2_hosp_frac[xp.isnan(adm2_hosp_frac)] = adm0_hosp_frac
-            # self.params.F = 2. * xp.clip(1.0 / (H_fac * adm2_hosp_frac[None, :]) * self.params.F, 1.0e-10, 1.0)
-            # self.params.H = xp.clip(H_fac * self.params.H * adm2_hosp_frac[None, :], self.params.F, 1.0)
+            adm2_hosp_frac[xp.isnan(adm2_hosp_frac) | (adm2_hosp_frac == 0.0)] = adm0_hosp_frac
 
-            # TODO this .85 should be in param file...
-            scaling_F = self.consts.F_scaling
+            adm2_hosp_frac = xp.sqrt(adm2_hosp_frac * adm0_hosp_frac)
+
+            scaling_F = self.consts.F_scaling / H_fac
             scaling_H = adm2_hosp_frac * H_fac
-            self.params["F_eff"] = xp.clip(scaling_F * self.params["F"] / self.params["H"], 0.0, 1.0)
+            self.params["F"] = xp.clip(self.params["F"] * scaling_F, 0.0, 1.0)
+            self.params["H"] = xp.clip(self.params["H"] * scaling_H, self.params["F"], 1.0) / 1.2
+            self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0.0, 1.0)
 
-            # yy.I = (1.0 - self.params.H) * I_init / yy.Im
-            # y[Ici] = ic_frac * self.params.H * I_init / (len(Ici))
-            # y[Rhi] = hosp_frac * self.params.H * I_init / (Rhn)
-            yy.Ic = scaling_H * ic_fac * self.params.H * I_init / yy.Im
+            # TODO rename F_eff to HFR
+
+            adm2_chr_delay = xp.sum(self.params["I_TO_H_TIME"][:, None] * self.g_data.Nij / self.g_data.Nj, axis=0)
+            adm2_chr_delay_int = adm2_chr_delay.astype(int)  # TODO temp, this should be a distribution of floats
+            adm2_chr_delay_mod = adm2_chr_delay % 1
+            inc_case_h_delay = (1.0 - adm2_chr_delay_mod) * xp.take_along_axis(
+                self.g_data.rolling_inc_cases, -adm2_chr_delay_int[None, :], axis=0
+            )[0] + adm2_chr_delay_mod * xp.take_along_axis(
+                self.g_data.rolling_inc_cases, -adm2_chr_delay_int[None, :] - 1, axis=0
+            )[
+                0
+            ]
+            inc_case_h_delay[(inc_case_h_delay > 0.0) & (inc_case_h_delay < 1.0)] = 1.0
+            inc_case_h_delay[inc_case_h_delay < 0.0] = 0.0
+            adm2_chr = xp.sum(self.params["H"] * self.g_data.Nij / self.g_data.Nj, axis=0)
+
+            tmp = xp.sum(self.params.H * I_init / yy.Im * self.g_data.Nij, axis=0) / 3.0  # 1/3 is mean sigma
+            tmp2 = inc_case_h_delay * adm2_chr * 3.0  # 3 == mean sigma, these should be read from base_params
+
+            ic_fac = tmp2 / tmp
+            ic_fac[~xp.isfinite(ic_fac)] = xp.nanmean(ic_fac[xp.isfinite(ic_fac)])
+
+            yy.I = (1.0 - self.params.H) * I_init / yy.Im
+            yy.Ic = ic_fac * self.params.H * I_init / yy.Im
             yy.Rh = (
-                scaling_H
-                # * self.params.CASE_REPORT
+                rh_fac
                 * self.params.H
                 * I_init
-                * self.params.GAMMA_H
-                / self.params.THETA
                 / yy.Rhn
+                * 1.15  # fit to runs, we should be able to calculate this somehow...
             )
 
         R_init -= xp.sum(yy.Rh, axis=0)
 
         yy.Ia = self.params.ASYM_FRAC / self.params.SYM_FRAC * I_init / yy.Im
-        yy.E = exp_frac[None, :] * I_init / yy.En
-        yy.R = R_init
+        yy.E = exp_frac[None, :] * I_init / yy.En  # this should be calcable from Rt and the time before symp
+        yy.R = xp.clip(R_init, a_min=0.0, a_max=None)
         yy.D = D_init
 
         yy.init_S()
-        # init the bin we're using to track incident cases (it's filled with cumulatives until we diff it later)
-        yy.incC = self.g_data.cum_case_hist[-1][None, :] / self.Nij / self.n_age_grps
+        # init the bin we're using to track incident cases
+        # (it's filled with cumulatives until we diff it later)
+        yy.incC = self.g_data.cum_case_hist[-1][None, :] * age_dist_fac / self.Nij  # / self.n_age_grps
         self.y = yy
 
-        # TODO assert this is 1. (need to take mean and around b/c fp err)
-        # if xp.sum(self.y, axis=0)
+        #
+        # Sanity check state vector
+        #
+
+        # Assert state is finite valued
         if xp.any(~xp.isfinite(self.y.state)):
+            logging.debug(xp.argwhere(xp.any(~xp.isfinite(self.y.state), axis=0)))
             logging.info("nonfinite values in the state vector, something is wrong with init")
+            raise SimulationException
+
+        # Assert N=1 in each sub model
+        if xp.any(~(xp.around(xp.sum(self.y.N, axis=0), 2) == 1.0)):
+            logging.debug(xp.argwhere(xp.any(~(xp.around(xp.sum(self.y.N, axis=0), 2) == 1.0), axis=0)))
+            logging.info("N!=1 in the state vector, something is wrong with init")
+            raise SimulationException
+
+        # Assert state is non negative
+        if xp.any(~(self.y.state >= 0.0)):
+            logging.debug(xp.argwhere(xp.any(~(self.y.state >= 0.0), axis=0)))
+            logging.info("negative values in the state vector, something is wrong with init")
             raise SimulationException
 
         if self.debug:
@@ -859,7 +887,7 @@ class buckyModelCovid:
             df_data["daily_hospitalizations"] = daily_hosp
 
         if "total_population" in columns:
-            N = xp.broadcast_to(self.Nj[..., None], out.state.shape[1:])
+            N = xp.broadcast_to(self.g_data.Nj[..., None], out.state.shape[1:])
             df_data["total_population"] = N
 
         if "current_hospitalizations" in columns:

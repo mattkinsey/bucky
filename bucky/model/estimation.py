@@ -18,12 +18,14 @@ def estimate_Rt(
 
     rolling_case_hist = g_data.rolling_inc_cases[-case_reporting.shape[0] :] / case_reporting
 
-    tot_case_hist = (g_data.Aij.A.T * rolling_case_hist.T).T
+    rolling_case_hist = xp.clip(rolling_case_hist, a_min=0.0, a_max=None)
+
+    tot_case_hist = (g_data.Aij.A.T @ rolling_case_hist.T).T + 1.0  # to avoid weirdness with small numbers
 
     t_max = rolling_case_hist.shape[0]
     k = params.consts["En"]
 
-    mean = params["Ts"]
+    mean = params["Tg"]
     theta = mean / k
     x = xp.arange(0.0, t_max)
 

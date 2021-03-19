@@ -52,7 +52,7 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
         self.n_age_grps, self.n_nodes = Nij.shape
 
         if state is None:
-            self.state = xp.zeros(self.state_shape)
+            self.state = xp.zeros(self.state_shape, dtype=xp.float32)
         else:
             self.state = state
 
@@ -91,4 +91,5 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
 
     def init_S(self):
         """Init the S compartment such that N=1."""
-        self.S = 1.0 - xp.sum(self.state, axis=0)
+        self.S = 0.0
+        self.S = 1.0 - xp.sum(self.N, axis=0)
