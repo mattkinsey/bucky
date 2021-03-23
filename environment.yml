@@ -9,6 +9,6 @@ dependencies:
   - tqdm
   - scipy
   - networkx
-  - xlrd
+  - openpyxl
   - descartes
   - pyarrow
