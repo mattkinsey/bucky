@@ -44,7 +44,7 @@ class buckyGraphData:
             rmedian = xp.median(rolling_window(tmp, 7), axis=-1)
             rstd = xp.var(rolling_window(tmp, 7), axis=-1)
             rmean = xp.mean(rolling_window(tmp, 7), axis=-1)
-            mask = xp.abs(tmp - rmedian) > 10.0 * (rmedian + rmean) / 2.0
+            mask = xp.abs(tmp - rmedian) > 5.0 * (rmedian + rmean) / 2.0
             mask = mask.T
             rmedian = rmedian.T
             tmp = arrs[0].copy()
