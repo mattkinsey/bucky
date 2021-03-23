@@ -189,12 +189,12 @@ class buckyModelCovid:
                 hhs_curr_data.total_adult_patients_hospitalized_confirmed_covid
                 + hhs_curr_data.total_pediatric_patients_hospitalized_confirmed_covid
             )
+
             self.adm1_current_hosp[tot_hosps.index.to_numpy()] = tot_hosps.to_numpy()
             if self.debug:
                 logging.debug("Current hospitalizations: " + pformat(self.adm1_current_hosp))
-
         # Estimate the recent CFR during the period covered by the historical data
-        cfr_delay = 12  # 14  # TODO This should come from CDC and Nij
+        cfr_delay = 25  # 14  # TODO This should come from CDC and Nij
         n_cfr = 14
 
         last_cases = (
@@ -203,9 +203,11 @@ class buckyModelCovid:
         last_deaths = g_data.rolling_cum_deaths[-n_cfr:] - g_data.rolling_cum_deaths[-n_cfr - 1]
         adm1_cases = g_data.sum_adm1(last_cases.T)
         adm1_deaths = g_data.sum_adm1(last_deaths.T)
+        negative_mask = (adm1_deaths < 0.0) | (adm1_cases < 0.0)
         adm1_cfr = adm1_deaths / adm1_cases
+        adm1_cfr[negative_mask] = xp.nan
         # take mean over n days
-        self.adm1_current_cfr = xp.mean(adm1_cfr, axis=1)
+        self.adm1_current_cfr = xp.nanmedian(adm1_cfr, axis=1)
 
         # Estimate recent CHR
         # TODO we really need to move the hosp data to the graph...
@@ -264,23 +266,23 @@ class buckyModelCovid:
 
         if self.rescale_chr:
             # TODO this needs to be cleaned up BAD
-            adm1_Fi = self.g_data.sum_adm1((self.params.F * self.Nij).T).T
             adm1_Ni = self.g_data.adm1_Nij
             adm1_N = self.g_data.adm1_Nj
-            adm1_Fi = adm1_Fi / adm1_Ni  # TODO this will always be F, not sure what I was going for here...
-            adm1_F = xp.nanmean(adm1_Fi, axis=0)
 
+            # estimate adm2 expected CFR weighted by local age demo
+            tmp = self.params.F[:, 0][..., None] * self.g_data.adm1_Nij / self.g_data.adm1_Nj
+            adm1_F = xp.sum(tmp, axis=0)
+
+            # get ratio of actual CFR to expected CFR
             adm1_F_fac = self.adm1_current_cfr / adm1_F
             adm0_F_fac = xp.nanmean(adm1_N * adm1_F_fac) / xp.sum(adm1_N)
             adm1_F_fac[xp.isnan(adm1_F_fac)] = adm0_F_fac
 
             F_RR_fac = truncnorm(1.0, self.dists.F_RR_var, size=adm1_F_fac.size, a_min=1e-6)
-            # adm1_F_fac = adm1_F_fac * F_RR_fac
-            # adm1_F_fac = xp.clip(adm1_F_fac, a_min=0.1, a_max=10.0)  # prevent extreme values
 
             if self.debug:
                 logging.debug("adm1 cfr rescaling factor: " + pformat(adm1_F_fac))
-            self.params.F = self.params.F * F_RR_fac[self.g_data.adm1_id]  # * adm1_F_fac[self.g_data.adm1_id]
+            self.params.F = self.params.F * F_RR_fac[self.g_data.adm1_id] * adm1_F_fac[self.g_data.adm1_id]
 
             self.params.F = xp.clip(self.params.F, a_min=1.0e-10, a_max=1.0)
 
@@ -426,7 +428,7 @@ class buckyModelCovid:
             adm2_chr = xp.sum(self.params["H"] * self.g_data.Nij / self.g_data.Nj, axis=0)
 
             tmp = xp.sum(self.params.H * I_init / yy.Im * self.g_data.Nij, axis=0) / 3.0  # 1/3 is mean sigma
-            tmp2 = inc_case_h_delay * adm2_chr * 3.0  # 3 == mean sigma, these should be read from base_params
+            tmp2 = inc_case_h_delay * adm2_chr  # * 3.0  # 3 == mean sigma, these should be read from base_params
 
             ic_fac = tmp2 / tmp
             ic_fac[~xp.isfinite(ic_fac)] = xp.nanmean(ic_fac[xp.isfinite(ic_fac)])
@@ -438,7 +440,7 @@ class buckyModelCovid:
                 * self.params.H
                 * I_init
                 / yy.Rhn
-                * 1.15  # fit to runs, we should be able to calculate this somehow...
+                # * 1.15  # fit to runs, we should be able to calculate this somehow...
             )
 
         R_init -= xp.sum(yy.Rh, axis=0)
@@ -447,6 +449,10 @@ class buckyModelCovid:
         yy.E = exp_frac[None, :] * I_init / yy.En  # this should be calcable from Rt and the time before symp
         yy.R = xp.clip(R_init, a_min=0.0, a_max=None)
         yy.D = D_init
+
+        # TMP
+        mask = xp.sum(yy.N, axis=0) > 1.0
+        yy.state[:, mask] /= xp.sum(yy.N, axis=0)[mask]
 
         yy.init_S()
         # init the bin we're using to track incident cases
@@ -471,8 +477,8 @@ class buckyModelCovid:
             raise SimulationException
 
         # Assert state is non negative
-        if xp.any(~(self.y.state >= 0.0)):
-            logging.debug(xp.argwhere(xp.any(~(self.y.state >= 0.0), axis=0)))
+        if xp.any(~(xp.around(self.y.state, 4) >= 0.0)):
+            logging.debug(xp.argwhere(xp.any(~(xp.around(self.y.state, 4) >= 0.0), axis=0)))
             logging.info("negative values in the state vector, something is wrong with init")
             raise SimulationException
 
