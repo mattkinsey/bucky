@@ -1,9 +1,10 @@
 """Provides a class that contains all the data/info needed to perform one full integration"""
 import datetime
 
-from IPython import embed
-
 from ..numerical_libs import reimport_numerical_libs, xp
+
+# from IPython import embed
+
 
 # TODO add logging
 
