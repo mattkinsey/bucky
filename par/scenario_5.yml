@@ -14,6 +14,7 @@ consts:
 
 dists:
   Rt_dist:
+    mu: 1.
     gamma: 5.
     a: .9
     b: 1.1
