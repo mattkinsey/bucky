@@ -313,9 +313,9 @@ class buckyModelCovid:
         )
 
         self.case_reporting = approx_mPERT_sample(  # TODO these facs should go in param file
-            mu=xp.clip(case_reporting, a_min=0.01, a_max=1.0),
-            a=xp.clip(0.7 * case_reporting, a_min=0.01, a_max=None),
-            b=xp.clip(1.3 * case_reporting, a_min=None, a_max=1.0),
+            mu=xp.clip(case_reporting, a_min=0.05, a_max=.95),
+            a=xp.clip(0.7 * case_reporting, a_min=0.01, a_max=.9),
+            b=xp.clip(1.3 * case_reporting, a_min=.1, a_max=1.0),
             gamma=50.0,
         )
 
@@ -339,7 +339,7 @@ class buckyModelCovid:
 
         # self.params = self.bucky_params.rescale_doubling_rate(self.doubling_t, self.params, self.g_data.Aij.diag)
 
-        mean_case_reporting = xp.mean(self.case_reporting[-self.consts.case_reporting_N_historical_days :], axis=0)
+        mean_case_reporting = xp.nanmean(self.case_reporting[-self.consts.case_reporting_N_historical_days :], axis=0)
 
         self.params["CASE_REPORT"] = mean_case_reporting
         self.params["THETA"] = xp.broadcast_to(

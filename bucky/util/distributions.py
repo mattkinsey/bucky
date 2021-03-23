@@ -25,7 +25,7 @@ def approx_mPERT_sample(mu, a=0.0, b=1.0, gamma=4.0, var=None):
     alp1 = 1.0 + gamma * ((mu - a) / (b - a))
     alp2 = 1.0 + gamma * ((b - mu) / (b - a))
     u = xp.random.random_sample(mu.shape)
-    alp3 = approx_betaincinv(alp1, alp2, u)
+    alp3 = approx_betaincinv(alp1.astype(xp.float64), alp2.astype(xp.float64), u)
     return (b - a) * alp3 + a
 
 
