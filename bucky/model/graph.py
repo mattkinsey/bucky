@@ -136,13 +136,15 @@ class buckyGraphData:
     def rolling_inc_cases(self):
         """Return the rolling mean of incident cases."""
         # return self.rolling_mean_func_inc(self.inc_case_hist)
-        return xp.diff(self.rolling_cum_cases, axis=0)
+        # return xp.diff(self.rolling_cum_cases, axis=0)
+        return self.rolling_mean_func_cum(xp.clip(xp.diff(self.cum_case_hist, axis=0), a_min=0, a_max=None))
 
     @cached_property
     def rolling_inc_deaths(self):
         """Return the rolling mean of incident deaths."""
         # return self.rolling_mean_func_inc(self.inc_death_hist)
-        return xp.diff(self.rolling_cum_deaths, axis=0)
+        # return xp.diff(self.rolling_cum_deaths, axis=0)
+        return self.rolling_mean_func_cum(xp.clip(xp.diff(self.cum_death_hist, axis=0), a_min=0, a_max=None))
 
     @cached_property
     def rolling_cum_cases(self):
