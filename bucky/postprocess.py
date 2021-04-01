@@ -291,7 +291,7 @@ def main(args=None):
             table = table.set_column(i, col, tmp)
 
         for col in pop_weighted_cols:
-            if pat.is_float64(table.column(i).type):
+            if pat.is_float64(pop_weight_table[col].type):
                 typed_w = table["total_population"].to_numpy().astype(np.float64)
             else:
                 typed_w = table["total_population"].to_numpy().astype(np.float32)
