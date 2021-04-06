@@ -21,7 +21,7 @@ from .numerical_libs import reimport_numerical_libs, use_cupy, xp
 from .util.read_config import bucky_cfg
 from .viz.geoid import read_lookup
 
-cupy_found = (importlib.util.find_spec("cupy") is not None) and (not force_cpu)
+cupy_found = importlib.util.find_spec("cupy") is not None
 
 # Initialize argument parser
 parser = argparse.ArgumentParser(description="Bucky Model postprocessing")
