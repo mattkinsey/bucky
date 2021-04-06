@@ -1,6 +1,6 @@
 name: bucky_gpu
 channels:
-  - conda-forge   #for up to date cupy
+  - conda-forge   #for up to date cupy/pyarrow
   - defaults
 dependencies:
   - cupy
