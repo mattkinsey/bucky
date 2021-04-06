@@ -18,6 +18,7 @@ Clone the repo using git:
 
 ```console
 git clone https://github.com/mattkinsey/bucky.git
+cd bucky
 ```
 
 Create Anaconda environment using `environment.yml` or `environment_gpu.yml` if using the GPU.
