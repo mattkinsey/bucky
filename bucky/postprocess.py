@@ -1,6 +1,7 @@
 """Postprocesses data across dates and simulation runs before aggregating at geographic levels (ADM0, ADM1, or ADM2)."""
 import argparse
 import glob
+import importlib
 import logging
 import os
 import queue
@@ -19,6 +20,8 @@ import tqdm
 from .numerical_libs import reimport_numerical_libs, use_cupy, xp
 from .util.read_config import bucky_cfg
 from .viz.geoid import read_lookup
+
+cupy_found = (importlib.util.find_spec("cupy") is not None) and (not force_cpu)
 
 # Initialize argument parser
 parser = argparse.ArgumentParser(description="Bucky Model postprocessing")
@@ -119,7 +122,7 @@ parser.add_argument(
 )
 
 
-parser.add_argument("-cpu", "--cpu", action="store_true", help="Do not use cupy")
+parser.add_argument("-gpu", "--gpu", action="store_true", default=cupy_found, help="Use cupy instead of numpy")
 
 parser.add_argument("--verify", action="store_true", help="Verify the quality of the data")
 
@@ -148,7 +151,7 @@ def main(args=None):
     quantiles = args.quantiles
     verbose = args.verbose
     prefix = args.prefix
-    use_gpu = not args.cpu
+    use_gpu = args.gpu
 
     if verbose:
         logging.info(args)
