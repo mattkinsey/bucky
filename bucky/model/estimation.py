@@ -74,13 +74,23 @@ def estimate_Rt(
     for i in range(days_back):
         d = i + 1
         Rt[i] = rolling_case_hist[-d] / (xp.sum(w[d:, None] * tot_case_hist[:-d], axis=0))
-    # Rt = xp.mean(Rt, axis=0)
-    if use_geo_mean:
-        Rt = xp.exp(xp.mean(xp.log(Rt), axis=0))
-    else:
-        Rt = xp.mean(Rt, axis=0)
 
-    valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist[-7], axis=0) > 25) & (Rt > 0.0)
+    Rt[~(Rt > 0.0)] = xp.nan
+
+    # rt_geo = xp.exp(xp.nanmean(xp.log(Rt), axis=0))
+    # rt_mean = xp.nanmean(Rt, axis=0)
+    # rt_med = xp.nanmedian(Rt, axis=0)
+    rt_harm = 1.0 / xp.nanmean(1.0 / Rt, axis=0)
+    # if use_geo_mean:
+    #    Rt = xp.exp(xp.mean(xp.log(Rt), axis=0))
+    # else:
+    #    #Rt = xp.mean(Rt, axis=0)
+    #    Rt = xp.median(Rt, axis=0)
+    # Rt = (rt_geo + rt_med) /2.
+
+    Rt = rt_harm  # (rt_geo + rt_med) /2.
+    # TODO make this max value a param
+    valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist[-7], axis=0) > 25) & (Rt > 0.0) & (Rt < 2.5)
     Rt_out[valid_mask] = Rt[valid_mask]
 
     return Rt_out
