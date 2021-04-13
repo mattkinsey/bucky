@@ -20,7 +20,7 @@ from .util.update_data_repos import main as update_repos
 
 # TODO all these paths should be combined properly rather than just with str cat
 
-DAYS_OF_HIST = 45
+DAYS_OF_HIST = 100
 
 # Initialize argument parser
 parser = argparse.ArgumentParser(description="Bucky Model input graph creation")
