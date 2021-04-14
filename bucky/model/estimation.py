@@ -64,8 +64,9 @@ def estimate_Rt(
     else:
         Rt = xp.mean(Rt, axis=0)
 
+    # TODO we should mask this before projecting it to adm2...
     Rt = Rt[g_data.adm1_id]
-    valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist_adm1[-7:], axis=0) > 25)
+    valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist_adm1[-7:], axis=0)[g_data.adm1_id] > 25)
     Rt_out[valid_mask] = Rt[valid_mask]
 
     # adm2
