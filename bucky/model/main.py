@@ -168,8 +168,8 @@ class buckyModelCovid:
         self.adm2_cfr_reported = None
 
         # If HHS hospitalization data is on the graph, use it to rescale initial H counts and CHR
-        self.rescale_chr = "hhs_data" in G.graph
-        if self.rescale_chr:
+        # self.rescale_chr = "hhs_data" in G.graph
+        if self.consts.rescale_chr:
             self.adm1_current_hosp = xp.zeros((g_data.max_adm1 + 1,), dtype=float)
             # TODO move hosp data to the graph nodes and handle it with graph.py the way cases/deaths are
             hhs_data = G.graph["hhs_data"].reset_index()
@@ -210,27 +210,30 @@ class buckyModelCovid:
         self.adm1_current_cfr = xp.nanmedian(adm1_cfr, axis=1)
 
         # Estimate recent CHR
-        # TODO we really need to move the hosp data to the graph...
-        chr_delay = 20  # TODO This should come from I_TO_H_TIME and Nij as a float (it's ~5.8)
-        n_chr = 7
-        tmp = hhs_data.loc[hhs_data.date > pd.Timestamp(self.init_date - datetime.timedelta(days=n_chr))]
-        tmp = tmp.loc[tmp.date <= pd.Timestamp(self.init_date)]
-        tmp = tmp.set_index(["adm1", "date"]).sort_index()
-        tmp = tmp.previous_day_admission_adult_covid_confirmed + tmp.previous_day_admission_pediatric_covid_confirmed
-        cum_hosps = xp.zeros((adm1_cfr.shape[0], n_chr))
-        tmp = tmp.unstack()
-        tmp_data = tmp.T.cumsum().to_numpy()
-        tmp_ind = tmp.index.to_numpy()
-        cum_hosps[tmp_ind] = tmp_data.T
-        last_cases = (
-            g_data.rolling_cum_cases[-chr_delay - n_chr : -chr_delay] - g_data.rolling_cum_cases[-chr_delay - n_chr - 1]
-        )
-        adm1_cases = g_data.sum_adm1(last_cases.T)
-        adm1_hosps = cum_hosps  # g_data.sum_adm1(last_hosps.T)
-        adm1_chr = adm1_hosps / adm1_cases
-        # take mean over n days
-        self.adm1_current_chr = xp.mean(adm1_chr, axis=1)
-        # self.adm1_current_chr = self.calc_lagged_rate(g_data.adm1_cum_case_hist, cum_hosps.T, chr_delay, n_chr)
+        if self.consts.rescale_chr:
+            chr_delay = 20  # TODO This should come from I_TO_H_TIME and Nij as a float (it's ~5.8)
+            n_chr = 7
+            tmp = hhs_data.loc[hhs_data.date > pd.Timestamp(self.init_date - datetime.timedelta(days=n_chr))]
+            tmp = tmp.loc[tmp.date <= pd.Timestamp(self.init_date)]
+            tmp = tmp.set_index(["adm1", "date"]).sort_index()
+            tmp = (
+                tmp.previous_day_admission_adult_covid_confirmed + tmp.previous_day_admission_pediatric_covid_confirmed
+            )
+            cum_hosps = xp.zeros((adm1_cfr.shape[0], n_chr))
+            tmp = tmp.unstack()
+            tmp_data = tmp.T.cumsum().to_numpy()
+            tmp_ind = tmp.index.to_numpy()
+            cum_hosps[tmp_ind] = tmp_data.T
+            last_cases = (
+                g_data.rolling_cum_cases[-chr_delay - n_chr : -chr_delay]
+                - g_data.rolling_cum_cases[-chr_delay - n_chr - 1]
+            )
+            adm1_cases = g_data.sum_adm1(last_cases.T)
+            adm1_hosps = cum_hosps  # g_data.sum_adm1(last_hosps.T)
+            adm1_chr = adm1_hosps / adm1_cases
+            # take mean over n days
+            self.adm1_current_chr = xp.mean(adm1_chr, axis=1)
+            # self.adm1_current_chr = self.calc_lagged_rate(g_data.adm1_cum_case_hist, cum_hosps.T, chr_delay, n_chr)
 
         if self.debug:
             logging.debug("Current CFR: " + pformat(self.adm1_current_cfr))
@@ -264,7 +267,7 @@ class buckyModelCovid:
         self.params.H = xp.broadcast_to(self.params.H[:, None], self.Nij.shape)
         self.params.F = xp.broadcast_to(self.params.F[:, None], self.Nij.shape)
 
-        if self.rescale_chr:
+        if self.consts.rescale_chr:
             # TODO this needs to be cleaned up BAD
             adm1_Ni = self.g_data.adm1_Nij
             adm1_N = self.g_data.adm1_Nj
@@ -396,7 +399,7 @@ class buckyModelCovid:
         rh_fac = 1.0  # .4
         yy.Rh = self.params.H * I_init / yy.Rhn
 
-        if self.rescale_chr:
+        if self.consts.rescale_chr:
             adm1_hosp = xp.zeros((self.g_data.max_adm1 + 1,), dtype=float)
             xp.scatter_add(adm1_hosp, self.g_data.adm1_id, xp.sum(yy.Rh * self.Nij, axis=(0, 1)))
             adm2_hosp_frac = (self.adm1_current_hosp / adm1_hosp)[self.g_data.adm1_id]
