@@ -457,7 +457,9 @@ class buckyModelCovid:
         yy.init_S()
         # init the bin we're using to track incident cases
         # (it's filled with cumulatives until we diff it later)
-        yy.incC = self.g_data.cum_case_hist[-1][None, :] * age_dist_fac / self.Nij  # / self.n_age_grps
+        # TODO should this come from the rolling hist?
+        yy.incC = xp.clip(self.g_data.cum_case_hist[-1][None, :], a_min=0.0, a_max=None) * age_dist_fac / self.Nij
+
         self.y = yy
 
         #
