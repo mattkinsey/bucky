@@ -178,6 +178,16 @@ def enable_cupy(optimize=False):
 
         cp.r_ = cp_r_()
 
+    cp._oldarray = cp.array
+
+    def array_f32(*args, **kwargs):
+        ret = cp._oldarray(*args, **kwargs)
+        if ret.dtype == xp.float64:
+            ret = ret.astype("float32")
+        return ret
+
+    cp.array = array_f32
+
     import cupyx.scipy.special  # pylint: disable=import-outside-toplevel
 
     cp.special = cupyx.scipy.special
