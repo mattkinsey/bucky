@@ -65,7 +65,7 @@ def estimate_Rt(
         Rt = xp.mean(Rt, axis=0)
 
     Rt = Rt[g_data.adm1_id]
-    valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist_adm1[-7], axis=0) > 25)
+    valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist_adm1[-7:], axis=0) > 25)
     Rt_out[valid_mask] = Rt[valid_mask]
 
     # adm2
@@ -90,9 +90,10 @@ def estimate_Rt(
 
     Rt = rt_harm  # (rt_geo + rt_med) /2.
     # TODO make this max value a param
-    valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist[-7], axis=0) > 25) & (Rt > 0.0) & (Rt < 2.5)
+    valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist[-7:], axis=0) > 25) & (Rt > 0.1) & (Rt < 2.5)
     Rt_out[valid_mask] = Rt[valid_mask]
-
+    # from IPython import embed
+    # embed()
     return Rt_out
 
 
