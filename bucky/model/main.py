@@ -696,6 +696,26 @@ class buckyModelCovid:
         self.base_mc_instance.Aij = self.g_data.Aij.A
         self.base_mc_instance.rhs = self.RHS_func
 
+        # TODO this logic needs to go somewhere else (its rescaling beta to account for S/N term)
+        # TODO R0 need to be changed before reset()...
+        S_eff = self.base_mc_instance.S_eff(0, self.base_mc_instance.state)
+        adm2_S_eff = xp.sum(S_eff * self.g_data.Nij / self.g_data.Nj, axis=0)
+        adm2_beta_scale = xp.clip(1.0 / (adm2_S_eff + 1e-10), a_min=1.0, a_max=5.0)
+        self.base_mc_instance.epi_params["R0"] = self.base_mc_instance.epi_params["R0"] * adm2_beta_scale
+        self.base_mc_instance.epi_params["BETA"] = self.base_mc_instance.epi_params["BETA"] * adm2_beta_scale
+        adm2_E_tot = xp.sum(self.y.E * self.g_data.Nij / self.g_data.Nj, axis=(0, 1))
+        adm2_new_E_tot = adm2_beta_scale * adm2_E_tot
+        S_dist = S_eff / (xp.sum(S_eff, axis=0) + 1e-10)
+
+        new_E = xp.tile(
+            (S_dist * adm2_new_E_tot / self.g_data.Nij * self.g_data.Nj / self.params.consts["En"])[None, ...],
+            (xp.to_cpu(self.params.consts["En"]), 1, 1),
+        )
+        new_S = self.y.S - xp.sum(new_E - self.y.E, axis=0)
+
+        self.base_mc_instance.state.E = new_E
+        self.base_mc_instance.state.S = new_S
+
         # do integration
         logging.debug("Starting integration")
         sol = xp_ivp.solve_ivp(
