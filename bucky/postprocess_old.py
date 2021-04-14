@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import tqdm
 
-from .numerical_libs import use_cupy
+from .numerical_libs import enable_cupy
 from .util.read_config import bucky_cfg
 from .viz.geoid import read_geoid_from_graph, read_lookup
 
@@ -307,7 +307,7 @@ if __name__ == "__main__":
         # NB: this has to happen after we fork the process
         # see e.g. https://github.com/chainer/chainer/issues/1087
         if use_gpu:
-            use_cupy(optimize=True)
+            enable_cupy(optimize=True)
         from .numerical_libs import xp  # isort:skip  # pylint: disable=import-outside-toplevel
 
         for level in agg_levels:

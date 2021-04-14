@@ -17,7 +17,7 @@ import pyarrow.dataset as ds
 import pyarrow.types as pat
 import tqdm
 
-from .numerical_libs import reimport_numerical_libs, use_cupy, xp
+from .numerical_libs import enable_cupy, reimport_numerical_libs, xp
 from .util.read_config import bucky_cfg
 from .viz.geoid import read_lookup
 
@@ -195,7 +195,7 @@ def main(args=None):
     adm2_sorted_ind = xp.argsort(xp.array(adm_mapping["adm2"].to_numpy()))
 
     if use_gpu:
-        use_cupy(optimize=True)
+        enable_cupy(optimize=True)
         reimport_numerical_libs("postprocess")
 
     per_capita_cols = [

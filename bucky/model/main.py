@@ -18,7 +18,7 @@ import pyarrow as pa
 import pyarrow.parquet as pap
 import tqdm
 
-from ..numerical_libs import reimport_numerical_libs, use_cupy, xp, xp_ivp
+from ..numerical_libs import enable_cupy, reimport_numerical_libs, xp, xp_ivp
 from ..util.distributions import approx_mPERT_sample, truncnorm
 from ..util.util import TqdmLoggingHandler, _banner
 from .arg_parser_model import parser
@@ -952,7 +952,7 @@ def main(args=None):
 
     if args.gpu:
         logging.info("Using GPU backend")
-        use_cupy(optimize=args.opt)
+        enable_cupy(optimize=args.opt)
 
     reimport_numerical_libs("model.main.main")
 

@@ -20,7 +20,7 @@ import scipy.sparse as xp_sparse
 import scipy.special
 
 # Default imports for cpu code
-# This will be overwritten with a call to .numerical_libs.use_cupy()
+# This will be overwritten with a call to .numerical_libs.enable_cupy()
 import bucky
 
 xp.scatter_add = xp.add.at
@@ -57,7 +57,7 @@ def reimport_numerical_libs(context=None):
                 reimport_cache.add(context)
 
 
-def use_cupy(optimize=False):
+def enable_cupy(optimize=False):
     """Perform imports for libraries with APIs matching numpy, scipy.integrate.ivp, scipy.sparse.
 
     These imports will use a monkey-patched version of these modules
