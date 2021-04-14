@@ -408,7 +408,7 @@ class buckyModelCovid:
 
             adm2_hosp_frac = xp.sqrt(adm2_hosp_frac * adm0_hosp_frac)
 
-            scaling_F = self.consts.F_scaling / H_fac
+            scaling_F = F_RR_fac[self.g_data.adm1_id] * self.consts.F_scaling / H_fac
             scaling_H = adm2_hosp_frac * H_fac
             self.params["F"] = xp.clip(self.params["F"] * scaling_F, 0.0, 1.0)
             self.params["H"] = xp.clip(self.params["H"] * scaling_H, self.params["F"], 1.0) / 1.2
