@@ -98,7 +98,7 @@ def WIS(x, q, x_q, norm=False, log=False, smooth=False):
         )
     if norm:
         mask = xp.nonzero(x)
-        ret[mask] = ret[mask] / x[mask]
+        ret[mask] = ret[mask] / (x[mask] + 1.0)
     if log:
         ret = xp.log1p(ret)
     return ret
