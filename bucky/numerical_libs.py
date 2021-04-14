@@ -176,7 +176,7 @@ def enable_cupy(optimize=False):
                 """Call np.r_ and case the result to cupy."""  # noqa: RST306
                 return cp.array(np.r_[inds])
 
-        cp.r_ = cp_r_()
+        # cp.r_ = cp_r_()
 
     cp._oldarray = cp.array
 
