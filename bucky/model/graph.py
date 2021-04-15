@@ -29,7 +29,7 @@ class buckyGraphData:
         G = nx.convert_node_labels_to_integers(G)
         self.cum_case_hist, self.inc_case_hist = _read_node_attr(G, "case_hist", diff=True, a_min=0.0)
         self.cum_death_hist, self.inc_death_hist = _read_node_attr(G, "death_hist", diff=True, a_min=0.0)
-        self.Nij = _read_node_attr(G, "N_age_init", a_min=1e-5)
+        self.Nij = _read_node_attr(G, "N_age_init", a_min=1.0)
 
         # Perform some outlier detection/correction on the cases/deaths
         # TODO this should be a cleaned up and made a utility function for general timeseries
