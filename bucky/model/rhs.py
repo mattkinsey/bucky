@@ -5,10 +5,11 @@ from ..numerical_libs import reimport_numerical_libs, xp
 # NB: requires the state vector be 1d
 #
 
+
 def RHS_func(t, y_flat, mc_inst):
     """RHS function for the ODEs, get's called in ivp.solve_ivp"""
 
-    reimport_numerical_libs('RHS_func')
+    reimport_numerical_libs("RHS_func")
 
     # constraint on values
     lower, upper = (0.0, 1.0)  # bounds for state vars
@@ -37,7 +38,7 @@ def RHS_func(t, y_flat, mc_inst):
     npi = mc_inst.npi_params
     par = mc_inst.epi_params
     BETA_eff = mc_inst.BETA_eff(t_index)
-    if hasattr(mc_inst, 'scen_beta_scale'):
+    if hasattr(mc_inst, "scen_beta_scale"):
         BETA_eff = mc_inst.scen_beta_scale[t_index] * BETA_eff
 
     F_eff = par["F_eff"]

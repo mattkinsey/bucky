@@ -312,9 +312,9 @@ class buckyModelCovid:
         )
 
         self.case_reporting = approx_mPERT_sample(  # TODO these facs should go in param file
-            mu=xp.clip(case_reporting, a_min=0.05, a_max=.95),
-            a=xp.clip(0.7 * case_reporting, a_min=0.01, a_max=.9),
-            b=xp.clip(1.3 * case_reporting, a_min=.1, a_max=1.0),
+            mu=xp.clip(case_reporting, a_min=0.05, a_max=0.95),
+            a=xp.clip(0.7 * case_reporting, a_min=0.01, a_max=0.9),
+            b=xp.clip(1.3 * case_reporting, a_min=0.1, a_max=1.0),
             gamma=50.0,
         )
 
@@ -443,7 +443,6 @@ class buckyModelCovid:
 
         # Sanity check state vector
         self.y.validate_state()
-
 
         if self.debug:
             logging.debug("done reset()")
@@ -788,7 +787,6 @@ class buckyModelCovid:
                 (self.params.R0 * self.g_data.Aij.diag)[:, None], adm2_ids.shape
             )
             df_data["R_eff"] = r_eff
-
 
         # Collapse the gamma-distributed compartments and move everything to cpu
         negative_values = False
