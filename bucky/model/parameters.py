@@ -199,24 +199,6 @@ class buckyParams:
         return numpy.interp(x_mean_new, x_mean, y)
 
     @staticmethod
-    def rescale_doubling_rate(D, params, A_diag=None):
-        """Rescale parameters to match the input doubling times"""
-        # TODO rename D to Td everwhere for consistency
-        r = xp.log(2.0) / D
-        params["R0"] = calc_Reff(
-            params["consts"]["Im"],
-            params["consts"]["En"],
-            params["Tg"],
-            params["Te"],
-            r,
-        )
-        params["BETA"] = params["R0"] * params["GAMMA"]
-        if A_diag is not None:
-            # params['BETA'] /= xp.sum(A,axis=1)
-            params["BETA"] /= A_diag
-        return params
-
-    @staticmethod
     def calc_derived_params(params):
         """Add the derived params that are calculated from the rerolled ones"""
         params["Te"] = calc_Te(

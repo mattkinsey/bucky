@@ -22,7 +22,7 @@ from ..numerical_libs import enable_cupy, reimport_numerical_libs, xp, xp_ivp
 from ..util.distributions import approx_mPERT_sample, truncnorm
 from ..util.util import TqdmLoggingHandler, _banner
 from .arg_parser_model import parser
-from .estimation import estimate_doubling_time, estimate_Rt
+from .estimation import estimate_Rt
 from .graph import buckyGraphData
 from .mc_instance import buckyMCInstance
 from .npi import get_npi_params
@@ -321,26 +321,6 @@ class buckyModelCovid:
             b=xp.clip(1.3 * case_reporting, a_min=.1, a_max=1.0),
             gamma=50.0,
         )
-
-        self.doubling_t = xp.zeros(self.Nj.shape)
-        # self.doubling_t = estimate_doubling_time(g_data,
-        #    doubling_time_window=self.consts.doubling_t_window,
-        #    mean_time_window=self.consts.doubling_t_N_historical_days,
-        #    self.case_reporting,
-        # )
-
-        # if xp.any(~xp.isfinite(self.doubling_t)):
-        #    logging.info("non finite doubling times, is there enough case data?")
-        #    if self.debug:
-        #        logging.debug(self.doubling_t)
-        #        logging.debug(self.g_data.adm1_id[~xp.isfinite(self.doubling_t)])
-        #    raise SimulationException
-
-        # if self.consts.reroll_variance > 0.0:
-        #    self.doubling_t *= truncnorm(1.0, self.consts.reroll_variance, size=self.doubling_t.shape, a_min=1e-6)
-        #    self.doubling_t = xp.clip(self.doubling_t, 1.0, None) / 2.0
-
-        # self.params = self.bucky_params.rescale_doubling_rate(self.doubling_t, self.params, self.g_data.Aij.diag)
 
         mean_case_reporting = xp.nanmean(self.case_reporting[-self.consts.case_reporting_N_historical_days :], axis=0)
 
@@ -815,7 +795,6 @@ class buckyModelCovid:
                 "current_vent_usage",
                 "case_reporting_rate",
                 "R_eff",
-                "doubling_t",
             ]
 
             columns = set(columns)
@@ -944,9 +923,6 @@ class buckyModelCovid:
             )
             df_data["R_eff"] = r_eff
 
-        if "doubling_t" in columns:
-            Td = np.broadcast_to(self.doubling_t[:, None], adm2_ids.shape)
-            df_data["doubling_t"] = Td
 
         # Collapse the gamma-distributed compartments and move everything to cpu
         negative_values = False

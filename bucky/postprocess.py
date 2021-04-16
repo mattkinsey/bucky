@@ -205,7 +205,10 @@ def main(args=None):
         "daily_reported_cases",
         "daily_deaths",
     ]
-    pop_weighted_cols = ["case_reporting_rate", "R_eff", "doubling_t"]
+    pop_weighted_cols = [
+        "case_reporting_rate",
+        "R_eff",
+    ]
 
     adm_mapping["adm0"] = 1
     adm_map = adm_mapping.to_dict(orient="list")
