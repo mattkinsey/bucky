@@ -8,7 +8,6 @@ def estimate_Rt(
     params,
     days_back=7,
     case_reporting=None,
-    use_geo_mean=False,
 ):
     """Estimate R_t from the recent case data"""
 
@@ -25,7 +24,7 @@ def estimate_Rt(
     t_max = rolling_case_hist.shape[0]
     k = params.consts["En"]
 
-    mean = params["Tg"]
+    mean = params["Ts"]
     theta = mean / k
     x = xp.arange(0.0, t_max)
 
@@ -42,7 +41,7 @@ def estimate_Rt(
         d = i + 1
         Rt[i] = rolling_case_hist_adm0[-d] / (xp.sum(w[d:, None] * tot_case_hist_adm0[:-d], axis=0))
 
-    # tmp = Rt.copy()
+    # TODO update to harm mean
     if use_geo_mean:
         Rt = xp.exp(xp.mean(xp.log(Rt), axis=0))
     else:
@@ -59,6 +58,8 @@ def estimate_Rt(
     for i in range(days_back):
         d = i + 1
         Rt[i] = rolling_case_hist_adm1[-d] / (xp.sum(w[d:, None] * tot_case_hist_adm1[:-d], axis=0))
+
+    # TODO update to harm mean (or make switchable)
     if use_geo_mean:
         Rt = xp.exp(xp.mean(xp.log(Rt), axis=0))
     else:
@@ -82,19 +83,11 @@ def estimate_Rt(
     # rt_mean = xp.nanmean(Rt, axis=0)
     # rt_med = xp.nanmedian(Rt, axis=0)
     rt_harm = 1.0 / xp.nanmean(1.0 / Rt, axis=0)
-    # if use_geo_mean:
-    #    Rt = xp.exp(xp.mean(xp.log(Rt), axis=0))
-    # else:
-    #    #Rt = xp.mean(Rt, axis=0)
-    #    Rt = xp.median(Rt, axis=0)
-    # Rt = (rt_geo + rt_med) /2.
 
     Rt = rt_harm  # (rt_geo + rt_med) /2.
     # TODO make this max value a param
     valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist[-7:], axis=0) > 25) & (Rt > 0.1) & (Rt < 2.5)
     Rt_out[valid_mask] = Rt[valid_mask]
-    # from IPython import embed
-    # embed()
     return Rt_out
 
 
