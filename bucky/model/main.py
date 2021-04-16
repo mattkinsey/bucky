@@ -594,7 +594,7 @@ class buckyModelCovid:
         y.state = xp.clip(y.state, a_min=lower, a_max=upper, out=y.state)
 
         # init d(state)/dt
-        dy = y.zeros_like()
+        dy = mc_inst.dy
 
         if mc_inst.npi_active or mc_inst.vacc_active:
             t_index = min(int(t), mc_inst.t_max)  # prevent OOB error when the integrator overshoots
@@ -695,6 +695,7 @@ class buckyModelCovid:
         self.base_mc_instance.state = self.y
         self.base_mc_instance.Aij = self.g_data.Aij.A
         self.base_mc_instance.rhs = self.RHS_func
+        self.base_mc_instance.dy = self.y.zeros_like()
 
         # TODO this logic needs to go somewhere else (its rescaling beta to account for S/N term)
         # TODO R0 need to be changed before reset()...
