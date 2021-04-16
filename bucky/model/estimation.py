@@ -8,6 +8,7 @@ def estimate_Rt(
     params,
     days_back=7,
     case_reporting=None,
+    use_geo_mean=False,
 ):
     """Estimate R_t from the recent case data"""
 
