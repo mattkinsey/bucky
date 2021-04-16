@@ -2,8 +2,10 @@
 
 import contextlib
 import copy
+import logging
 
 from ..numerical_libs import reimport_numerical_libs, xp
+from .exceptions import StateValidationException
 
 
 def slice_to_cpu(s):
@@ -95,3 +97,24 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
         """Init the S compartment such that N=1."""
         self.S = 0.0
         self.S = 1.0 - xp.sum(self.N, axis=0)
+
+    def validate_state(self):
+        """Validate that the state is valid (finite, nonnegative, N=1)"""
+
+        # Assert state is finite valued
+        if xp.any(~xp.isfinite(self.state)):
+            logging.debug(xp.argwhere(xp.any(~xp.isfinite(self.state), axis=0)))
+            logging.info("nonfinite values in the state vector, something is wrong with init")
+            raise StateValidationException
+
+        # Assert N=1 in each sub model
+        if xp.any(~(xp.around(xp.sum(self.N, axis=0), 2) == 1.0)):
+            logging.debug(xp.argwhere(xp.any(~(xp.around(xp.sum(self.N, axis=0), 2) == 1.0), axis=0)))
+            logging.info("N!=1 in the state vector, something is wrong with init")
+            raise StateValidationException
+
+        # Assert state is non negative
+        if xp.any(~(xp.around(self.state, 4) >= 0.0)):
+            logging.debug(xp.argwhere(xp.any(~(xp.around(self.state, 4) >= 0.0), axis=0)))
+            logging.info("negative values in the state vector, something is wrong with init")
+            raise StateValidationException

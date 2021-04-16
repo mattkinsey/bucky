@@ -23,6 +23,7 @@ from ..util.distributions import approx_mPERT_sample, truncnorm
 from ..util.util import TqdmLoggingHandler, _banner
 from .arg_parser_model import parser
 from .estimation import estimate_Rt
+from .exceptions import SimulationException
 from .graph import buckyGraphData
 from .mc_instance import buckyMCInstance
 from .npi import get_npi_params
@@ -33,12 +34,6 @@ from .state import buckyState
 warnings.simplefilter(action="ignore", category=FutureWarning)
 # TODO we do alot of allowing div by 0 and then checking for nans later, we should probably refactor that
 warnings.simplefilter(action="ignore", category=RuntimeWarning)
-
-# TODO move to a new file and add some more exception types
-class SimulationException(Exception):
-    """A generic exception to throw when there's an error related to the simulation"""
-
-    pass  # pylint: disable=unnecessary-pass
 
 
 @lru_cache(maxsize=None)
@@ -445,27 +440,9 @@ class buckyModelCovid:
 
         self.y = yy
 
-        #
         # Sanity check state vector
-        #
+        self.y.validate_state()
 
-        # Assert state is finite valued
-        if xp.any(~xp.isfinite(self.y.state)):
-            logging.debug(xp.argwhere(xp.any(~xp.isfinite(self.y.state), axis=0)))
-            logging.info("nonfinite values in the state vector, something is wrong with init")
-            raise SimulationException
-
-        # Assert N=1 in each sub model
-        if xp.any(~(xp.around(xp.sum(self.y.N, axis=0), 2) == 1.0)):
-            logging.debug(xp.argwhere(xp.any(~(xp.around(xp.sum(self.y.N, axis=0), 2) == 1.0), axis=0)))
-            logging.info("N!=1 in the state vector, something is wrong with init")
-            raise SimulationException
-
-        # Assert state is non negative
-        if xp.any(~(xp.around(self.y.state, 4) >= 0.0)):
-            logging.debug(xp.argwhere(xp.any(~(xp.around(self.y.state, 4) >= 0.0), axis=0)))
-            logging.info("negative values in the state vector, something is wrong with init")
-            raise SimulationException
 
         if self.debug:
             logging.debug("done reset()")
