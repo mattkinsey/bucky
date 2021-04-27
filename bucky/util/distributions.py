@@ -1,10 +1,10 @@
 """Provide probability distributions used by the model that aren't in numpy/cupy."""
 
+from functools import partial
 import numpy as np
 import scipy.special as sc
 
 from ..numerical_libs import reimport_numerical_libs, xp
-from functools import partial
 
 
 def kumaraswamy_invcdf(a, b, u):
@@ -97,6 +97,7 @@ def truncnorm(loc=0.0, scale=1.0, size=None, a_min=None, a_max=None):
 
 
 def truncnorm_from_CI(CI, size=1, a_min=None, a_max=None):
+    """Truncnorm implementation that first derives mean and standard deviation from a 95% confidence interval."""
     lower, upper = CI
     std95 = xp.sqrt(1.0 / 0.05)
     mean = (upper + lower) / 2.0
@@ -104,19 +105,13 @@ def truncnorm_from_CI(CI, size=1, a_min=None, a_max=None):
     return truncnorm(mean, stddev, size, a_min, a_max)
 
 
-class Distribution:
-    def __init__(self, base_func, params: dict, interp: partial, clip: partial):
-        self.base_func = base_func
-        self.params = params
-        self.interp = interp
-        self.clip = clip
-
-    def get_val(self):
-        val = self.base_func(**self.params)
-        if self.clip is not None:
-            val = self.clip(val)
-        if self.interp is not None:
-            val = self.interp(y=val)
-            if self.clip is not None:
-                val = self.clip(val)
-        return val
+def generic_distribution(base_func, params: dict, interp: partial, clip: partial):
+    """Return value sampled from basic distribution, with additional interpolation and clipping."""
+    val = base_func(**params)
+    if clip is not None:
+        val = clip(val)
+    if interp is not None:
+        val = interp(y=val)
+        if clip is not None:
+            val = clip(val)
+    return val

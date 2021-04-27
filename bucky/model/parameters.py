@@ -1,14 +1,14 @@
 """Submodule to handle the model parameterization and randomization"""
 import logging
 
+from os import path, listdir
+from functools import partial
+
 import yaml
 
 from ..numerical_libs import reimport_numerical_libs, xp
 from ..util import dotdict, distributions
-from ..util.distributions import Distribution
-
-from functools import partial
-from os import path, listdir
+from ..util.distributions import generic_distribution
 
 
 def calc_Te(Tg, Ts, n, f):
@@ -76,6 +76,7 @@ class buckyParams:
             self._generate_param_funcs(base_params)
 
     def update_params(self, par_file):
+        """Update parameter distributions, consts, and dists from new yaml file."""
         base_params = self.read_yml(par_file)
         self._update_params(base_params)
 
@@ -98,11 +99,11 @@ class buckyParams:
             files = [par_file]
         # Read in first parameter file
         with open(path.join(root, files[0]), "rb") as f:
-            d = yaml.load(f, yaml.SafeLoader)  # nosec
+            d = yaml.safe_load(f)  # nosec
         # Update dictionary with additional parameter files
         for filename in files[1:]:
             with open(path.join(root, filename), "rb") as f:
-                dp = yaml.load(f, yaml.SafeLoader)
+                dp = yaml.safe_load(f)
                 d = recursive_dict_update(d, dp)
         return d
 
@@ -141,7 +142,8 @@ class buckyParams:
             elif "age_bins" in params:
                 a_min = params.get("a_min")
                 a_max = params.get("a_max")
-                clip = partial(xp.clip, a_min=a_min, a_max=a_max)
+                if a_min is not None or a_max is not None:
+                    clip = partial(xp.clip, a_min=a_min, a_max=a_max)
 
             # Interpolate function
             interp = None
@@ -161,9 +163,10 @@ class buckyParams:
 
             params = {k: xp.array(v) for k, v in params.items()}
 
-            param_funcs[p] = Distribution(base_func, params, interp, clip)
+            param_funcs[p] = partial(generic_distribution, base_func=base_func, params=params, interp=interp, clip=clip)
 
     def reroll_params(self):
+        """Sample each parameter from distribution and calculate derived parameters."""
         return self.calc_derived_params(dotdict({p: f.get_val() for p, f in self.param_funcs.items()}))
 
     @staticmethod
@@ -176,8 +179,7 @@ class buckyParams:
             x_mean_new = xp.mean(x_bins_new, axis=1)
             x_mean = xp.mean(x_bins, axis=1)
             return xp.interp(x_mean_new, x_mean, y)
-        else:
-            return y
+        return y
 
     def calc_derived_params(self, params):
         """Add the derived params that are calculated from the rerolled ones"""
