@@ -4,6 +4,7 @@ import numpy as np
 import scipy.special as sc
 
 from ..numerical_libs import reimport_numerical_libs, xp
+from functools import partial
 
 
 def kumaraswamy_invcdf(a, b, u):
@@ -65,7 +66,7 @@ def mPERT_sample(mu, a=0.0, b=1.0, gamma=4.0, var=None):
     return (b - a) * alp3 + a
 
 
-def truncnorm(loc=0.0, scale=1.0, size=1, a_min=None, a_max=None):
+def truncnorm(loc=0.0, scale=1.0, size=None, a_min=None, a_max=None):
     """Provide a vectorized truncnorm implementation that is compatible with cupy.
 
     The output is calculated by using the numpy/cupy random.normal() and
@@ -92,4 +93,28 @@ def truncnorm(loc=0.0, scale=1.0, size=1, a_min=None, a_max=None):
         valid = (ret > a_min) & (ret < a_max)
         if valid.all():
             return ret
-        ret[~valid] = xp.random.normal(loc, scale, ret[~valid].shape)
+        ret[~valid] = xp.random.normal(loc, scale, size)[~valid]
+
+
+def truncnorm_from_CI(CI, size=1, a_min=None, a_max=None):
+    lower, upper = CI
+    std95 = xp.sqrt(1.0 / 0.05)
+    mean = (upper + lower) / 2.0
+    stddev = (upper - lower) / std95 / 2.0
+    return truncnorm(mean, stddev, size, a_min, a_max)
+
+
+class Distribution:
+    def __init__(self, base_func, params: dict, interp: partial, clip: partial):
+        self.base_func = base_func
+        self.params = params
+        self.interp = interp
+        self.clip = clip
+
+    def get_val(self):
+        val = self.base_func(**self.params)
+        if self.interp is not None:
+            val = self.interp(y=val)
+        if self.clip is not None:
+            val = self.clip(val)
+        return val

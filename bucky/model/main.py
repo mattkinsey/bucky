@@ -247,7 +247,7 @@ class buckyModelCovid:
 
         # reroll model params if we're doing that kind of thing
         self.g_data.Aij.perturb(self.consts.reroll_variance)
-        self.params = self.bucky_params.generate_params(self.consts.reroll_variance)
+        self.params = self.bucky_params.generate_params()
 
         if params is not None:
             self.params = copy.deepcopy(params)
