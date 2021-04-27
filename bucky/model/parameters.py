@@ -167,7 +167,7 @@ class buckyParams:
 
     def reroll_params(self):
         """Sample each parameter from distribution and calculate derived parameters."""
-        return self.calc_derived_params(dotdict({p: f.get_val() for p, f in self.param_funcs.items()}))
+        return self.calc_derived_params(dotdict({p: f() for p, f in self.param_funcs.items()}))
 
     @staticmethod
     def age_interp(x_bins_new, x_bins, y):
