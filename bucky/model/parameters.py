@@ -70,7 +70,7 @@ class buckyParams:
 
         if par_file is not None:
             base_params = self.read_yml(par_file)
-            self.consts = dotdict(base_params["consts"])
+            self.consts = dotdict({k: xp.array(v) for k, v in base_params["consts"].items()})
             self.dists = dotdict(base_params["dists"])
             self._generate_param_funcs(base_params)
 
@@ -79,7 +79,7 @@ class buckyParams:
         self._update_params(base_params)
 
     def _update_params(self, update_dict):
-        self.consts = recursive_dict_update(self.consts, update_dict["consts"])
+        self.consts = recursive_dict_update(self.consts, {k: xp.array(v) for k, v in update_dict["consts"].items()})
         self.dists = recursive_dict_update(self.dists, update_dict["dists"])
         self._generate_param_funcs(update_dict)
 
@@ -95,6 +95,8 @@ class buckyParams:
         while True:  # WTB python do-while...
             params = self.reroll_params()
             if self.consts.Te_min < params.Te < params.Tg and params.Ti > self.consts.Ti_min:
+                params.consts = self.consts
+                params.dists = self.dists
                 return params
             # logging.debug("Rejected params: " + pformat(params))
 
