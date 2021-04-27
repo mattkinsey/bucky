@@ -42,11 +42,9 @@ def estimate_Rt(
         d = i + 1
         Rt[i] = rolling_case_hist_adm0[-d] / (xp.sum(w[d:, None] * tot_case_hist_adm0[:-d], axis=0))
 
-    # TODO update to harm mean
-    if use_geo_mean:
-        Rt = xp.exp(xp.mean(xp.log(Rt), axis=0))
-    else:
-        Rt = xp.mean(Rt, axis=0)
+    # Take harmonic mean
+    Rt[~(Rt > 0.0)] = xp.nan
+    Rt = 1.0 / xp.nanmean(1.0 / Rt, axis=0)
 
     Rt_out = xp.full((rolling_case_hist.shape[1],), Rt)
 
@@ -60,11 +58,9 @@ def estimate_Rt(
         d = i + 1
         Rt[i] = rolling_case_hist_adm1[-d] / (xp.sum(w[d:, None] * tot_case_hist_adm1[:-d], axis=0))
 
-    # TODO update to harm mean (or make switchable)
-    if use_geo_mean:
-        Rt = xp.exp(xp.mean(xp.log(Rt), axis=0))
-    else:
-        Rt = xp.mean(Rt, axis=0)
+    # take harmonic mean
+    Rt[~(Rt > 0.0)] = xp.nan
+    Rt = 1.0 / xp.nanmean(1.0 / Rt, axis=0)
 
     # TODO we should mask this before projecting it to adm2...
     Rt = Rt[g_data.adm1_id]
