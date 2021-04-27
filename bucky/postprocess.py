@@ -1,5 +1,6 @@
 """Postprocesses data across dates and simulation runs before aggregating at geographic levels (ADM0, ADM1, or ADM2)."""
 import argparse
+import gc
 import glob
 import importlib
 import logging
@@ -185,7 +186,7 @@ def main(args=None):
     data_dir = os.path.join(args.file, "data/")
     metadata_dir = os.path.join(args.file, "metadata/")
 
-    dataset = ds.dataset(data_dir, format="parquet", partitioning=["date"])
+    # dataset = ds.dataset(data_dir, format="parquet", partitioning=["date"])
 
     adm_mapping = pd.read_csv(os.path.join(metadata_dir, "adm_mapping.csv"))
     dates = pd.read_csv(os.path.join(metadata_dir, "dates.csv"))
@@ -281,6 +282,7 @@ def main(args=None):
     percentiles = xp.array(quantiles, dtype=np.float64) * 100.0
     quantiles = np.array(quantiles)
     for date in tqdm.tqdm(dates):
+        dataset = ds.dataset(data_dir, format="parquet", partitioning=["date"])
         table = dataset.to_table(filter=ds.field("date") == "date=" + date)
         table = table.drop(("date", "rid", "adm2_id"))  # we don't need these b/c metadata
         pop_weight_table = table.select(pop_weighted_cols)
@@ -327,6 +329,9 @@ def main(args=None):
                 all_q_data[col] = xp.to_cpu(all_q_data[col].T.ravel())
 
             write_queue.put((os.path.join(output_dir, level + "_quantiles.csv"), all_q_data))
+
+        del dataset
+        gc.collect()
 
     write_queue.put(None)  # send signal to term loop
     write_thread.join()  # join the write_thread
