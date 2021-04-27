@@ -113,8 +113,10 @@ class Distribution:
 
     def get_val(self):
         val = self.base_func(**self.params)
-        if self.interp is not None:
-            val = self.interp(y=val)
         if self.clip is not None:
             val = self.clip(val)
+        if self.interp is not None:
+            val = self.interp(y=val)
+            if self.clip is not None:
+                val = self.clip(val)
         return val

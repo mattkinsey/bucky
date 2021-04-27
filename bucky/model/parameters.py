@@ -111,6 +111,7 @@ class buckyParams:
         while True:  # WTB python do-while...
             params = self.reroll_params()
             if self.consts.Te_min < params.Te < params.Tg and params.Ti > self.consts.Ti_min:
+                # TODO use self.consts and self.dists instead of storing these in params
                 params.consts = self.consts
                 params.dists = self.dists
                 return params
