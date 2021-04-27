@@ -8,6 +8,7 @@ from ..util import dotdict, distributions
 from ..util.distributions import Distribution
 
 from functools import partial
+from os import path, listdir
 
 
 def calc_Te(Tg, Ts, n, f):
@@ -87,8 +88,23 @@ class buckyParams:
     def read_yml(par_file):
         """Read in the YAML par file"""
         # TODO check file exists
-        with open(par_file, "rb") as f:
-            return yaml.load(f, yaml.SafeLoader)  # nosec
+        # If par_file is a directory, read files in alphanumeric order
+        if path.isdir(par_file):
+            root = par_file
+            files = listdir(par_file)
+            files.sort()
+        else:
+            root = ""
+            files = [par_file]
+        # Read in first parameter file
+        with open(path.join(root, files[0]), "rb") as f:
+            d = yaml.load(f, yaml.SafeLoader)  # nosec
+        # Update dictionary with additional parameter files
+        for filename in files[1:]:
+            with open(path.join(root, filename), "rb") as f:
+                dp = yaml.load(f, yaml.SafeLoader)
+                d = recursive_dict_update(d, dp)
+        return d
 
     def generate_params(self):
         """Generate a new set of params by rerolling, adding the derived params and rejecting invalid sets"""
