@@ -710,9 +710,7 @@ class buckyModelCovid:
                 df_data["current_vent_usage"] = xp.sum(vent, axis=0)
 
         if "daily_deaths" in columns:
-            # prepend the min cumulative cases over the last 2 days in case in the decreased
-            prepend_deaths = xp.minimum(self.g_data.cum_death_hist[-2], self.g_data.cum_death_hist[-1])
-            daily_deaths = xp.diff(out.D, prepend=prepend_deaths[:, None], axis=-1)
+            daily_deaths = xp.gradient(out.D, axis=-1, edge_order=2)
             df_data["daily_deaths"] = daily_deaths
 
             if self.reject_runs:
@@ -727,9 +725,7 @@ class buckyModelCovid:
                     raise SimulationException
 
         if "daily_cases" in columns or "daily_reported_cases" in columns:
-            # prepend the min cumulative cases over the last 2 days in case in the decreased
-            prepend_cases = xp.minimum(self.g_data.cum_case_hist[-2], self.g_data.cum_case_hist[-1])
-            daily_reported_cases = xp.diff(out.incC, axis=-1, prepend=prepend_cases[:, None])
+            daily_reported_cases = xp.gradient(out.incC, axis=-1, edge_order=2)
 
             if self.reject_runs:
                 init_inc_case_mean = xp.mean(xp.sum(daily_reported_cases[:, 1:4], axis=0))
@@ -759,7 +755,7 @@ class buckyModelCovid:
 
         if "daily_hospitalizations" in columns:
             out.incH[:, 0] = out.incH[:, 1]
-            daily_hosp = xp.diff(out.incH, axis=-1, prepend=out.incH[:, 0][..., None])
+            daily_hosp = xp.gradient(out.incH, axis=-1, edge_order=2)
             df_data["daily_hospitalizations"] = daily_hosp
 
         if "total_population" in columns:
@@ -879,8 +875,6 @@ def main(args=None):
     pbar = tqdm.tqdm(total=args.n_mc, desc="Performing Monte Carlos", dynamic_ncols=True)
     try:
         while success < args.n_mc:
-            # from IPython import embed
-            # embed()
             mc_seed = seed_seq.spawn(1)[0].generate_state(1)[0]  # inc spawn key then grab next seed
             pbar.set_postfix_str(
                 "seed="

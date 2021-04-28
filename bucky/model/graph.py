@@ -208,7 +208,7 @@ def _read_node_attr(G, name, diff=False, dtype=xp.float32, a_min=None, a_max=Non
         arr = xp.clip(arr, a_min=a_min, a_max=a_max)
 
     if diff:
-        arr_diff = xp.diff(arr, axis=0).astype(dtype)
+        arr_diff = xp.gradient(arr, axis=0, edge_order=2).astype(dtype)
         if clipping:
             arr_diff = xp.clip(arr_diff, a_min=a_min, a_max=a_max)
         return arr, arr_diff
