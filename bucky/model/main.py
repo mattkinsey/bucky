@@ -843,12 +843,19 @@ def main(args=None):
         """Write thread loop that pulls from an async queue"""
         # Call to_write.get() until it returns None
         stream = xp.cuda.Stream(non_blocking=True) if args.gpu else None
+        pinned_mem = {}
         for base_fname, df_data in iter(to_write.get, None):
-            cpu_data = {k: xp.to_cpu(v, stream=stream) for k, v in df_data.items()}
-            cpu_data = {k: pa.array(xp.to_cpu(v, stream=stream)) for k, v in df_data.items()}
+            for k, v in df_data.items():
+                if k not in pinned_mem:
+                    pinned_mem[k] = xp.empty_like_pinned(v)
+
+                xp.to_cpu(v, stream=stream, out=pinned_mem[k])
+
             if stream is not None:
                 stream.synchronize()
-            table = pa.table(cpu_data, nthreads=8)
+
+            pa_data = {k: pa.array(v) for k, v in pinned_mem.items()}
+            table = pa.table(pa_data)
             pap.write_to_dataset(table, base_fname, partition_cols=["date"])
 
     write_thread = threading.Thread(target=writer, daemon=True)
