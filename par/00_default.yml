@@ -1,3 +1,5 @@
+# Default model parameters, epi params are largely drawn from CDC planning scenario 5:
+# https://www.cdc.gov/coronavirus/2019-ncov/hcp/planning-scenarios.html
 ---
 consts:
   En: 3
