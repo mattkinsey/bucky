@@ -8,6 +8,7 @@ import os
 import queue
 import sys
 import threading
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -22,6 +23,8 @@ from .numerical_libs import enable_cupy, reimport_numerical_libs, xp
 from .util.read_config import bucky_cfg
 from .viz.geoid import read_lookup
 
+# supress pandas warning caused by pyarrow and the cupy asyncmempool
+warnings.simplefilter(action="ignore", category=FutureWarning)
 cupy_found = importlib.util.find_spec("cupy") is not None
 
 # Initialize argument parser

@@ -119,7 +119,8 @@ def enable_cupy(optimize=False):
     import cupy as cp  # pylint: disable=import-outside-toplevel
     import numpy as np  # pylint: disable=import-outside-toplevel, reimported
 
-    cp.cuda.set_allocator(cp.cuda.MemoryPool(cp.cuda.memory.malloc_managed).malloc)
+    # cp.cuda.set_allocator(cp.cuda.MemoryPool(cp.cuda.memory.malloc_managed).malloc)
+    cp.cuda.set_allocator(cp.cuda.MemoryAsyncPool().malloc)
 
     def scipy_import_replacement(src):
         """Perform the required numpy->cupy str replacements on the scipy source files"""
