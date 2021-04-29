@@ -49,8 +49,7 @@ class buckyGraphData:
             rmedian = rmedian.T
             tmp = arrs[0].copy()
             arrs[0][mask] = rmedian[mask]
-            cum_change = xp.zeros_like(arrs[1])
-            cum_change[1:] = xp.cumsum(tmp - arrs[0], axis=0)
+            cum_change = xp.cumsum(tmp - arrs[0], axis=0)
             arrs[1][:] = cum_arr - cum_change
 
         # TODO add adm0 to support multiple countries
