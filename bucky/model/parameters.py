@@ -1,13 +1,12 @@
 """Submodule to handle the model parameterization and randomization"""
 import logging
-
-from os import path, listdir
 from functools import partial
+from os import listdir, path
 
 import yaml
 
 from ..numerical_libs import reimport_numerical_libs, xp
-from ..util import dotdict, distributions
+from ..util import distributions, dotdict
 from ..util.distributions import generic_distribution
 
 
