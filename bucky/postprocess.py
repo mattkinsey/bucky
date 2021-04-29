@@ -25,6 +25,7 @@ from .viz.geoid import read_lookup
 
 # supress pandas warning caused by pyarrow and the cupy asyncmempool
 warnings.simplefilter(action="ignore", category=FutureWarning)
+
 cupy_found = importlib.util.find_spec("cupy") is not None
 
 # Initialize argument parser
@@ -285,9 +286,9 @@ def main(args=None):
 
     percentiles = xp.array(quantiles, dtype=np.float64) * 100.0
     quantiles = xp.array(quantiles)
-    for i, date in enumerate(tqdm.tqdm(dates)):
+    for date_i, date in enumerate(tqdm.tqdm(dates)):
         dataset = ds.dataset(data_dir, format="parquet", partitioning=["date"])
-        table = dataset.to_table(filter=ds.field("date") == "date=" + str(i))
+        table = dataset.to_table(filter=ds.field("date") == "date=" + str(date_i))
         table = table.drop(("date", "rid", "adm2_id"))  # we don't need these b/c metadata
         pop_weight_table = table.select(pop_weighted_cols)
         table = table.drop(pop_weighted_cols)

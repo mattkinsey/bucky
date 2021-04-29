@@ -15,7 +15,6 @@ import os
 import ssl
 import subprocess
 import urllib.request
-from datetime import datetime
 
 import numpy as np
 import pandas as pd

@@ -45,7 +45,7 @@ def get_runid():  # TODO move to util and rename to timeid or something
 
 
 def frac_last_n_vals(arr, n, axis=0, offset=0):  # TODO assumes come from end of array currently, move to util
-    """Return the last n values along an axis of an array; if n is a float, include the fractional amount of the int(n)-1 element"""
+    """Return the last n values of an array; if n is a float, including fractional amounts"""
     int_slice_ind = (
         [slice(None)] * (axis)
         + [slice(-int(n + offset), -int(xp.ceil(offset)) or None)]
@@ -110,6 +110,7 @@ class buckyModelCovid:
         self.g_data = self.load_graph(graph_file)
 
     def update_params(self, update_dict):
+        """Update the params based of a dict of new values"""
         self.bucky_params.update_params(update_dict)
         self.consts = self.bucky_params.consts
         self.dists = self.bucky_params.dists
@@ -603,7 +604,8 @@ class buckyModelCovid:
         pbar.close()
         return ret
 
-    # TODO Move this to a class thats like run_parser or something (that caches all the info it needs like Nij, and manages the write thread/queue)
+    # TODO Move this to a class thats like run_parser or something
+    # (that caches all the info it needs like Nij, and manages the write thread/queue)
     # Also give it methods like to_dlpack, to_pytorch, etc
     def save_run(self, sol, base_filename, seed, output_queue):
         """Postprocess and write to disk the output of run_once"""
