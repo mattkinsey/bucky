@@ -2,41 +2,30 @@
 import argparse
 import gc
 import glob
+import importlib
 import logging
 import os
-from multiprocessing import JoinableQueue, Pool, Process
+import queue
+import sys
+import threading
+import warnings
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pyarrow as pa
+import pyarrow.compute as pac
+import pyarrow.dataset as ds
+import pyarrow.types as pat
 import tqdm
 
-from .numerical_libs import use_cupy
+from .numerical_libs import enable_cupy, reimport_numerical_libs, xp
 from .util.read_config import bucky_cfg
-from .viz.geoid import read_geoid_from_graph, read_lookup
+from .viz.geoid import read_lookup
 
-
-def divide_by_pop(dataframe, cols):
-    """Given a dataframe and list of columns, divides the columns by the population column ('N').
-
-    Parameters
-    ----------
-    dataframe : pandas.DataFrame
-        Simulation data
-    cols : list of str
-        Column names to scale by population
-
-    Returns
-    -------
-    dataframe : pandas.DataFrame
-        Original dataframe with the requested columns scaled
-
-    """
-    for col in cols:
-        dataframe[col] = dataframe[col] / dataframe["total_population"]
-
-    return dataframe
-
+# supress pandas warning caused by pyarrow and the cupy asyncmempool
+warnings.simplefilter(action="ignore", category=FutureWarning)
+cupy_found = importlib.util.find_spec("cupy") is not None
 
 # Initialize argument parser
 parser = argparse.ArgumentParser(description="Bucky Model postprocessing")
@@ -136,39 +125,37 @@ parser.add_argument(
     help="Lookup table defining geoid relationships",
 )
 
-parser.add_argument(
-    "-n",
-    "--nprocs",
-    default=1,
-    type=int,
-    help="Number of threads doing aggregations, more is better till you go OOM...",
-)
 
-parser.add_argument("-cpu", "--cpu", action="store_true", help="Do not use cupy")
+parser.add_argument("-gpu", "--gpu", action="store_true", default=cupy_found, help="Use cupy instead of numpy")
 
 parser.add_argument("--verify", action="store_true", help="Verify the quality of the data")
 
-parser.add_argument(
-    "--no-sort",
-    "--no_sort",
-    action="store_true",
-    help="Skip sorting the aggregated files",
-)
 
 # Optional flags
 parser.add_argument("-v", "--verbose", action="store_true", help="Print extra information")
 
-if __name__ == "__main__":
 
+# TODO move this to util
+def pinned_array(array):
+    """Allocate a cudy pinned array that shares mem with an input numpy array"""
+    # first constructing pinned memory
+    mem = xp.cuda.alloc_pinned_memory(array.nbytes)
+    src = np.frombuffer(mem, array.dtype, array.size).reshape(array.shape)
+    src[...] = array
+    return src
+
+
+def main(args=None):
+    """Main method for postprocessing the raw outputs from an MC run"""
+    if args is None:
+        args = sys.argv[1:]
     args = parser.parse_args()
-
-    # set_start_method("fork")
 
     # Start parsing args
     quantiles = args.quantiles
     verbose = args.verbose
     prefix = args.prefix
-    use_gpu = not args.cpu
+    use_gpu = args.gpu
 
     if verbose:
         logging.info(args)
@@ -181,12 +168,12 @@ if __name__ == "__main__":
         os.makedirs(top_output_dir)
 
     # Use lookup, add prefix
+    # TODO need to handle lookup weights
     if args.lookup is not None:
         lookup_df = read_lookup(args.lookup)
         if prefix is None:
             prefix = Path(args.lookup).stem
-    else:
-        lookup_df = read_geoid_from_graph(args.graph_file)
+    # TODO if args.lookup we need to check it for weights
 
     # Create subfolder for this run using UUID of run
     uuid = args.file.split("/")[-2]
@@ -199,226 +186,167 @@ if __name__ == "__main__":
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # Get aggregation levels
-    agg_levels = args.levels
+    data_dir = os.path.join(args.file, "data/")
+    metadata_dir = os.path.join(args.file, "metadata/")
 
-    lookup_df = lookup_df.set_index("adm2")
+    # dataset = ds.dataset(data_dir, format="parquet", partitioning=["date"])
 
-    admin2_key = "adm2_id"
+    adm_mapping = pd.read_csv(os.path.join(metadata_dir, "adm_mapping.csv"))
+    dates = pd.read_csv(os.path.join(metadata_dir, "dates.csv"))
+    dates = dates["date"].to_numpy()
 
-    all_files = glob.glob(args.file + "/*.feather")
-    all_files_df = pd.DataFrame(
-        [x.split("/")[-1].split(".")[0].split("_") for x in all_files],
-        columns=["rid", "date"],
-    )
-    dates = all_files_df.date.unique().tolist()
+    n_adm2 = len(adm_mapping)
+    adm2_sorted_ind = xp.argsort(xp.array(adm_mapping["adm2"].to_numpy()))
 
-    to_write = JoinableQueue()
+    if use_gpu:
+        enable_cupy(optimize=True)
+        reimport_numerical_libs("postprocess")
 
-    def _writer(q):
+    per_capita_cols = [
+        "cumulative_reported_cases",
+        "cumulative_deaths",
+        "current_hospitalizations",
+        "daily_reported_cases",
+        "daily_deaths",
+    ]
+    pop_weighted_cols = [
+        "case_reporting_rate",
+        "R_eff",
+    ]
+
+    adm_mapping["adm0"] = 1
+    adm_map = adm_mapping.to_dict(orient="list")
+    adm_map = {k: xp.array(v)[adm2_sorted_ind] for k, v in adm_map.items()}
+    adm_array_map = {k: xp.unique(v, return_inverse=True)[1] for k, v in adm_map.items()}
+    adm_sizes = {k: xp.to_cpu(xp.max(v) + 1).item() for k, v in adm_array_map.items()}
+    adm_level_values = {k: xp.to_cpu(xp.unique(v)) for k, v in adm_map.items()}
+    adm_level_values["adm0"] = np.array(["US"])
+
+    if args.lookup is not None and "weight" in lookup_df.columns:
+        weight_series = lookup_df.set_index("adm2")["weight"].reindex(adm_mapping["adm2"], fill_value=0.0)
+        weights = np.array(weight_series.to_numpy(), dtype=np.float32)
+        # TODO we should ignore all the adm2 not in weights rather than just 0ing them (it'll go alot faster)
+    else:
+        weights = np.ones_like(adm2_sorted_ind, dtype=np.float32)
+
+    write_queue = queue.Queue()
+
+    def _writer():
         """Write thread that will pull from a queue"""
         # Call to_write.get() until it returns None
-        has_header_dict = {}
-        for fname, df in iter(q.get, None):
-            if fname in has_header_dict:
-                df.to_csv(fname, header=False, mode="a")
+        file_tables = {}
+        for fname, q_dict in iter(write_queue.get, None):
+            df = pd.DataFrame(q_dict)
+            id_col = df.columns[df.columns.str.contains("adm.")].values[0]
+            df = df.set_index([id_col, "date", "quantile"])
+            df = df.reindex(sorted(df.columns), axis=1)
+            if fname in file_tables:
+                tmp = pa.table(q_dict)
+                file_tables[fname] = pa.concat_tables([file_tables[fname], tmp])
             else:
-                df.to_csv(fname, header=True, mode="w")
-                has_header_dict[fname] = True
-            q.task_done()
-        q.task_done()
+                file_tables[fname] = pa.table(q_dict)
+            write_queue.task_done()
 
-    write_thread = Process(target=_writer, args=(to_write,))
-    write_thread.deamon = True
+        # dump tables to disk
+        for fname in tqdm.tqdm(file_tables):
+            df = file_tables[fname].to_pandas()
+            id_col = df.columns[df.columns.str.contains("adm.")].values[0]
+            df = df.set_index([id_col, "date", "quantile"])
+            df = df.reindex(sorted(df.columns), axis=1)
+            df.to_csv(fname, header=True, mode="w")
+        write_queue.task_done()
+
+    write_thread = threading.Thread(target=_writer, daemon=True)
     write_thread.start()
 
-    def _process_date(date, write_queue=to_write):
-        """Perform the postprocessing for all the MC runs for a single output date"""
-        date_files = glob.glob(args.file + "/*_" + str(date) + ".feather")  # [:NFILES]
+    # TODO this depends on out of scope vars, need to clean that up
+    def pa_array_quantiles(array, level):
+        """Calculate the quantiles of a pyarrow array after shipping it to the GPU"""
+        data = array.to_numpy().reshape(-1, n_adm2)
+        data = data[:, adm2_sorted_ind]
 
-        # Read feather files
-        run_data = [pd.read_feather(f) for f in date_files]
-        tot_df = pd.concat(run_data)
+        data_gpu = xp.array(data.T)
 
-        # force GC to free up lingering cuda allocs
-        del run_data
+        if adm_sizes[level] == 1:
+            # TODO need switching here b/c cupy handles xp.percentile weird with a size 1 dim :(
+            if use_gpu:
+                level_data_gpu = xp.sum(data_gpu, axis=0)  # need this if cupy
+            else:
+                level_data_gpu = xp.sum(data_gpu, axis=0, keepdims=True).T  # for numpy
+            q_data_gpu = xp.empty((len(percentiles), adm_sizes[level]), dtype=level_data_gpu.dtype)
+            # It appears theres a cupy bug when the 1st axis of the array passed to percentiles has size 1
+            xp.percentile(level_data_gpu, q=percentiles, axis=0, out=q_data_gpu)
+        else:
+            level_data_gpu = xp.zeros((adm_sizes[level], data_gpu.shape[1]), dtype=data_gpu.dtype)
+            xp.scatter_add(level_data_gpu, adm_array_map[level], data_gpu)
+            q_data_gpu = xp.empty((len(percentiles), adm_sizes[level]), dtype=level_data_gpu.dtype)
+            xp.percentile(level_data_gpu, q=percentiles, axis=1, out=q_data_gpu)
+        return q_data_gpu
+
+    percentiles = xp.array(quantiles, dtype=np.float64) * 100.0
+    quantiles = xp.array(quantiles)
+    for i, date in enumerate(tqdm.tqdm(dates)):
+        dataset = ds.dataset(data_dir, format="parquet", partitioning=["date"])
+        table = dataset.to_table(filter=ds.field("date") == "date=" + str(i))
+        table = table.drop(("date", "rid", "adm2_id"))  # we don't need these b/c metadata
+        pop_weight_table = table.select(pop_weighted_cols)
+        table = table.drop(pop_weighted_cols)
+
+        w = np.ravel(np.broadcast_to(weights, (table.shape[0] // weights.shape[0], weights.shape[0])))
+        for i, col in enumerate(table.column_names):
+            if pat.is_float64(table.column(i).type):
+                typed_w = w.astype(np.float64)
+            else:
+                typed_w = w.astype(np.float32)
+
+            tmp = pac.multiply_checked(table.column(i), typed_w)
+            table = table.set_column(i, col, tmp)
+
+        for col in pop_weighted_cols:
+            if pat.is_float64(pop_weight_table[col].type):
+                typed_w = table["total_population"].to_numpy().astype(np.float64)
+            else:
+                typed_w = table["total_population"].to_numpy().astype(np.float32)
+            tmp = pac.multiply_checked(pop_weight_table[col], typed_w)
+            table = table.append_column(col, tmp)
+
+        for level in args.levels:
+            all_q_data = {}
+            for col in table.column_names:  # TODO can we do all at once since we dropped date?
+                all_q_data[col] = pa_array_quantiles(table[col], level)
+
+            # all_q_data = {col: pa_array_quantiles(table[col]) for col in table.column_names}
+
+            # we could do this outside the date loop and cache for each adm level...
+            out_shape = (len(percentiles),) + adm_level_values[level].shape
+            all_q_data[level] = np.broadcast_to(adm_level_values[level], out_shape)
+            all_q_data["date"] = np.broadcast_to(date, out_shape)
+            all_q_data["quantile"] = np.broadcast_to(quantiles[..., None], out_shape)
+
+            for col in per_capita_cols:
+                all_q_data[col + "_per_100k"] = 100000.0 * all_q_data[col] / all_q_data["total_population"]
+
+            for col in pop_weighted_cols:
+                all_q_data[col] = all_q_data[col] / all_q_data["total_population"]
+
+            for col in all_q_data:
+                all_q_data[col] = xp.to_cpu(all_q_data[col].T.ravel())
+
+            write_queue.put((os.path.join(output_dir, level + "_quantiles.csv"), all_q_data))
+
+        del dataset
         gc.collect()
 
-        # Get start date of simulation
-        # start_date = tot_df["date"].min()
-
-        # If user passes in an end date, use it
-        if args.end_date is not None:
-            end_date = pd.to_datetime(args.end_date)
-
-        # Otherwise use last day in data
-        else:
-            end_date = tot_df["date"].max()
-
-        # Drop data not within requested time range
-        tot_df = tot_df.loc[(tot_df["date"] <= end_date)]
-
-        # Some lookups only contain a subset of counties, drop extras if necessary
-        # TODO this replaced with a left join now that the keys are consistant (if its faster)
-        unique_adm2 = lookup_df.index
-        tot_df = tot_df.loc[tot_df[admin2_key].isin(unique_adm2)]
-
-        # List of columns that will be output per 100k population as well
-        per_capita_cols = [
-            "cumulative_reported_cases",
-            "cumulative_deaths",
-            "current_hospitalizations",
-            "daily_reported_cases",
-            "daily_deaths",
-        ]
-
-        # Multiply column by N, then at end divide by aggregated N
-        pop_mean_cols = ["case_reporting_rate", "R_eff", "doubling_t"]
-        for col in pop_mean_cols:
-            tot_df[col] = tot_df[col] * tot_df["total_population"]
-
-        # No columns should contain negatives or NaNs
-        nan_vals = tot_df.isna().sum()
-        if nan_vals.sum() > 0:
-            logging.error("NANs are present in output data: \n" + str(nan_vals))
-
-        numerical_cols = tot_df.columns.difference(["date"])
-
-        if "weight" in lookup_df.columns:
-            logging.info("Applying weights from lookup table.")
-            scale_cols = tot_df.columns.difference(["date", admin2_key, "rid", *pop_mean_cols])
-            lookup_df.index.names = [admin2_key]
-            tot_df = tot_df.set_index([admin2_key, "date", "rid"])
-            tot_df[scale_cols] = tot_df[scale_cols].mul(lookup_df["weight"], axis=0, level=0)
-            tot_df = tot_df.reset_index()
-
-        if args.verify:
-            # Check all columns except date for negative values
-            if (tot_df[numerical_cols].lt(-1).sum() > 0).any():  # TODO this drop does a deep copy and is super slow
-                logging.error("Negative values are present in output data.")
-
-            # Check for floating point errors
-            if (tot_df[numerical_cols].lt(0).sum() > 0).any():  # TODO same here
-                logging.warning("Floating point errors are present in output data.")
-
-        # remove any slight negatives from the integration
-        tot_df[numerical_cols] = tot_df[numerical_cols].clip(lower=0.0)
-
-        # NB: this has to happen after we fork the process
-        # see e.g. https://github.com/chainer/chainer/issues/1087
-        if use_gpu:
-            use_cupy(optimize=True)
-        from .numerical_libs import xp  # isort:skip  # pylint: disable=import-outside-toplevel
-
-        for level in agg_levels:
-
-            logging.info("Currently processing: " + level)
-
-            if level != "adm2":
-
-                # Create a mapping for aggregation level
-                level_dict = lookup_df[level].to_dict()
-                levels = np.unique(list(level_dict.values()))
-            else:
-                levels = lookup_df.index.values
-                level_dict = {x: x for x in levels}
-
-            level_map = dict(enumerate(levels))
-            level_inv_map = {v: k for k, v in level_map.items()}
-
-            # Apply map
-            tot_df[level] = tot_df[admin2_key].map(level_dict).map(level_inv_map).astype(int)
-
-            # Compute quantiles
-
-            def quantiles_group(tot_df):
-                """Calculate the quantiles for a single region"""
-                # TODO why is this in the for loop? pretty sure we can move it but check for deps
-                # Kernel opt currently only works on reductions (@v8.0.0) but maybe someday it'll help here
-                with xp.optimize_kernels():
-                    # can we do this pivot in cupy?
-                    tot_df_stacked = tot_df.stack()
-                    tot_df_unstack = tot_df_stacked.unstack("rid")
-                    percentiles = xp.array(quantiles) * 100.0
-                    test = xp.percentile(xp.array(tot_df_unstack.to_numpy()), q=percentiles, axis=1)
-                    q_df = (
-                        pd.DataFrame(
-                            xp.to_cpu(test.T),
-                            index=tot_df_unstack.index,
-                            columns=quantiles,
-                        )
-                        .unstack()
-                        .stack(level=0)
-                        .reset_index()
-                        .rename(columns={"level_2": "quantile"})
-                    )
-                return q_df
-
-            g = tot_df.groupby([level, "date", "rid"]).sum().groupby(level)
-
-            q_df = g.apply(quantiles_group)
-
-            q_df[level] = q_df[level].round().astype(int).map(level_map)
-            q_df = q_df.set_index([level, "date", "quantile"])
-
-            per_cap_dict = {}
-            for col in per_capita_cols:
-                per_cap_dict[col + "_per_100k"] = (q_df[col] / q_df["total_population"]) * 100000.0
-            q_df = q_df.assign(**per_cap_dict)
-            q_df = divide_by_pop(q_df, pop_mean_cols)
-
-            # Column management
-            # if level != admin2_key:
-            del q_df[admin2_key]
-
-            if "adm2" in q_df.columns and level != "adm2":
-                del q_df["adm2"]
-
-            if "adm1" in q_df.columns and level != "adm1":
-                del q_df["adm1"]
-
-            if "adm0" in q_df.columns and level != "adm0":
-                del q_df["adm0"]
-
-            if "Unnamed: 0" in q_df.columns:
-                del q_df["Unnamed: 0"]
-
-            if verbose:
-                logging.info("\nQuantiles dataframe:")
-                logging.info(q_df.head())
-
-            # Push output df to write queue
-            write_queue.put((os.path.join(output_dir, level + "_quantiles.csv"), q_df))
-
-    pool = Pool(processes=args.nprocs)
-    for _ in tqdm.tqdm(
-        pool.imap_unordered(_process_date, dates),
-        total=len(dates),
-        desc="Postprocessing dates",
-        dynamic_ncols=True,
-    ):
-        pass
-    pool.close()
-    pool.join()  # wait until everything is done
-
-    to_write.join()  # wait until queue is empty
-    to_write.put(None)  # send signal to term loop
-    to_write.join()  # wait until write_thread handles it
+    write_queue.put(None)  # send signal to term loop
     write_thread.join()  # join the write_thread
 
-    # sort output csvs
-    if not args.no_sort:
-        for a_level in args.levels:
-            filename = os.path.join(output_dir, a_level + "_quantiles.csv")
-            logging.info("Sorting output file " + filename + "...")
-            out_df = pd.read_csv(filename)
 
-            # TODO we can avoid having to set index here once readable_column names is complete
-            # set index and sort them
-            out_df = out_df.set_index([a_level, "date", "quantile"]).sort_index()
-            # sort columns alphabetically
-            out_df = out_df.reindex(sorted(out_df.columns), axis=1)
-            # write out sorted csv
-            out_df = out_df.drop(columns="index")  # TODO where did we pick this col up?
-            out_df.to_csv(filename, index=True)
-            logging.info("Done sort")
+if __name__ == "__main__":
+    # from line_profiler import LineProfiler
+
+    # lp = LineProfiler()
+    # lp_wrapper = lp(main)
+    # lp.add_function(main._process_date)
+    # lp_wrapper()
+    # lp.print_stats()
+    main()

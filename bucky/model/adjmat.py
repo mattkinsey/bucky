@@ -8,6 +8,7 @@ from ..util.distributions import truncnorm
 
 
 # TODO sprase diag will be added to cupy v9.0.0a2 so we won't need to track it after that
+# but there still might be some performance to be gained by tracking it and only having to calc diag once...
 class buckyAij:
     """Class that handles the adjacency matrix for the model, generalizes between dense/sparse."""
 
@@ -41,12 +42,12 @@ class buckyAij:
     @property
     def A(self):
         """property refering to the dense/sparse matrix"""
-        return self._Aij
+        return (self._Aij + xp_sparse.eye(m=self._Aij.shape[0], format="csr")) / 2.0
 
     @property
     def diag(self):
         """property refering to the cache diagional of the matrix"""
-        return self._Aij_diag
+        return (self._Aij_diag + 1.0) / 2.0
 
     def perturb(self, var):
         """Apply a normal perturbation to the matrix (and keep its diag in sync)"""
@@ -63,7 +64,8 @@ class buckyAij:
         if self.sparse:
             self._Aij.data = self._base_Aij.data * fac
             # TODO if scipy.sparse just use their diagnoal()?
-            _csr_diag(self._Aij, out=self._Aij_diag, indptr_sorted=self._indptr_sorted)
+            # _csr_diag(self._Aij, out=self._Aij_diag, indptr_sorted=self._indptr_sorted)
+            self._Aij_diag = self._Aij.diagonal()
         else:
             self._Aij = self._base_Aij * fac
             self._Aij_diag = self._Aij.diagonal()
@@ -84,7 +86,11 @@ def _read_edge_mat(G, weight_attr="weight", sparse=True, a_min=0.0):
 
 
 def _csr_diag(mat, out=None, indptr_sorted=False):
-    """Get the diagonal of a scipy/cupy CSR sparse matrix quickly"""
+    """Get the diagonal of a scipy/cupy CSR sparse matrix quickly
+
+    .. deprecated:: 0.9.0
+            As of cupy==9.0.0a2 this functionality is provided by scipy.sparse.csr.csr_matrix.diagonal()
+    """
     if ~indptr_sorted:
         raise NotImplementedError
         # we'd just have to replace searchsorted with argmax but it will go from O(logN) to O(N)

@@ -1,4 +1,7 @@
 name: bucky
+channels:
+  - conda-forge   #for up to date pyarrow
+  - defaults
 dependencies:
   - numpy
   - pandas
@@ -9,5 +12,6 @@ dependencies:
   - tqdm
   - scipy
   - networkx
-  - xlrd
+  - openpyxl
   - descartes
+  - pyarrow

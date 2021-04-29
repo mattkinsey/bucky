@@ -1,5 +1,7 @@
 """Provide probability distributions used by the model that aren't in numpy/cupy."""
 
+from functools import partial
+
 import numpy as np
 import scipy.special as sc
 
@@ -25,7 +27,7 @@ def approx_mPERT_sample(mu, a=0.0, b=1.0, gamma=4.0, var=None):
     alp1 = 1.0 + gamma * ((mu - a) / (b - a))
     alp2 = 1.0 + gamma * ((b - mu) / (b - a))
     u = xp.random.random_sample(mu.shape)
-    alp3 = approx_betaincinv(alp1, alp2, u)
+    alp3 = approx_betaincinv(alp1.astype(xp.float64), alp2.astype(xp.float64), u)
     return (b - a) * alp3 + a
 
 
@@ -65,7 +67,7 @@ def mPERT_sample(mu, a=0.0, b=1.0, gamma=4.0, var=None):
     return (b - a) * alp3 + a
 
 
-def truncnorm(loc=0.0, scale=1.0, size=1, a_min=None, a_max=None):
+def truncnorm(loc=0.0, scale=1.0, size=None, a_min=None, a_max=None):
     """Provide a vectorized truncnorm implementation that is compatible with cupy.
 
     The output is calculated by using the numpy/cupy random.normal() and
@@ -92,4 +94,25 @@ def truncnorm(loc=0.0, scale=1.0, size=1, a_min=None, a_max=None):
         valid = (ret > a_min) & (ret < a_max)
         if valid.all():
             return ret
-        ret[~valid] = xp.random.normal(loc, scale, ret[~valid].shape)
+        ret[~valid] = xp.random.normal(loc, scale, size)[~valid]
+
+
+def truncnorm_from_CI(CI, size=1, a_min=None, a_max=None):
+    """Truncnorm implementation that first derives mean and standard deviation from a 95% confidence interval."""
+    lower, upper = CI
+    std95 = xp.sqrt(1.0 / 0.05)
+    mean = (upper + lower) / 2.0
+    stddev = (upper - lower) / std95 / 2.0
+    return truncnorm(mean, stddev, size, a_min, a_max)
+
+
+def generic_distribution(base_func, params: dict, interp: partial, clip: partial):
+    """Return value sampled from basic distribution, with additional interpolation and clipping."""
+    val = base_func(**params)
+    if clip is not None:
+        val = clip(val)
+    if interp is not None:
+        val = interp(y=val)
+        if clip is not None:
+            val = clip(val)
+    return val

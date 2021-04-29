@@ -1,3 +1,5 @@
+# Default model parameters, epi params are largely drawn from CDC planning scenario 5:
+# https://www.cdc.gov/coronavirus/2019-ncov/hcp/planning-scenarios.html
 ---
 consts:
   En: 3
@@ -11,9 +13,14 @@ consts:
   case_reporting_min_deaths: 100.
   case_reporting_N_historical_days: 7
   F_scaling: .9
+  rescale_chr: True
+
+  Te_min: 1.
+  Ti_min: 3.
 
 dists:
   Rt_dist:
+    mu: 1.
     gamma: 5.
     a: .9
     b: 1.1
@@ -38,81 +45,105 @@ dists:
 
 Tg:
   # Mean generation interval
-  mean: 7.
+  dist: "truncnorm_from_CI"
   CI: [5.5,8.5]
-  clip: [1, null]
+  a_min: 1.
 
 Ts:
   # Mean serial interval
-  mean: 6.
+  dist: "truncnorm_from_CI"
   CI: [5.,7.]
-  clip: [1., null]
+  a_min: 1.
+
 
 ASYM_FRAC:
   # Fraction of infections that are asymptomatic
-  mean: 0.40
-  clip: [0., 1.]
+  dist: "truncnorm"
+  loc: 0.40
+  a_min: 0.
+  a_max: 1.
+
 
 rel_inf_asym:
   # Relative infectiousness of asymptomatic infections
-  mean: .75
-  clip: [0., 1.]
+  dist: "truncnorm"
+  loc: .75
+  a_min: 0.
+  a_max: 1.
+
 
 frac_trans_before_sym:
   # Fraction of transmissions occuring before symptom onset
-  mean: 0.50
+  dist: "truncnorm"
+  loc: 0.50
   #CI: [0.4, 0.6]
-  clip: [0., 1.]
+  a_min: 0.
+  a_max: 1.
+
 
 F:
   # CFR
+  dist: "truncnorm"
   age_bins: [[0,49], [50,64], [65,100]]
-  values: [0.0005, 0.002, 0.013]
-  clip: [0., 1.]
+  loc: [0.0005, 0.002, 0.013]
+  a_min: 0.
+  a_max: 1.
+
 H:
   # CHR
+  dist: "truncnorm"
   age_bins: [[0,49], [50,64], [65,100]]
-  values: [0.017, 0.045, 0.074]
-  clip: [0., 1.]
+  loc: [0.017, 0.045, 0.074]
+  a_min: 0.
+  a_max: 1.
+
 
 I_TO_H_TIME:
+  dist: "truncnorm"
   age_bins: [[0,49], [50,64], [65,100]]
-  values: [6., 6., 4.]
-  stddev: [5.0, 5.3, 5.7]
-  clip: [1., null]
+  loc: [6., 6., 4.]
+  scale: [5.0, 5.3, 5.7]
+  a_min: 1.
 
 H_TIME:
   # TODO this needs to be calced as the weighted avg of the icu and non icu params in the new planning doc
+  dist: "truncnorm"
   age_bins: [[0,49], [50,64], [65,100]]
-  values: [4.9, 7.6, 8.1]
-  #stddev: [3.7, 4.3, 5.1]
-  clip: [1., null]
+  loc: [4.9, 7.6, 8.1]
+  #scale: [3.7, 4.3, 5.1]
+  a_min: 1.
 
 ICU_TIME:
+  dist: "truncnorm"
   age_bins: [[0,49], [50,64], [65,100]]
-  values: [9.5, 10.5, 10.0]
-  stddev: [7.2, 7.0, 6.8]
-  clip: [1., null]
+  loc: [9.5, 10.5, 10.0]
+  scale: [7.2, 7.0, 6.8]
+  a_min: 1.
 
 ICU_FRAC:
+  dist: "truncnorm"
   age_bins: [[0,49], [50,64], [65,100]]
-  values: [.238, .361, .353]
-  clip: [0., 1.]
+  loc: [.238, .361, .353]
+  a_min: 0.
+  a_max: 1.
 
 ICU_VENT_FRAC:
+  dist: "truncnorm"
   age_bins: [[0,49], [50,64], [65,100]]
-  values: [.721, .776, .755]
-  clip: [0., 1.]
+  loc: [.721, .776, .755]
+  a_min: 0.
+  a_max: 1.
 
 D_REPORT_TIME:
+  dist: "truncnorm"
   age_bins: [[0,49], [50,64], [65,100]]
-  values: [7.1, 7.2, 6.6]
-  stddev: [7.7, 7.7, 7.3]
-  clip: [0., null]
+  loc: [7.1, 7.2, 6.6]
+  scale: [7.7, 7.7, 7.3]
+  a_min: 0.
 
 D:
   # NB: This isn't used anymore
   # Doubling time (this is now calced from data but the way parameters.py works means it needs an initial value. it will be refactored out)
-  mean: 150
+  dist: "truncnorm_from_CI"
   CI: [130.5, 170.5]
-  clip: [0, null]
+  a_min: 0.

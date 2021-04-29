@@ -20,13 +20,18 @@ import scipy.sparse as xp_sparse
 import scipy.special
 
 # Default imports for cpu code
-# This will be overwritten with a call to .numerical_libs.use_cupy()
+# This will be overwritten with a call to .numerical_libs.enable_cupy()
 import bucky
 
 xp.scatter_add = xp.add.at
 xp.optimize_kernels = contextlib.nullcontext
-xp.to_cpu = lambda x, **kwargs: x  # one arg noop
+xp.to_cpu = lambda x, **kwargs: x  # noop
 xp.special = scipy.special
+xp.empty_pinned = xp.empty
+xp.empty_like_pinned = xp.empty_like
+xp.zeros_pinned = xp.zeros
+xp.zeros_like_pinned = xp.zeros_like
+
 
 bucky.xp = xp
 bucky.xp_sparse = xp_sparse
@@ -57,7 +62,7 @@ def reimport_numerical_libs(context=None):
                 reimport_cache.add(context)
 
 
-def use_cupy(optimize=False):
+def enable_cupy(optimize=False):
     """Perform imports for libraries with APIs matching numpy, scipy.integrate.ivp, scipy.sparse.
 
     These imports will use a monkey-patched version of these modules
@@ -114,34 +119,26 @@ def use_cupy(optimize=False):
     import cupy as cp  # pylint: disable=import-outside-toplevel
     import numpy as np  # pylint: disable=import-outside-toplevel, reimported
 
-    cp.cuda.set_allocator(cp.cuda.MemoryPool(cp.cuda.memory.malloc_managed).malloc)
+    # cp.cuda.set_allocator(cp.cuda.MemoryPool(cp.cuda.memory.malloc_managed).malloc)
+    cp.cuda.set_allocator(cp.cuda.MemoryAsyncPool().malloc)
 
-    # add cupy search sorted for scipy.ivp (this was only added to cupy sometime between v6.0.0 and v7.0.0)
-    if ~hasattr(cp, "searchsorted"):
-        # NB: this isn't correct in general but it works for what scipy solve_ivp needs...
-        def cp_searchsorted(a, v, side="right", sorter=None):
-            """Provide a cupy version of search sorted thats good enough for scipy.ivp
+    def scipy_import_replacement(src):
+        """Perform the required numpy->cupy str replacements on the scipy source files"""
+        # replace numpy w/ cupy
+        src = src.replace("import numpy", "import cupy")
+        # fix a call to searchsorted by making sure it's params are typed correctly for the cupy version
+        src = src.replace(
+            "t_eval_i_new = np.searchsorted(t_eval, t, side='right')",
+            "t_eval_i_new = np.searchsorted(t_eval, np.array([t]), side='right')",
+        )
 
-            This was added to cupy sometime between v6.0.0 and v7.0.0 so it won't be needed for up to date installs.
-
-            .. warning:: This isn't correct in general but it works for what scipy.ivp needs..
-            """
-            if side != "right":
-                raise NotImplementedError
-            if sorter is not None:
-                raise NotImplementedError  # sorter = list(range(len(a)))
-            tmp = v >= a
-            if cp.all(tmp):
-                return len(a)
-            return cp.argmax(~tmp)
-
-        cp.searchsorted = cp_searchsorted
+        return src
 
     for name in ("common", "base", "rk", "ivp"):
         bucky.xp_ivp = modify_and_import(
             "scipy.integrate._ivp." + name,
             None,
-            lambda src: src.replace("import numpy", "import cupy"),
+            scipy_import_replacement,
         )
 
     import cupyx  # pylint: disable=import-outside-toplevel
@@ -168,7 +165,10 @@ def use_cupy(optimize=False):
         """Take a np/cupy array and always return it in host memory (as an np array)."""
         if "cupy" in type(x).__module__:
             return x.get(stream=stream, out=out)
-        return x
+        if out is None:
+            return x
+        else:
+            out[:] = x
 
     cp.to_cpu = cp_to_cpu
 
@@ -185,11 +185,27 @@ def use_cupy(optimize=False):
                 """Call np.r_ and case the result to cupy."""  # noqa: RST306
                 return cp.array(np.r_[inds])
 
-        cp.r_ = cp_r_()
+        # cp.r_ = cp_r_()
+
+    cp._oldarray = cp.array
+
+    def array_f32(*args, **kwargs):
+        ret = cp._oldarray(*args, **kwargs)
+        if ret.dtype == xp.float64:
+            ret = ret.astype("float32")
+        return ret
+
+    cp.array = array_f32
 
     import cupyx.scipy.special  # pylint: disable=import-outside-toplevel
 
     cp.special = cupyx.scipy.special
+
+    # grab pinned mem allocators
+    cp.empty_pinned = cupyx.empty_pinned
+    cp.empty_like_pinned = cupyx.empty_like_pinned
+    cp.zeros_pinned = cupyx.zeros_pinned
+    cp.zeros_like_pinned = cupyx.zeros_like_pinned
 
     bucky.xp = cp
 

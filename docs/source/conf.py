@@ -108,6 +108,7 @@ intersphinx_mapping = {
     "pandas": ("https://pandas.pydata.org/pandas-docs/stable", None),
     "matplotlib": ("https://matplotlib.org", None),
     "geopandas": ("https://geopandas.org", None),
+    "pyarrow": ("https://arrow.apache.org/docs/", None),
 }
 
 # numpydoc_show_class_members=False
@@ -152,6 +153,8 @@ tikz_latex_preamble = "\\newcommand{\\asym}{\\alpha_i}\n \
         \\newcommand{\htime}{\\rho_i}\n \
         \\tikzstyle{square} = [rectangle, minimum width=1.3cm, minimum height=1cm,text centered, draw=black, fill=gray!10]\n \
         \\tikzstyle{arrow} = [thick, ->]"
+
+bibtex_bibfiles = ["refs.bib"]
 
 # -- Options for HTML output -------------------------------------------------
 

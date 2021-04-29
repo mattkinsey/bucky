@@ -20,7 +20,7 @@ from .util.update_data_repos import main as update_repos
 
 # TODO all these paths should be combined properly rather than just with str cat
 
-DAYS_OF_HIST = 45
+DAYS_OF_HIST = 100
 
 # Initialize argument parser
 parser = argparse.ArgumentParser(description="Bucky Model input graph creation")
@@ -565,7 +565,8 @@ if __name__ == "__main__":
 
     # Get historical HHS hospitalization data (at state level)
     hhs_data = pd.read_csv(bucky_cfg["data_dir"] + "/cases/hhs_hosps.csv")
-    hhs_data = hhs_data.loc[hhs_data.date <= last_date]
+    hhs_data["date"] = pd.to_datetime(hhs_data["date"])
+    hhs_data = hhs_data.loc[hhs_data.date <= pd.Timestamp(last_date)]
     ct_adm1_map = ct_data.reset_index().set_index("state").adm1
     ct_adm1_map = ct_adm1_map.drop_duplicates()
     hhs_data["adm1"] = hhs_data.state.map(ct_adm1_map)

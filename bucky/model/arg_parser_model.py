@@ -38,10 +38,10 @@ parser.add_argument(
 )
 parser.add_argument(
     "par_file",
-    default=bucky_cfg["base_dir"] + "/par/scenario_5.yml",
+    default=bucky_cfg["base_dir"] + "/par/",
     nargs="?",
     type=str,
-    help="File containing paramters",
+    help="File/directory containing parameters",
 )
 parser.add_argument("--n_mc", "-n", default=100, type=int, help="Number of runs to do for Monte Carlo")
 parser.add_argument("--days", "-d", default=40, type=int, help="Length of the runs in days")
@@ -70,7 +70,9 @@ parser.add_argument(
     help="quiet output (only show ERROR and higher)",
 )
 
-# TODO this doesnt do anything other than let you throw and error if there's no cupy...
+# TODO this doesnt do anything other than let you throw an error if there's no cupy...
+# main checks args.gpu though so we need to have the value of cupy_found live
+# in another namespace (numerical_libs?)
 parser.add_argument(
     "-gpu",
     "--gpu",

@@ -9,3 +9,4 @@ Model Information
    input_output
    graph_info
    npi
+   model_flow

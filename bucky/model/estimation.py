@@ -1,3 +1,5 @@
+"""Submodule that manages some of the calculations for estimating params from the historical data"""
+
 from ..numerical_libs import reimport_numerical_libs, xp
 
 
@@ -5,6 +7,8 @@ def estimate_Rt(
     g_data,
     params,
     days_back=7,
+    case_reporting=None,
+    use_geo_mean=False,
 ):
     """Estimate R_t from the recent case data"""
 
@@ -12,15 +16,19 @@ def estimate_Rt(
 
     rolling_case_hist = g_data.rolling_inc_cases / params["CASE_REPORT"]
 
-    tot_case_hist = (g_data.Aij.A.T * rolling_case_hist.T).T
+    rolling_case_hist = g_data.rolling_inc_cases[-case_reporting.shape[0] :] / case_reporting
+
+    rolling_case_hist = xp.clip(rolling_case_hist, a_min=0.0, a_max=None)
+
+    tot_case_hist = (g_data.Aij.A.T @ rolling_case_hist.T).T + 1.0  # to avoid weirdness with small numbers
 
     t_max = rolling_case_hist.shape[0]
     k = params.consts["En"]
 
     mean = params["Ts"]
     theta = mean / k
-    x = xp.arange(-1.0, t_max - 1.0)
-    x[0] = 0.0
+    x = xp.arange(0.0, t_max)
+
     w = 1.0 / (xp.special.gamma(k) * theta ** k) * x ** (k - 1) * xp.exp(-x / theta)
     w = w / (1.0 - w)
     w = w[::-1]
@@ -34,7 +42,9 @@ def estimate_Rt(
         d = i + 1
         Rt[i] = rolling_case_hist_adm0[-d] / (xp.sum(w[d:, None] * tot_case_hist_adm0[:-d], axis=0))
 
-    Rt = xp.mean(Rt, axis=0)
+    # Take harmonic mean
+    Rt[~(Rt > 0.0)] = xp.nan
+    Rt = 1.0 / xp.nanmean(1.0 / Rt, axis=0)
 
     Rt_out = xp.full((rolling_case_hist.shape[1],), Rt)
 
@@ -47,9 +57,14 @@ def estimate_Rt(
     for i in range(days_back):
         d = i + 1
         Rt[i] = rolling_case_hist_adm1[-d] / (xp.sum(w[d:, None] * tot_case_hist_adm1[:-d], axis=0))
-    Rt = xp.mean(Rt, axis=0)
+
+    # take harmonic mean
+    Rt[~(Rt > 0.0)] = xp.nan
+    Rt = 1.0 / xp.nanmean(1.0 / Rt, axis=0)
+
+    # TODO we should mask this before projecting it to adm2...
     Rt = Rt[g_data.adm1_id]
-    valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist_adm1[-7], axis=0) > 25)
+    valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist_adm1[-7:], axis=0)[g_data.adm1_id] > 25)
     Rt_out[valid_mask] = Rt[valid_mask]
 
     # adm2
@@ -58,11 +73,18 @@ def estimate_Rt(
     for i in range(days_back):
         d = i + 1
         Rt[i] = rolling_case_hist[-d] / (xp.sum(w[d:, None] * tot_case_hist[:-d], axis=0))
-    # Rt = xp.mean(Rt, axis=0)
-    Rt = xp.exp(xp.mean(xp.log(Rt), axis=0))
-    valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist[-7], axis=0) > 25)
-    Rt_out[valid_mask] = Rt[valid_mask]
 
+    Rt[~(Rt > 0.0)] = xp.nan
+
+    # rt_geo = xp.exp(xp.nanmean(xp.log(Rt), axis=0))
+    # rt_mean = xp.nanmean(Rt, axis=0)
+    # rt_med = xp.nanmedian(Rt, axis=0)
+    rt_harm = 1.0 / xp.nanmean(1.0 / Rt, axis=0)
+
+    Rt = rt_harm  # (rt_geo + rt_med) /2.
+    # TODO make this max value a param
+    valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist[-7:], axis=0) > 25) & (Rt > 0.1) & (Rt < 2.5)
+    Rt_out[valid_mask] = Rt[valid_mask]
     return Rt_out
 
 
