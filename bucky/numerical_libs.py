@@ -27,6 +27,11 @@ xp.scatter_add = xp.add.at
 xp.optimize_kernels = contextlib.nullcontext
 xp.to_cpu = lambda x, **kwargs: x  # noop
 xp.special = scipy.special
+xp.empty_pinned = xp.empty
+xp.empty_like_pinned = xp.empty_like
+xp.zeros_pinned = xp.zeros
+xp.zeros_like_pinned = xp.zeros_like
+
 
 bucky.xp = xp
 bucky.xp_sparse = xp_sparse
@@ -194,6 +199,12 @@ def enable_cupy(optimize=False):
     import cupyx.scipy.special  # pylint: disable=import-outside-toplevel
 
     cp.special = cupyx.scipy.special
+
+    # grab pinned mem allocators
+    cp.empty_pinned = cupyx.empty_pinned
+    cp.empty_like_pinned = cupyx.empty_like_pinned
+    cp.zeros_pinned = cupyx.zeros_pinned
+    cp.zeros_like_pinned = cupyx.zeros_like_pinned
 
     bucky.xp = cp
 
