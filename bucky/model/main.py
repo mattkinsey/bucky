@@ -622,7 +622,7 @@ class buckyModelCovid:
             os.mkdir(metadata_folder)
 
             # write dates
-            uniq_dates = pd.Series(df_data["date"]).unique()
+            uniq_dates = pd.Series(self.output_dates)
             pd.DataFrame({"date": uniq_dates}).to_csv(os.path.join(metadata_folder, "dates.csv"), index=False)
 
             # write out adm mapping
@@ -692,10 +692,9 @@ class buckyModelCovid:
             if self.output_dates is None:
                 t_output = xp.to_cpu(sol.t)
                 dates = [str(self.init_date + datetime.timedelta(days=np.round(t))) for t in t_output]
-                self.output_dates = np.broadcast_to(dates, out.state.shape[1:])
+                self.output_dates = dates
 
-            dates = self.output_dates
-            df_data["date"] = dates
+            df_data["date"] = np.broadcast_to(np.arange(len(self.output_dates)), out.state.shape[1:])
 
         if "rid" in columns:
             df_data["rid"] = np.broadcast_to(seed, out.state.shape[1:])

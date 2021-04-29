@@ -263,6 +263,7 @@ def main(args=None):
         data = data[:, adm2_sorted_ind]
 
         data_gpu = xp.array(data.T)
+
         if adm_sizes[level] == 1:
             # TODO need switching here b/c cupy handles xp.percentile weird with a size 1 dim :(
             if use_gpu:
@@ -280,10 +281,10 @@ def main(args=None):
         return q_data_gpu
 
     percentiles = xp.array(quantiles, dtype=np.float64) * 100.0
-    quantiles = np.array(quantiles)
-    for date in tqdm.tqdm(dates):
+    quantiles = xp.array(quantiles)
+    for i, date in enumerate(tqdm.tqdm(dates)):
         dataset = ds.dataset(data_dir, format="parquet", partitioning=["date"])
-        table = dataset.to_table(filter=ds.field("date") == "date=" + date)
+        table = dataset.to_table(filter=ds.field("date") == "date=" + str(i))
         table = table.drop(("date", "rid", "adm2_id"))  # we don't need these b/c metadata
         pop_weight_table = table.select(pop_weighted_cols)
         table = table.drop(pop_weighted_cols)
