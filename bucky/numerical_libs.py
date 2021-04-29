@@ -25,7 +25,7 @@ import bucky
 
 xp.scatter_add = xp.add.at
 xp.optimize_kernels = contextlib.nullcontext
-xp.to_cpu = lambda x, **kwargs: x  # one arg noop
+xp.to_cpu = lambda x, **kwargs: x  # noop
 xp.special = scipy.special
 
 bucky.xp = xp
@@ -159,7 +159,10 @@ def enable_cupy(optimize=False):
         """Take a np/cupy array and always return it in host memory (as an np array)."""
         if "cupy" in type(x).__module__:
             return x.get(stream=stream, out=out)
-        return x
+        if out is None:
+            return x
+        else:
+            out[:] = x
 
     cp.to_cpu = cp_to_cpu
 
