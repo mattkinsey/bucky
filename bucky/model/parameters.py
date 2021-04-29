@@ -1,14 +1,14 @@
 """Submodule to handle the model parameterization and randomization"""
-import copy
 import logging
-from pprint import pformat
 
-import numpy  # we only need numpy for interp, we could write this in cupy...
+from os import path, listdir
+from functools import partial
+
 import yaml
 
 from ..numerical_libs import reimport_numerical_libs, xp
-from ..util import dotdict
-from ..util.distributions import approx_mPERT_sample, truncnorm
+from ..util import dotdict, distributions
+from ..util.distributions import generic_distribution
 
 
 def calc_Te(Tg, Ts, n, f):
@@ -65,153 +65,137 @@ class buckyParams:
 
         reimport_numerical_libs("model.parameters.buckyParams.__init__")
 
-        self.eps = xp.array([1e-6])
-        self.one = xp.array([1.0])
+        self.param_funcs = dotdict({})
+        self.consts = dotdict({})
+        self.dists = dotdict({})
 
-        self.par_file = par_file
         if par_file is not None:
-            self.base_params = self.read_yml(par_file)
-            self.base_params = self.preprocess_param_dict(self.base_params)
-            self.consts = dotdict(self.base_params["consts"])
-            self.dists = dotdict(self.base_params["dists"])
-        else:
-            self.base_params = None
+            base_params = self.read_yml(par_file)
+            self.consts = dotdict({k: xp.array(v) for k, v in base_params["consts"].items()})
+            self.dists = dotdict(base_params["dists"])
+            self._generate_param_funcs(base_params)
 
-    def update_params(self, update_dict):
-        self.base_params = recursive_dict_update(self.base_params, update_dict)
-        self.base_params = self.preprocess_param_dict(self.base_params)
-        self.consts = dotdict(self.base_params["consts"])
-        self.dists = dotdict(self.base_params["dists"])
+    def update_params(self, par_file):
+        """Update parameter distributions, consts, and dists from new yaml file."""
+        base_params = self.read_yml(par_file)
+        self._update_params(base_params)
 
-    # This could be static, literally never uses self
-    def preprocess_param_dict(self, base_params):
-        for k, v in base_params.items():
-            if type(v) == dict:
-                p = k
-                if "values" in base_params[p]:
-                    # params[p] = np.array(base_params[p]["values"])
-                    # params[p] *= truncnorm(1.0, var, size=params[p].shape, a_min=1e-6)
-                    # interp to our age bins
-                    need_interp = True
-                    if xp.array(base_params[p]["age_bins"]).shape == xp.array(base_params["consts"]["age_bins"]).shape:
-                        need_interp = xp.any(xp.array(base_params[p]["age_bins"]) != base_params["consts"]["age_bins"])
-                    else:
-                        need_interp = True
-
-                    if need_interp:
-                        base_params[p]["values"] = self.age_interp(
-                            base_params["consts"]["age_bins"],
-                            base_params[p]["age_bins"],
-                            base_params[p]["values"],
-                        )
-                        base_params[p]["age_bins"] = base_params["consts"]["age_bins"]
-
-                for k2 in v:
-                    to_add = {}
-                    if k2 in ("values", "mean", "CI", "stddev") or k == "consts":
-                        base_params[k][k2] = xp.array(base_params[k][k2])
-                    if "CI" in base_params[k]:
-                        mean, std = CI_to_std(base_params[p]["CI"])
-                        to_add["mean"] = xp.array(mean)
-                        to_add["stddev"] = xp.array(std)
-                    if "clip" in base_params[k]:
-                        clip = base_params[k]["clip"]
-                        to_add["clip_lower"] = xp.array(clip[0]) if clip[0] is not None else None
-                        to_add["clip_upper"] = xp.array(clip[1]) if clip[1] is not None else None
-
-                for k2 in ("CI", "clip"):
-                    if k2 in base_params[k]:
-                        del base_params[k][k2]
-
-                base_params[k].update(to_add)
-
-        return base_params
+    def _update_params(self, update_dict):
+        self.consts = recursive_dict_update(self.consts, {k: xp.array(v) for k, v in update_dict["consts"].items()})
+        self.dists = recursive_dict_update(self.dists, update_dict["dists"])
+        self._generate_param_funcs(update_dict)
 
     @staticmethod
     def read_yml(par_file):
         """Read in the YAML par file"""
         # TODO check file exists
-        with open(par_file, "rb") as f:
-            return yaml.load(f, yaml.SafeLoader)  # nosec
+        # If par_file is a directory, read files in alphanumeric order
+        if path.isdir(par_file):
+            root = par_file
+            files = listdir(par_file)
+            files.sort()
+        else:
+            root = ""
+            files = [par_file]
+        # Read in first parameter file
+        with open(path.join(root, files[0]), "rb") as f:
+            d = yaml.safe_load(f)  # nosec
+        # Update dictionary with additional parameter files
+        for filename in files[1:]:
+            with open(path.join(root, filename), "rb") as f:
+                dp = yaml.safe_load(f)
+                d = recursive_dict_update(d, dp)
+        return d
 
-    def generate_params(self, var=0.2):
+    def generate_params(self):
         """Generate a new set of params by rerolling, adding the derived params and rejecting invalid sets"""
-        if var is None:
-            var = 0.0
         while True:  # WTB python do-while...
-            params = self.reroll_params(self.base_params, var)
-            params = self.calc_derived_params(params)
-            if (params.Te > 1.0 and params.Tg > params.Te and params.Ti > 3.0) or var == 0.0:
+            params = self.reroll_params()
+            if self.consts.Te_min < params.Te < params.Tg and params.Ti > self.consts.Ti_min:
+                # TODO use self.consts and self.dists instead of storing these in params
+                params.consts = self.consts
+                params.dists = self.dists
                 return params
             # logging.debug("Rejected params: " + pformat(params))
 
-    def reroll_params(self, base_params, var):
-        """Reroll the parameters defined in the par file"""
-        params = dotdict({})
-        for p in base_params:
-            # Scalars
-            if "gamma" in base_params[p]:
-                mu = copy.deepcopy(base_params[p]["mean"])
-                params[p] = approx_mPERT_sample(mu, gamma=base_params[p]["gamma"])
+    def _generate_param_funcs(self, base_params):
+        # Default standard deviation (as percentage of mean)
+        var = self.consts.reroll_variance if "reroll_variance" in self.consts else 0.2
+        # Existing parameter functions
+        param_funcs = self.param_funcs
 
-            elif "mean" in base_params[p]:
-                if "stddev" in base_params[p]:
-                    if var:
-                        params[p] = truncnorm(
-                            loc=base_params[p]["mean"], scale=base_params[p]["stddev"], a_min=self.eps
-                        )
-                    else:  # just use mean if we set var to 0
-                        params[p] = xp.atleast_1d(copy.deepcopy(base_params[p]["mean"]))
-                else:
-                    params[p] = xp.atleast_1d(copy.deepcopy(base_params[p]["mean"]))
-                    params[p] = params[p] * truncnorm(loc=self.one, scale=var, a_min=self.eps)
+        for p, params in base_params.items():
+            # Collect distribution name
+            if "dist" not in params:
+                continue
+            dist = params.pop("dist")
 
-            # age-based vectors
-            elif "values" in base_params[p]:
-                params[p] = xp.array(base_params[p]["values"])
-                params[p] = params[p] * truncnorm(self.one, var, size=params[p].shape, a_min=self.eps)
-                # interp to our age bins
-                # if xp.any(base_params[p]["age_bins"] != base_params["consts"]["age_bins"]):
-                #    params[p] = self.age_interp(
-                #        base_params["consts"]["age_bins"],
-                #        base_params[p]["age_bins"],
-                #        params[p],
-                #    )
+            # Set default scale if none is specified (could find better method for this)
+            if dist == "truncnorm" and "scale" not in params:
+                params["scale"] = xp.abs(var * xp.array(params["loc"]))
 
-            # fixed values (noop)
+            # Clip function
+            clip = None
+            if "clip" in params:
+                clip = partial(xp.clip, **params.pop("clip"))
+            # Need to clip after interpolation
+            elif "age_bins" in params:
+                a_min = params.get("a_min")
+                a_max = params.get("a_max")
+                if a_min is not None or a_max is not None:
+                    clip = partial(xp.clip, a_min=a_min, a_max=a_max)
+
+            # Interpolate function
+            interp = None
+            if "age_bins" in params:
+                standard_age_bins = xp.array(base_params["consts"]["age_bins"])
+                age_bins = xp.array(params.pop("age_bins"))
+                interp = partial(self.age_interp, x_bins_new=standard_age_bins, x_bins=age_bins)
+
+            # Main distribution function
+            if hasattr(distributions, dist):
+                base_func = getattr(distributions, dist)
+            elif hasattr(xp.random, dist):
+                base_func = getattr(xp.random, dist)
             else:
-                params[p] = copy.deepcopy(base_params[p])
+                logging.error("Distribution {} does not exist!".format(dist))
+                continue
 
-            # clip values
-            if "clip" in base_params[p]:
-                clip_lower = base_params[p]["clip_lower"]
-                clip_upper = base_params[p]["clip_upper"]
-                params[p] = xp.clip(params[p], clip_lower, clip_upper)
+            params = {k: xp.array(v) for k, v in params.items()}
 
-        return params
+            param_funcs[p] = partial(generic_distribution, base_func=base_func, params=params, interp=interp, clip=clip)
+
+    def reroll_params(self):
+        """Sample each parameter from distribution and calculate derived parameters."""
+        return self.calc_derived_params(dotdict({p: f() for p, f in self.param_funcs.items()}))
 
     @staticmethod
     def age_interp(x_bins_new, x_bins, y):
         """Interpolate parameters define in age groups to a new set of age groups"""
         # TODO we should probably account for population for the 65+ type bins...
-        x_mean_new = numpy.mean(numpy.array(xp.to_cpu(x_bins_new)), axis=1)
-        x_mean = numpy.mean(numpy.array(xp.to_cpu(x_bins)), axis=1)
-        return numpy.interp(x_mean_new, x_mean, y)
+        x_bins_new = xp.array(x_bins_new)
+        x_bins = xp.array(x_bins)
+        if (x_bins_new.shape != x_bins.shape) or xp.any(x_bins_new != x_bins):
+            x_mean_new = xp.mean(x_bins_new, axis=1)
+            x_mean = xp.mean(x_bins, axis=1)
+            return xp.interp(x_mean_new, x_mean, y)
+        return y
 
-    @staticmethod
-    def calc_derived_params(params):
+    def calc_derived_params(self, params):
         """Add the derived params that are calculated from the rerolled ones"""
+        En = self.consts.En
+        Im = self.consts.Im
         params["Te"] = calc_Te(
             params["Tg"],
             params["Ts"],
-            params["consts"]["En"],
+            En,
             params["frac_trans_before_sym"],
         )
-        params["Ti"] = calc_Ti(params["Te"], params["Tg"], params["consts"]["En"])
+        params["Ti"] = calc_Ti(params["Te"], params["Tg"], En)
         r = xp.log(2.0) / params["D"]
         params["R0"] = calc_Reff(
-            params["consts"]["Im"],
-            params["consts"]["En"],
+            Im,
+            En,
             params["Tg"],
             params["Te"],
             r,
