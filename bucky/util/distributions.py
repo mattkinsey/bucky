@@ -20,9 +20,9 @@ def approx_betaincinv(alp1, alp2, u):
     return kumaraswamy_invcdf(a, xp.real(b), u)
 
 
-def approx_mPERT_sample(mu, a=0.0, b=1.0, gamma=4.0, var=None):
+def approx_mPERT(mu, a=0.0, b=1.0, gamma=4.0, var=None):
     """Approximate sample from an mPERT distribution that uses a Kumaraswamy distribution in place of the incomplete beta; Supports Cupy."""
-    reimport_numerical_libs("util.distributions.approx_mPERT_sample")
+    reimport_numerical_libs("util.distributions.approx_mPERT")
     mu, a, b = xp.atleast_1d(mu, a, b)
     alp1 = 1.0 + gamma * ((mu - a) / (b - a))
     alp2 = 1.0 + gamma * ((b - mu) / (b - a))
@@ -33,7 +33,7 @@ def approx_mPERT_sample(mu, a=0.0, b=1.0, gamma=4.0, var=None):
 
 # TODO only works on cpu atm
 # we'd need to implement betaincinv ourselves in cupy
-def mPERT_sample(mu, a=0.0, b=1.0, gamma=4.0, var=None):
+def mPERT(mu, a=0.0, b=1.0, gamma=4.0, var=None):
     """Provide a vectorized Modified PERT distribution.
 
     Parameters

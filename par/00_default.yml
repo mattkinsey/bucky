@@ -13,35 +13,39 @@ consts:
   case_reporting_min_deaths: 100.
   case_reporting_N_historical_days: 7
   F_scaling: .9
+  rh_scaling: 1.
   rescale_chr: True
 
   Te_min: 1.
   Ti_min: 3.
 
-dists:
-  Rt_dist:
-    mu: 1.
-    gamma: 5.
-    a: .9
-    b: 1.1
-  R_fac_dist:
-    mu: .5
-    a: .45
-    b: .55
-    gamma: 50.
-  E_fac_dist:
-    mu: 1.3
-    a: .9
-    b: 1.7
-    gamma: 10.
-  H_fac_dist:
-    mu: 1.
-    a: .8
-    b: 1.2
-    gamma: 10.
   F_RR_var: 0.12
   H_RR_var: 0.12
 
+Rt_fac:
+  dist: "approx_mPERT"
+  mu: 1.
+  gamma: 5.
+  a: .9
+  b: 1.1
+R_fac:
+  dist: "approx_mPERT"
+  mu: .5
+  a: .45
+  b: .55
+  gamma: 50.
+E_fac:
+  dist: "approx_mPERT"
+  mu: 1.3
+  a: .9
+  b: 1.7
+  gamma: 10.
+H_fac:
+  dist: "approx_mPERT"
+  mu: 1.
+  a: .8
+  b: 1.2
+  gamma: 10.
 
 Tg:
   # Mean generation interval

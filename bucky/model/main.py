@@ -19,7 +19,7 @@ import pyarrow.parquet as pap
 import tqdm
 
 from ..numerical_libs import enable_cupy, reimport_numerical_libs, xp, xp_ivp
-from ..util.distributions import approx_mPERT_sample, truncnorm
+from ..util.distributions import approx_mPERT, truncnorm
 from ..util.util import TqdmLoggingHandler, _banner
 from .arg_parser_model import parser
 from .estimation import estimate_Rt
@@ -105,15 +105,13 @@ class buckyModelCovid:
         # COVID/model params from par file
         self.bucky_params = buckyParams(par_file)
         self.consts = self.bucky_params.consts
-        self.dists = self.bucky_params.dists
 
         self.g_data = self.load_graph(graph_file)
 
     def update_params(self, update_dict):
         """Update the params based of a dict of new values"""
-        self.bucky_params.update_params(update_dict)
+        self.bucky_params._update_params(update_dict)
         self.consts = self.bucky_params.consts
-        self.dists = self.bucky_params.dists
 
     def load_graph(self, graph_file):
         """Load the graph data and calculate all the variables that are static across MC runs"""
@@ -278,7 +276,7 @@ class buckyModelCovid:
             adm0_F_fac = xp.nanmean(adm1_N * adm1_F_fac) / xp.sum(adm1_N)
             adm1_F_fac[xp.isnan(adm1_F_fac)] = adm0_F_fac
 
-            F_RR_fac = truncnorm(1.0, self.dists.F_RR_var, size=adm1_F_fac.size, a_min=1e-6)
+            F_RR_fac = truncnorm(1.0, self.consts.F_RR_var, size=adm1_F_fac.size, a_min=1e-6)
 
             if self.debug:
                 logging.debug("adm1 cfr rescaling factor: " + pformat(adm1_F_fac))
@@ -294,7 +292,7 @@ class buckyModelCovid:
             adm0_H_fac = xp.nanmean(adm1_N * adm1_H_fac) / xp.sum(adm1_N)
             adm1_H_fac[xp.isnan(adm1_H_fac)] = adm0_H_fac
 
-            H_RR_fac = truncnorm(1.0, self.dists.H_RR_var, size=adm1_H_fac.size, a_min=1e-6)
+            H_RR_fac = truncnorm(1.0, self.consts.H_RR_var, size=adm1_H_fac.size, a_min=1e-6)
             adm1_H_fac = adm1_H_fac * H_RR_fac
             # adm1_H_fac = xp.clip(adm1_H_fac, a_min=0.1, a_max=10.0)  # prevent extreme values
             if self.debug:
@@ -312,7 +310,7 @@ class buckyModelCovid:
             min_deaths=self.consts.case_reporting_min_deaths,
         )
 
-        self.case_reporting = approx_mPERT_sample(  # TODO these facs should go in param file
+        self.case_reporting = approx_mPERT(  # TODO these facs should go in param file
             mu=xp.clip(case_reporting, a_min=0.05, a_max=0.95),
             a=xp.clip(0.7 * case_reporting, a_min=0.01, a_max=0.9),
             b=xp.clip(1.3 * case_reporting, a_min=0.1, a_max=1.0),
@@ -341,9 +339,10 @@ class buckyModelCovid:
         current_I *= 1.0 / (self.params["CASE_REPORT"])
 
         # Roll some random factors for the init compartment values
-        R_fac = approx_mPERT_sample(**(self.dists.R_fac_dist))
-        E_fac = approx_mPERT_sample(**(self.dists.E_fac_dist))
-        H_fac = approx_mPERT_sample(**(self.dists.H_fac_dist))
+        # TODO move these inline
+        R_fac = self.params.R_fac
+        E_fac = self.params.E_fac
+        H_fac = self.params.H_fac
 
         age_dist_fac = self.Nij / xp.sum(self.Nij, axis=0, keepdims=True)
         I_init = E_fac * current_I[None, :] * age_dist_fac / self.Nij  # / self.n_age_grps
@@ -353,9 +352,8 @@ class buckyModelCovid:
             (recovered_init) * age_dist_fac / self.Nij - D_init - I_init / self.params["SYM_FRAC"]
         )  # Rh is factored in later
 
-        Rt = estimate_Rt(self.g_data, self.params, 7, self.case_reporting)
-        Rt_fac = approx_mPERT_sample(**(self.dists.Rt_dist))
-        Rt = Rt * Rt_fac
+        Rt = estimate_Rt(self.g_data, self.params, 14, self.case_reporting)
+        Rt = Rt * self.params.Rt_fac
 
         self.params["R0"] = Rt
         self.params["BETA"] = Rt * self.params["GAMMA"] / self.g_data.Aij.diag
@@ -372,8 +370,7 @@ class buckyModelCovid:
 
         yy.I = (1.0 - self.params.H) * I_init / yy.Im
         yy.Ic = self.params.H * I_init / yy.Im
-        # TODO this is an estimate, we should rescale it to the real data if we have it
-        rh_fac = 1.0  # .4
+        rh_fac = self.consts.rh_scaling
         yy.Rh = self.params.H * I_init / yy.Rhn
 
         if self.consts.rescale_chr:
