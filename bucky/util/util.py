@@ -36,7 +36,7 @@ class TqdmLoggingHandler(logging.Handler):
 class dotdict(dict):
     """dot.notation access to dictionary attributes."""
 
-    __getattr__ = dict.get
+    __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
