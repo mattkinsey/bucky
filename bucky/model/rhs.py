@@ -1,4 +1,4 @@
-from ..numerical_libs import reimport_numerical_libs, xp
+from ..numerical_libs import sync_numerical_libs, xp
 
 #
 # RHS for odes - d(sstate)/dt = F(t, state, *mats, *pars)
@@ -6,10 +6,9 @@ from ..numerical_libs import reimport_numerical_libs, xp
 #
 
 
+@sync_numerical_libs
 def RHS_func(t, y_flat, mc_inst):
     """RHS function for the ODEs, get's called in ivp.solve_ivp"""
-
-    reimport_numerical_libs("RHS_func")
 
     # constraint on values
     lower, upper = (0.0, 1.0)  # bounds for state vars

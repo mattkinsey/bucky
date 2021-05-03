@@ -5,7 +5,7 @@ from os import listdir, path
 
 import yaml
 
-from ..numerical_libs import reimport_numerical_libs, xp
+from ..numerical_libs import sync_numerical_libs, xp
 from ..util import distributions, dotdict
 from ..util.distributions import generic_distribution
 
@@ -59,10 +59,9 @@ def recursive_dict_update(d, u):
 class buckyParams:
     """Class holding all the model parameters defined in the par file, also used to reroll them for each MC run"""
 
+    @sync_numerical_libs
     def __init__(self, par_file=None):
         """Initialize the class, sync up the libs with the parent context and load the par file"""
-
-        reimport_numerical_libs("model.parameters.buckyParams.__init__")
 
         self.param_funcs = dotdict({})
         self.consts = dotdict({})

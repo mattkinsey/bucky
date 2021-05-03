@@ -5,7 +5,7 @@ from functools import partial
 import numpy as np
 import scipy.special as sc
 
-from ..numerical_libs import reimport_numerical_libs, xp
+from ..numerical_libs import sync_numerical_libs, xp
 
 
 def kumaraswamy_invcdf(a, b, u):
@@ -20,9 +20,9 @@ def approx_betaincinv(alp1, alp2, u):
     return kumaraswamy_invcdf(a, xp.real(b), u)
 
 
+@sync_numerical_libs
 def approx_mPERT(mu, a=0.0, b=1.0, gamma=4.0, var=None):
     """Approximate sample from an mPERT distribution that uses a Kumaraswamy distribution in place of the incomplete beta; Supports Cupy."""
-    reimport_numerical_libs("util.distributions.approx_mPERT")
     mu, a, b = xp.atleast_1d(mu, a, b)
     alp1 = 1.0 + gamma * ((mu - a) / (b - a))
     alp2 = 1.0 + gamma * ((b - mu) / (b - a))
@@ -67,6 +67,7 @@ def mPERT(mu, a=0.0, b=1.0, gamma=4.0, var=None):
     return (b - a) * alp3 + a
 
 
+@sync_numerical_libs
 def truncnorm(loc=0.0, scale=1.0, size=None, a_min=None, a_max=None):
     """Provide a vectorized truncnorm implementation that is compatible with cupy.
 
@@ -82,7 +83,6 @@ def truncnorm(loc=0.0, scale=1.0, size=None, a_min=None, a_max=None):
     -------
 
     """
-    reimport_numerical_libs("util.distributions.truncnorm")
 
     ret = xp.random.normal(loc, scale, size)
     if a_min is None:

@@ -4,24 +4,23 @@ import contextlib
 import copy
 import logging
 
-from ..numerical_libs import reimport_numerical_libs, xp
+from ..numerical_libs import sync_numerical_libs, xp
 from .exceptions import StateValidationException
 
 
+@sync_numerical_libs
 def slice_to_cpu(s):
-    """Ensure the values of the slice aren't cupy arrays to prevent an unsupported implict conversionin xp.r_"""
-    reimport_numerical_libs("model.state.bucky.__init__")
+    """Ensure the values of the slice aren't cupy arrays to prevent an unsupported implict conversion in xp.r_"""
     return xp.arange(xp.to_cpu(s.start), xp.to_cpu(s.stop), xp.to_cpu(s.step), dtype=xp.int32)
-    return slice(xp.to_cpu(s.start), xp.to_cpu(s.stop), xp.to_cpu(s.step))
+    # return slice(xp.to_cpu(s.start), xp.to_cpu(s.stop), xp.to_cpu(s.step))
 
 
 class buckyState:  # pylint: disable=too-many-instance-attributes
     """Class to manage the state of the bucky compartments (and their indices)."""
 
+    @sync_numerical_libs
     def __init__(self, consts, Nij, state=None):
         """Initialize the compartment indices and the state vector using the calling modules numerical libs"""
-
-        reimport_numerical_libs("model.state.buckyState.__init__")
 
         self.En = consts["En"]  # TODO rename these to like gamma shape or something
         self.Im = consts["Im"]

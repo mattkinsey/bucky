@@ -1,8 +1,9 @@
 """Submodule that manages some of the calculations for estimating params from the historical data"""
 
-from ..numerical_libs import reimport_numerical_libs, xp
+from ..numerical_libs import sync_numerical_libs, xp
 
 
+@sync_numerical_libs
 def estimate_Rt(
     g_data,
     params,
@@ -11,8 +12,6 @@ def estimate_Rt(
     use_geo_mean=False,
 ):
     """Estimate R_t from the recent case data"""
-
-    reimport_numerical_libs("model.estimation.estimate_Rt")
 
     rolling_case_hist = g_data.rolling_inc_cases / params["CASE_REPORT"]
 
@@ -88,6 +87,7 @@ def estimate_Rt(
     return Rt_out
 
 
+@sync_numerical_libs
 def estimate_doubling_time(
     g_data,
     days_back=7,  # TODO rename, its the number days calc the rolling Td
@@ -97,7 +97,6 @@ def estimate_doubling_time(
     case_reporting=None,
 ):
     """Calculate the recent doubling time of the historical case data"""
-    reimport_numerical_libs("model.estimation.estimate_doubling_time")
 
     if mean_time_window is not None:
         days_back = mean_time_window

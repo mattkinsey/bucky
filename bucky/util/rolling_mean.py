@@ -1,10 +1,10 @@
 """Provides generic rolling Pythagorean means over cupy/numpy ndarrays."""
-from ..numerical_libs import reimport_numerical_libs, xp
+from ..numerical_libs import sync_numerical_libs, xp
 
 
+@sync_numerical_libs
 def rolling_mean(arr, window_size=7, axis=0, weights=None, mean_type="arithmetic"):
     """Calculate a rolling mean over a numpy/cupy ndarray."""
-    reimport_numerical_libs("util.rolling_mean.rolling_mean")
     # we could probably just pass args/kwargs...
     if mean_type == "arithmetic":
         return _rolling_arithmetic_mean(arr, window_size, axis, weights)
@@ -16,9 +16,9 @@ def rolling_mean(arr, window_size=7, axis=0, weights=None, mean_type="arithmetic
         raise RuntimeError  # TODO what type of err should go here?
 
 
+@sync_numerical_libs
 def rolling_window(a, window_size):
     """Use stride_tricks to add an extra dim on the end of an ndarray for each elements window"""
-    reimport_numerical_libs("util.rolling_mean.rolling_window")
     pad = xp.zeros(len(a.shape), dtype=xp.int32)
     pad[-1] = window_size - 1
     pad = list(zip(list(xp.to_cpu(pad)), list(xp.to_cpu(xp.zeros(len(a.shape), dtype=xp.int32)))))

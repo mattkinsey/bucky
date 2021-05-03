@@ -1,7 +1,7 @@
 """Provides a class that contains all the data/info needed to perform one full integration"""
 import datetime
 
-from ..numerical_libs import reimport_numerical_libs, xp
+from ..numerical_libs import sync_numerical_libs, xp
 
 # from IPython import embed
 
@@ -21,9 +21,9 @@ def norm_Cij(Cij):
 class buckyMCInstance:
     """Class that holds basic information and provides helper variables needed to perform an MC"""
 
+    @sync_numerical_libs
     def __init__(self, init_date, n_days, Nij, Cij):
         """Initialize MC instance"""
-        reimport_numerical_libs("model.mc_instance.buckyMCInstance.__init__")
 
         # Time integration related params
         self.dt = 1.0  # time step for model output (the internal step is adaptive...)

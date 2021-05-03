@@ -3,7 +3,7 @@ from functools import partial
 
 import networkx as nx
 
-from ..numerical_libs import reimport_numerical_libs, xp
+from ..numerical_libs import sync_numerical_libs, xp
 from ..util.cached_prop import cached_property
 from ..util.rolling_mean import rolling_mean, rolling_window
 from .adjmat import buckyAij

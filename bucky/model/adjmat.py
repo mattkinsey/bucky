@@ -3,7 +3,7 @@
 
 # import networkx as nx
 
-from ..numerical_libs import reimport_numerical_libs, xp, xp_sparse
+from ..numerical_libs import sync_numerical_libs, xp, xp_sparse
 from ..util.distributions import truncnorm
 
 
@@ -12,10 +12,9 @@ from ..util.distributions import truncnorm
 class buckyAij:
     """Class that handles the adjacency matrix for the model, generalizes between dense/sparse."""
 
+    @sync_numerical_libs
     def __init__(self, G, sparse=True, a_min=0.0):
         """Initialize the stored matrix off of the edges of a networkx graph."""
-
-        reimport_numerical_libs("model.adjmat.buckyAij.__init__")
 
         self.sparse = sparse
         # TODO handle different attr names for edge weight

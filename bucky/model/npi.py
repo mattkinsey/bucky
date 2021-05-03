@@ -5,12 +5,12 @@ import logging
 import numpy as np
 import pandas as pd
 
-from ..numerical_libs import reimport_numerical_libs, xp
+from ..numerical_libs import sync_numerical_libs, xp
 
 
+@sync_numerical_libs
 def get_npi_params(g_data, first_date, t_max, npi_file=None, disable_npi=False):
     """Read an npi scenario file or if none is provided provide correctly shaped 'no future changes' npi_params"""
-    reimport_numerical_libs("model.npi.get_npi_params")
 
     n_nodes = g_data.Nij.shape[-1]
     if npi_file is not None:
@@ -60,7 +60,6 @@ def read_npi_file(fname, start_date, end_t, adm2_map, disable_npi=False):
     npi_params : dict
         TODO
     """
-    # reimport_numerical_libs("model.npi.read_npi_file")
 
     # filter by overlap with simulation date range
     df = pd.read_csv(fname)
