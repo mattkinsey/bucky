@@ -66,12 +66,12 @@ def remove_chars(seq):
     return seq_type().join(filter(seq_type.isdigit, seq))
 
 
-def map_np_array(a, d):
+def map_array(a, d):
     """Function similar to pandas map but for np arrays.
 
     .. deprecated:: 0.8.0
     """
-    n = np.ndarray(a.shape)
+    n = np.ndarray(a.shape, dtype=a.dtype)
     for k in d:
         n[a == k] = d[k]
     return n
