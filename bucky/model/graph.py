@@ -134,26 +134,34 @@ class buckyGraphData:
     @cached_property
     def rolling_inc_cases(self):
         """Return the rolling mean of incident cases."""
-        # return self.rolling_mean_func_inc(self.inc_case_hist)
-        # return xp.diff(self.rolling_cum_cases, axis=0)
-        return self.rolling_mean_func_cum(xp.clip(xp.diff(self.cum_case_hist, axis=0), a_min=0, a_max=None))
+        return xp.clip(
+            self.rolling_mean_func_cum(
+                xp.clip(xp.gradient(self.cum_case_hist, axis=0, edge_order=2), a_min=0, a_max=None)
+            ),
+            a_min=0.0,
+            a_max=None,
+        )
 
     @cached_property
     def rolling_inc_deaths(self):
         """Return the rolling mean of incident deaths."""
-        # return self.rolling_mean_func_inc(self.inc_death_hist)
-        # return xp.diff(self.rolling_cum_deaths, axis=0)
-        return self.rolling_mean_func_cum(xp.clip(xp.diff(self.cum_death_hist, axis=0), a_min=0, a_max=None))
+        return xp.clip(
+            self.rolling_mean_func_cum(
+                xp.clip(xp.gradient(self.cum_death_hist, axis=0, edge_order=2), a_min=0, a_max=None)
+            ),
+            a_min=0.0,
+            a_max=None,
+        )
 
     @cached_property
     def rolling_cum_cases(self):
         """Return the rolling mean of cumulative cases."""
-        return self.rolling_mean_func_cum(self.cum_case_hist)
+        return xp.clip(self.rolling_mean_func_cum(self.cum_case_hist), a_min=0.0, a_max=None)
 
     @cached_property
     def rolling_cum_deaths(self):
         """Return the rolling mean of cumulative deaths."""
-        return self.rolling_mean_func_cum(self.cum_death_hist)
+        return xp.clip(self.rolling_mean_func_cum(self.cum_death_hist), a_min=0.0, a_max=None)
 
     # adm1 rollups of historical data
     @cached_property
