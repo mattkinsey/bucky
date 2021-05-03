@@ -53,13 +53,13 @@ def reimport_numerical_libs(context=None):
     global reimport_cache
     if context in reimport_cache:
         return
+    caller_globals = dict(inspect.getmembers(inspect.stack()[1][0]))["f_globals"]
     for lib in ("xp", "xp_sparse", "xp_ivp"):
-        caller_globals = dict(inspect.getmembers(inspect.stack()[1][0]))["f_globals"]
         if lib in caller_globals:
             bucky_module = importlib.import_module("bucky")
             caller_globals[lib] = getattr(bucky_module, lib)
-            if context is not None:
-                reimport_cache.add(context)
+    if context is not None:
+        reimport_cache.add(context)
 
 
 def enable_cupy(optimize=False):
