@@ -190,6 +190,7 @@ def enable_cupy(optimize=False):
             return x
         else:
             out[:] = x
+            return out
 
     cp.to_cpu = cp_to_cpu
 
