@@ -13,6 +13,7 @@ Linters **HATE** this module because it's really abusing the import system (by d
 import contextlib
 import importlib
 import inspect
+from functools import wraps
 
 import numpy as xp
 import scipy.integrate._ivp.ivp as xp_ivp
@@ -60,6 +61,26 @@ def reimport_numerical_libs(context=None):
             caller_globals[lib] = getattr(bucky_module, lib)
     if context is not None:
         reimport_cache.add(context)
+
+
+def sync_numerical_libs(func):
+    """Decorator that pulls xp, xp_sparse, xp_ivp from the global bucky context into the wrapped function."""
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        global reimport_cache
+        context = func.__qualname__
+        if context in reimport_cache:
+            return func(*args, **kwargs)
+        for lib in ("xp", "xp_sparse", "xp_ivp"):
+            if lib in func.__globals__:
+                bucky_module = importlib.import_module("bucky")
+                func.__globals__[lib] = getattr(bucky_module, lib)
+
+        reimport_cache.add(context)
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 def enable_cupy(optimize=False):
