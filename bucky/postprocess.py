@@ -285,7 +285,7 @@ def main(args=None):
         return q_data_gpu
 
     percentiles = xp.array(quantiles, dtype=np.float64) * 100.0
-    quantiles = xp.array(quantiles)
+    quantiles = np.array(quantiles)
     for date_i, date in enumerate(tqdm.tqdm(dates)):
         dataset = ds.dataset(data_dir, format="parquet", partitioning=["date"])
         table = dataset.to_table(filter=ds.field("date") == "date=" + str(date_i))
