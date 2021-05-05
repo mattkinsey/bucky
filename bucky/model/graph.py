@@ -12,10 +12,9 @@ from .adjmat import buckyAij
 class buckyGraphData:
     """Contains and preprocesses all the data imported from an input graph file."""
 
+    @sync_numerical_libs
     def __init__(self, G, sparse=True):
         """Initialize the input data into cupy/numpy, reading it from a networkx graph"""
-
-        reimport_numerical_libs("model.graph.buckyGraphData.__init__")
 
         # make sure G is sorted by adm2 id
         adm2_ids = _read_node_attr(G, G.graph["adm2_key"], dtype=int)[0]
