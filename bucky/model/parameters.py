@@ -63,22 +63,23 @@ class buckyParams:
     def __init__(self, par_file=None):
         """Initialize the class, sync up the libs with the parent context and load the par file"""
 
+        # TODO add flags that are read from the yaml
+        self.base_params = dotdict({})
         self.param_funcs = dotdict({})
         self.consts = dotdict({})
 
         if par_file is not None:
-            base_params = self.read_yml(par_file)
-            self.consts = dotdict({k: xp.array(v) for k, v in base_params["consts"].items()})
-            self._generate_param_funcs(base_params)
+            self.update_params_from_file(par_file)
 
-    def update_params(self, par_file):
+    def update_params_from_file(self, par_file):
         """Update parameter distributions and consts from new yaml file."""
-        base_params = self.read_yml(par_file)
-        self._update_params(base_params)
+        self.base_params = self.read_yml(par_file)
+        self.update_params(self.base_params)
 
-    def _update_params(self, update_dict):
+    def update_params(self, update_dict):
         self.consts = recursive_dict_update(self.consts, {k: xp.array(v) for k, v in update_dict["consts"].items()})
-        self._generate_param_funcs(update_dict)
+        self.base_params = recursive_dict_update(self.base_params, update_dict)
+        self._generate_param_funcs(self.base_params)
 
     @staticmethod
     def read_yml(par_file):

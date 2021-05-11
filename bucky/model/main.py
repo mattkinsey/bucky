@@ -110,7 +110,7 @@ class buckyModelCovid:
 
     def update_params(self, update_dict):
         """Update the params based of a dict of new values"""
-        self.bucky_params._update_params(update_dict)
+        self.bucky_params.update_params(update_dict)
         self.consts = self.bucky_params.consts
 
     def load_graph(self, graph_file):
