@@ -6,6 +6,7 @@ import networkx as nx
 from ..numerical_libs import sync_numerical_libs, xp
 from ..util.cached_prop import cached_property
 from ..util.rolling_mean import rolling_mean, rolling_window
+from ..util.spline_smooth import fit
 from .adjmat import buckyAij
 
 
@@ -13,7 +14,7 @@ class buckyGraphData:
     """Contains and preprocesses all the data imported from an input graph file."""
 
     @sync_numerical_libs
-    def __init__(self, G, sparse=True):
+    def __init__(self, G, sparse=True, spline_smooth=False):
         """Initialize the input data into cupy/numpy, reading it from a networkx graph"""
 
         # make sure G is sorted by adm2 id
@@ -63,20 +64,17 @@ class buckyGraphData:
         self.Aij = buckyAij(G, sparse, a_min=0.0)
 
         # TODO move these params to config?
-        self._rolling_mean_type = "arithmetic"  # "geometric"
-        self._rolling_mean_window_size = 7
-        self.rolling_mean_func_cum = partial(
-            rolling_mean,
-            window_size=self._rolling_mean_window_size,
-            axis=0,
-            mean_type=self._rolling_mean_type,
-        )
-        self.rolling_mean_func_inc = partial(
-            rolling_mean,
-            window_size=self._rolling_mean_window_size,
-            axis=0,
-            mean_type="arithmetic",
-        )
+        if spline_smooth:
+            self.rolling_mean_func_cum = partial(fit, df=self.cum_case_hist.shape[1] // 7)
+        else:
+            self._rolling_mean_type = "arithmetic"  # "geometric"
+            self._rolling_mean_window_size = 7
+            self.rolling_mean_func_cum = partial(
+                rolling_mean,
+                window_size=self._rolling_mean_window_size,
+                axis=0,
+                mean_type=self._rolling_mean_type,
+            )
 
     # TODO maybe provide a decorator or take a lambda or something to generalize it?
     # also this would be good if it supported rolling up to adm0 for multiple countries
