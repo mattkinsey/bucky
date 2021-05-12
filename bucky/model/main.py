@@ -576,10 +576,11 @@ class buckyModelCovid:
 
         return sol
 
-    def run_multiple(self, n_mc, base_seed=42, out_columns=None):
+    def run_multiple(self, n_mc, base_seed=42, out_columns=None, invalid_ret=None):
         """Perform multiple monte carlos and return their postprocessed results"""
         seed_seq = np.random.SeedSequence(base_seed)
         success = 0
+        fail = 0
         ret = []
         pbar = tqdm.tqdm(total=n_mc, desc="Performing Monte Carlos", dynamic_ncols=True)
         while success < n_mc:
@@ -596,7 +597,14 @@ class buckyModelCovid:
                 success += 1
                 pbar.update(1)
             except SimulationException:
-                pass
+                fail += 1
+
+            except ValueError:
+                fail += 1
+                print("nan in rhs")
+            finally:
+                if fail > n_mc:
+                    return invalid_ret
 
         pbar.close()
         return ret
@@ -807,7 +815,7 @@ def main(args=None):
 
     if args.gpu:
         logging.info("Using GPU backend")
-        enable_cupy(optimize=args.opt)
+        enable_cupy(optimize=args.optimize_kernels)
 
     reimport_numerical_libs("model.main.main")
 
@@ -871,6 +879,12 @@ def main(args=None):
         disable_npi=args.disable_npi,
         reject_runs=args.reject_runs,
     )
+
+    if args.optimize:
+        from .optimize import test_opt
+
+        test_opt(env)
+        # TODO Should exit() here
 
     seed_seq = np.random.SeedSequence(args.seed)
 

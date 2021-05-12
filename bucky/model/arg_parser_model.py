@@ -91,7 +91,14 @@ parser.add_argument(
 
 parser.add_argument(
     "-opt",
-    "--opt",
+    "--optimize",
+    action="store_true",
+    help="Run optimization over historical data",
+)
+
+parser.add_argument(
+    "-optk",
+    "--optimize_kernels",
     action="store_true",
     help="Enable cupy kernel optimizations. Do this for large runs using the gpu (n > 100).",
 )
