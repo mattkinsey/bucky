@@ -3,7 +3,6 @@ from pprint import pformat
 
 import numpy as np
 import pandas as pd
-import yaml
 
 from ..numerical_libs import sync_numerical_libs, xp
 from ..util.scoring import WIS
@@ -15,7 +14,7 @@ def opt_func(params, args):
     """Function y = f(params, args) to be minimized"""
     env, hist_daily_cases, hist_daily_deaths, hist_daily_h, fips_mask = args[0]
     columns = ("daily_reported_cases", "daily_deaths", "daily_hospitalizations")
-    if hist_daily_cases.shape[-1] < env.base_mc_instance.t_max:
+    if hist_daily_cases.shape[-1] != env.base_mc_instance.t_max:
         env.base_mc_instance.set_tmax(hist_daily_cases.shape[-1])
 
     new_params = {
@@ -66,13 +65,13 @@ def opt_func(params, args):
     agg_data = {}
     q = xp.arange(0.05, 1, 0.05)
 
-    ci_scale_fac = (q - 0.5) / xp.max(q - 0.5)
-    ci_factor_mo = (
-        env.consts.CI_scaling * ci_scale_fac
-        + env.consts.CI_scaling_acc * xp.sign(ci_scale_fac) * ci_scale_fac * ci_scale_fac
-    )
-    ci_factor = xp.repeat(ci_factor_mo[..., None, None], hist_daily_cases.shape[-1], axis=-1)
-    ci_factor = env.consts.CI_init_scale + xp.cumsum(ci_factor / 30.0, axis=-1)
+    # ci_scale_fac = (q - 0.5) / xp.max(q - 0.5)
+    # ci_factor_mo = (
+    #     env.consts.CI_scaling * ci_scale_fac
+    #     + env.consts.CI_scaling_acc * xp.sign(ci_scale_fac) * ci_scale_fac * ci_scale_fac
+    # )
+    # ci_factor = xp.repeat(ci_factor_mo[..., None, None], hist_daily_cases.shape[-1], axis=-1)
+    # ci_factor = env.consts.CI_init_scale + xp.cumsum(ci_factor / 30.0, axis=-1)
 
     for col in columns:
         tmp = xp.array([env.g_data.sum_adm1(run[col][fips_mask, 1:], mask=fips_mask) for run in data])
@@ -85,7 +84,7 @@ def opt_func(params, args):
 
     ret_c = WIS(hist_daily_cases.ravel(), q, agg_data["daily_reported_cases"].reshape(len(q), -1), norm=True, log=log)
     ret_d = WIS(
-        hist_daily_deaths.ravel(), q, agg_data["daily_deaths"].reshape(len(q), -1), norm=True, log=log, embed=False
+        hist_daily_deaths.ravel(), q, agg_data["daily_deaths"].reshape(len(q), -1), norm=True, log=log
     )
     med_ind = agg_data["daily_deaths"].reshape(len(q), -1).shape[0] // 2 + 1
     mse_d = (
@@ -204,7 +203,7 @@ def test_opt(env, params=None):
     hist = hist.groupby(level=0).diff()
     hist.reset_index(inplace=True)
 
-    rolling = True
+    rolling = False
     if rolling:
         first_day = env.init_date - datetime.timedelta(days=6)
     else:
@@ -222,7 +221,7 @@ def test_opt(env, params=None):
 
     hist = hist.set_index(["adm2", "date"])
     # align order with the output arrays
-    hist = hist.reindex(env.g_data.adm2_id.get(), level=0)
+    hist = hist.reindex(xp.to_cpu(env.g_data.adm2_id), level=0)
 
     hist_daily_cases = xp.array(hist.cumulative_reported_cases.unstack().to_numpy())
     hist_daily_deaths = xp.array(hist.cumulative_deaths.unstack().to_numpy())
@@ -255,12 +254,12 @@ def test_opt(env, params=None):
 
     # embed()
 
-    # if rolling:
-    #    from ..util.rolling_mean import rolling_mean
+    if rolling:
+       from ..util.rolling_mean import rolling_mean
 
-    #    hist_daily_cases = rolling_mean(hist_daily_cases, axis=1)
-    #    hist_daily_deaths = rolling_mean(hist_daily_deaths, axis=1)
-    #    hist_daily_h = rolling_mean(hist_daily_h, axis=1)
+       hist_daily_cases = rolling_mean(hist_daily_cases, axis=1)
+       hist_daily_deaths = rolling_mean(hist_daily_deaths, axis=1)
+       hist_daily_h = rolling_mean(hist_daily_h, axis=1)
     spline = True
     dof = 4
     if spline:
@@ -289,17 +288,17 @@ def test_opt(env, params=None):
             env.bucky_params.base_params["H_fac"]["mu"],
             env.bucky_params.base_params["H_fac"]["b"] - env.bucky_params.base_params["H_fac"]["a"],
             env.bucky_params.base_params["H_fac"]["gamma"],
-            env.consts.F_RR_var.get(),
+            xp.to_cpu(env.consts.F_RR_var),
             # env.dists.H_RR_var,
-            env.consts.rh_scaling.get(),
-            env.consts.F_scaling.get(),
+            xp.to_cpu(env.consts.rh_scaling),
+            xp.to_cpu(env.consts.F_scaling),
             env.bucky_params.base_params["Rt_fac"]["mu"],
             env.bucky_params.base_params["Rt_fac"]["b"] - env.bucky_params.base_params["Rt_fac"]["a"],
             env.bucky_params.base_params["Rt_fac"]["gamma"],
             env.bucky_params.base_params["E_fac"]["mu"],
             env.bucky_params.base_params["E_fac"]["b"] - env.bucky_params.base_params["E_fac"]["a"],
             env.bucky_params.base_params["E_fac"]["gamma"],
-            env.consts.reroll_variance.get(),
+            xp.to_cpu(env.consts.reroll_variance),
             env.bucky_params.base_params["R_fac"]["mu"],
             env.bucky_params.base_params["R_fac"]["b"] - env.bucky_params.base_params["R_fac"]["a"],
             env.bucky_params.base_params["R_fac"]["gamma"],
