@@ -3,6 +3,7 @@ from pprint import pformat
 
 import numpy as np
 import pandas as pd
+from iPython import embed
 
 from ..numerical_libs import sync_numerical_libs, xp
 from ..util.scoring import WIS
@@ -13,12 +14,14 @@ columns = ("daily_reported_cases", "daily_deaths", "daily_hospitalizations")
 n_mc = 100
 base_seed = 2
 default_ret = 1e5
-percentile_params = (.05, 1, .05)  # min, max, delta
+percentile_params = (0.05, 1, 0.05)  # min, max, delta
 log = False
 
 rolling = False
 spline = True
 dof = 4
+
+local_opt = True
 
 
 def ravel_3d(a: xp.ndarray):
@@ -73,7 +76,7 @@ def opt_func(params, args):
     hist_data = {
         "daily_reported_cases": hist_daily_cases,
         "daily_deaths": hist_daily_deaths,
-        "daily_hospitalizations": hist_daily_h
+        "daily_hospitalizations": hist_daily_h,
     }
     hist_days = {col: vals.shape[-1] for col, vals in hist_data.items()}
     hist_data = {col: vals.ravel() for col, vals in hist_data.items()}
@@ -106,13 +109,7 @@ def opt_func(params, args):
 
     # MSE
     med_ind = q.shape[0] // 2 + 1
-    mse = [
-        (
-            xp.abs(model_data[col][med_ind] - hist_data[col])
-            / (hist_data[col] + 1)
-        ) ** 2
-        for col in columns
-    ]
+    mse = [(xp.abs(model_data[col][med_ind] - hist_data[col]) / (hist_data[col] + 1)) ** 2 for col in columns]
     mse = [mse_i / hist_days[col] for mse_i, col in zip(mse, columns)]
     mse = [xp.nansum(mse_i) for mse_i in mse]
 
@@ -126,7 +123,7 @@ def opt_func(params, args):
                 "wis": ret_wis,
                 **dict(zip(["wis_c", "wis_d", "wis_h"], ret)),
                 "mse": ret_mse,
-                **dict(zip(["mse_c", "mse_d", "mse_h"], mse))
+                **dict(zip(["mse_c", "mse_d", "mse_h"], mse)),
             }
         )
     )
@@ -142,7 +139,8 @@ def opt_func(params, args):
     return ret  # xp.to_cpu(ret).item()
 
 
-def case_death_df(first_day: datetime.datetime, filter: xp.ndarray) -> pd.DataFrame:
+def case_death_df(first_day: datetime.datetime, adm2_filter: xp.ndarray) -> pd.DataFrame:
+    """Load historical case and death data and filter to correct dates/counties"""
     # Case and death data
     hist = pd.read_csv("data/cases/csse_hist_timeseries.csv")
     # Types
@@ -154,24 +152,25 @@ def case_death_df(first_day: datetime.datetime, filter: xp.ndarray) -> pd.DataFr
     hist = hist.groupby(level=0).diff()
     hist.reset_index(inplace=True)
     hist = hist.loc[hist.date > pd.to_datetime(first_day)]
-    hist = hist.loc[hist.adm2.isin(filter)]
+    hist = hist.loc[hist.adm2.isin(adm2_filter)]
     hist = hist.set_index(["adm2", "date"])
-    hist = hist.reindex(filter, level=0)
+    hist = hist.reindex(adm2_filter, level=0)
     return hist
 
 
-def hosp_df(first_day: datetime.datetime, filter: xp.ndarray) -> pd.DataFrame:
+def hosp_df(first_day: datetime.datetime, adm1_filter: xp.ndarray) -> pd.DataFrame:
+    """Load historical hospitalization data and filter to correct dates/states"""
     hist = pd.read_csv("data/cases/hhs_hosps.csv")
     hist.date = pd.to_datetime(hist.date)
     hist = hist.loc[hist.date > pd.to_datetime(first_day)]
-    hist = hist.loc[hist.adm1.isin(filter)]
+    hist = hist.loc[hist.adm1.isin(adm1_filter)]
     hist = hist.set_index(["adm1", "date"])
     hist = hist.sort_index()
     return hist
 
 
 @sync_numerical_libs
-def test_opt(env, params=None):
+def test_opt(env):
     """Wrapper for calling the optimizer"""
     # First day of historical data
     first_day = env.init_date
@@ -186,8 +185,10 @@ def test_opt(env, params=None):
     hist = case_death_df(first_day, env_adm2)
 
     # Make sure environment end date is same as amount of available historical data
-    days_of_hist_data = (hist.index.get_level_values(-1).max() -
-                         datetime.datetime(env.init_date.year, env.init_date.month, env.init_date.day)).days
+    days_of_hist_data = (
+        hist.index.get_level_values(-1).max()
+        - datetime.datetime(env.init_date.year, env.init_date.month, env.init_date.day)
+    ).days
     if days_of_hist_data != env.base_mc_instance.t_max:
         env.base_mc_instance.set_tmax(days_of_hist_data)
 
@@ -212,22 +213,20 @@ def test_opt(env, params=None):
     hist_daily_h[hist_daily_h_df.index.to_numpy()] = hist_daily_h_df.to_numpy()
 
     # Collect case, death, hosp data
-    hist_vals = [
-        hist_daily_cases,
-        hist_daily_deaths,
-        hist_daily_h
-    ]
+    hist_vals = [hist_daily_cases, hist_daily_deaths, hist_daily_h]
     # Get rid of negatives
     hist_vals = [xp.clip(vals, a_min=0.0, a_max=None) for vals in hist_vals]
 
     # Rolling mean
     if rolling:
         from ..util.rolling_mean import rolling_mean
+
         hist_vals = [rolling_mean(vals, axis=1) for vals in hist_vals]
 
     # Spline
     if spline:
         from ..util.spline_smooth import fit
+
         hist_vals = [fit(vals, df=dof) for vals in hist_vals]
 
     # Get rid of negatives
@@ -235,9 +234,8 @@ def test_opt(env, params=None):
 
     from functools import partial
 
-    from scipy.optimize import Bounds, differential_evolution, minimize
-    from skopt import callbacks, gp_minimize
-    from skopt.callbacks import CheckpointSaver
+    from scipy.optimize import minimize
+    from skopt import gp_minimize
     from skopt.sampler import Lhs
     from skopt.space import Real
 
@@ -273,7 +271,7 @@ def test_opt(env, params=None):
     best_params = opt_params
 
     # 2 Global searches
-    if True:
+    if local_opt:
         for j in range(2):
             fac = 0.5 + 0.25 * j
             dims = [Real(fac * best_params[i], 1.0 / fac * best_params[i]) for i in range(len(best_params))]
@@ -302,13 +300,14 @@ def test_opt(env, params=None):
         best_opt = result.fun
         best_params = np.array(result.x)
 
-    print('Best Opt:', best_opt)
-    print('Best Params:', best_params)
+    print("Best Opt:", best_opt)
+    print("Best Params:", best_params)
 
     # with open('best_opt.yml', 'w') as f:
     # TODO need to recursively convert these from np.float to float for this to work
     #    yaml.safe_dump(new_params, f)
-    # TODO need function that will take the array being optimized and cast it to a dict (what opt_func is doing but available more generally)
+    # TODO need function that will take the array being optimized and cast it to a dict (what opt_func is doing but
+    #  available more generally)
     # need to be able to dump that dict to a yaml file
-    from iPython import embed
+
     embed()
