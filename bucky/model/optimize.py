@@ -105,13 +105,13 @@ def opt_func(params, args):
     # Normalize by number of days
     ret = [ret_i / hist_days[col] for ret_i, col in zip(ret, columns)]
     # Sum over admin 2 and days
-    ret = [xp.nansum(ret_i) for ret_i in ret]
+    ret = xp.array([xp.nansum(ret_i) for ret_i in ret])
 
     # MSE
     med_ind = q.shape[0] // 2 + 1
     mse = [(xp.abs(model_data[col][med_ind] - hist_data[col]) / (hist_data[col] + 1)) ** 2 for col in columns]
     mse = [mse_i / hist_days[col] for mse_i, col in zip(mse, columns)]
-    mse = [xp.nansum(mse_i) for mse_i in mse]
+    mse = xp.array([xp.nansum(mse_i) for mse_i in mse])
 
     # Sum over cases, deaths, hosp
     ret_wis = xp.sum(ret)  # ret_c + ret_d + ret_h
