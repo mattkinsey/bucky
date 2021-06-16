@@ -739,6 +739,8 @@ def main():
         bucky_cfg["data_dir"] + "/cases/COVID-19/",
         bucky_cfg["data_dir"] + "/mobility/DL-COVID-19/",
         bucky_cfg["data_dir"] + "/mobility/COVIDExposureIndices/",
+        bucky_cfg["data_dir"] + "/vac/covid19-vaccine-timeseries/",
+        bucky_cfg["data_dir"] + "/vac/county-acip-demos/",
     ]
 
     for repo in repos:
