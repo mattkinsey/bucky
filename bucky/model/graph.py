@@ -1,13 +1,33 @@
 """Class to read and store all the data from the bucky input graph."""
+import datetime
 from functools import partial
 
 import networkx as nx
+import pandas as pd
 
 from ..numerical_libs import sync_numerical_libs, xp
 from ..util.cached_prop import cached_property
 from ..util.rolling_mean import rolling_mean, rolling_window
 from ..util.spline_smooth import fit
 from .adjmat import buckyAij
+
+
+# TODO move to util
+def remove_outliers(arrs):
+    """Hackishly remove large outliers in time series, replace with rolling median value"""
+    tmp = arrs[0].T
+    cum_arr = arrs[1]
+    rmedian = xp.median(rolling_window(tmp, 7), axis=-1)
+    rstd = xp.var(rolling_window(tmp, 7), axis=-1)
+    rmean = xp.mean(rolling_window(tmp, 7), axis=-1)
+    mask = xp.abs(tmp - rmedian) > 5.0 * (rmedian + rmean) / 2.0
+    mask = mask & (tmp > 1.0)
+    mask = mask.T
+    rmedian = rmedian.T
+    tmp = arrs[0].copy()
+    arrs[0][mask] = rmedian[mask]
+    cum_change = xp.cumsum(tmp - arrs[0], axis=0)
+    arrs[1][:] = cum_arr - cum_change
 
 
 class buckyGraphData:
@@ -30,6 +50,7 @@ class buckyGraphData:
         self.start_date = datetime.date.fromisoformat(G.graph["start_date"])
         self.cum_case_hist, self.inc_case_hist = _read_node_attr(G, "case_hist", diff=True, a_min=0.0)
         self.cum_death_hist, self.inc_death_hist = _read_node_attr(G, "death_hist", diff=True, a_min=0.0)
+        self.n_hist = self.cum_case_hist.shape[0]
         self.Nij = _read_node_attr(G, "N_age_init", a_min=1.0)
 
         # Perform some outlier detection/correction on the cases/deaths
@@ -39,19 +60,8 @@ class buckyGraphData:
         old_ccases = self.cum_case_hist.copy()
         old_cdeaths = self.cum_death_hist.copy()
         # clean up incidence data to remove data dumps
-        for arrs in ((self.inc_case_hist, self.cum_case_hist),):  # (self.inc_death_hist, self.cum_death_hist)):
-            tmp = arrs[0].T
-            cum_arr = arrs[1]
-            rmedian = xp.median(rolling_window(tmp, 7), axis=-1)
-            rstd = xp.var(rolling_window(tmp, 7), axis=-1)
-            rmean = xp.mean(rolling_window(tmp, 7), axis=-1)
-            mask = xp.abs(tmp - rmedian) > 5.0 * (rmedian + rmean) / 2.0
-            mask = mask.T
-            rmedian = rmedian.T
-            tmp = arrs[0].copy()
-            arrs[0][mask] = rmedian[mask]
-            cum_change = xp.cumsum(tmp - arrs[0], axis=0)
-            arrs[1][:] = cum_arr - cum_change
+        for arrs in ((self.inc_case_hist, self.cum_case_hist), (self.inc_death_hist, self.cum_death_hist)):
+            remove_outliers(arrs)
 
         # TODO add adm0 to support multiple countries
         self.adm2_id = _read_node_attr(G, G.graph["adm2_key"], dtype=int)[0]
@@ -63,6 +73,46 @@ class buckyGraphData:
         self.max_adm1 = xp.to_cpu(xp.max(self.adm1_id))
 
         self.Aij = buckyAij(G, sparse, a_min=0.0)
+
+        self.have_hosp = "hhs_data" in G.graph
+        if self.have_hosp:
+            adm1_current_hosp = xp.zeros((self.max_adm1 + 1,), dtype=float)
+            hhs_data = G.graph["hhs_data"].reset_index()
+            hhs_data["date"] = pd.to_datetime(hhs_data["date"])
+
+            # ensure we're not cheating w/ future data
+            hhs_data.loc[hhs_data.date <= pd.Timestamp(self.start_date)]
+
+            # add int index for dates
+            hhs_data["date_index"] = pd.Categorical(hhs_data.date, ordered=True).codes
+
+            # sort to line up our indices
+            hhs_data = hhs_data.set_index(["date_index", "adm1"]).sort_index()
+
+            max_hhs_inds = hhs_data.index.max()
+            adm1_current_hosp_hist = xp.zeros((max_hhs_inds[0] + 1, max_hhs_inds[1] + 1))
+            adm1_inc_hosp_hist = xp.zeros((max_hhs_inds[0] + 1, max_hhs_inds[1] + 1))
+
+            # collapse adult/pediatric columns
+            tot_hosps = (
+                hhs_data.total_adult_patients_hospitalized_confirmed_covid
+                + hhs_data.total_pediatric_patients_hospitalized_confirmed_covid
+            )
+            inc_hosps = (
+                hhs_data.previous_day_admission_adult_covid_confirmed
+                + hhs_data.previous_day_admission_pediatric_covid_confirmed
+            )
+
+            # remove nans
+            tot_hosps = tot_hosps.fillna(0.0)
+            inc_hosps = inc_hosps.fillna(0.0)
+
+            adm1_current_hosp_hist[tuple(xp.array(tot_hosps.index.to_list()).T)] = tot_hosps.to_numpy()
+            adm1_inc_hosp_hist[tuple(xp.array(inc_hosps.index.to_list()).T)] = inc_hosps.to_numpy()
+
+            # clip to same historical length as case/death data
+            self.adm1_curr_hosp_hist = adm1_current_hosp_hist[-self.n_hist :]
+            self.adm1_inc_hosp_hist = adm1_inc_hosp_hist[-self.n_hist :]
 
         # TODO move these params to config?
         if spline_smooth:
@@ -160,6 +210,16 @@ class buckyGraphData:
     def rolling_cum_deaths(self):
         """Return the rolling mean of cumulative deaths."""
         return xp.clip(self.rolling_mean_func_cum(self.cum_death_hist), a_min=0.0, a_max=None)
+
+    @cached_property
+    def rolling_adm1_curr_hosp(self):
+        """Return the rolling mean of cumulative deaths."""
+        return xp.clip(self.rolling_mean_func_cum(self.adm1_curr_hosp_hist), a_min=0.0, a_max=None)
+
+    @cached_property
+    def rolling_adm1_inc_hosp(self):
+        """Return the rolling mean of cumulative deaths."""
+        return xp.clip(self.rolling_mean_func_cum(self.adm1_inc_hosp_hist), a_min=0.0, a_max=None)
 
     # adm1 rollups of historical data
     @cached_property
