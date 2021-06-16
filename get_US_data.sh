@@ -40,6 +40,14 @@ if [ ! -d "vac/covid19-vaccine-timeseries" ]; then
 	popd > /dev/null
 fi
 
+# County level ACIP demographics 
+if [ ! -d "vac/county-acip-demos" ]; then
+	mkdir -p vac && pushd vac > /dev/null
+        echo Cloning ACIP demos
+        git -c http.sslVerify=false clone https://github.com/mattkinsey/county-acip-demos
+	popd > /dev/null
+fi
+
 # Descartes mobility data
 if [ ! -d "mobility/DL-COVID-19" ]; then
 	mkdir -p mobility && pushd mobility > /dev/null
