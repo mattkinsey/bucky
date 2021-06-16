@@ -148,7 +148,7 @@ class buckyModelCovid:
         self.Nj = g_data.Nj
         self.n_age_grps = self.Nij.shape[0]  # TODO factor out
 
-        self.init_date = datetime.date.fromisoformat(G.graph["start_date"])
+        self.init_date = g_data.start_date  # datetime.date.fromisoformat(G.graph["start_date"])
 
         self.base_mc_instance = buckyMCInstance(self.init_date, self.t_max, self.Nij, self.Cij)
 
