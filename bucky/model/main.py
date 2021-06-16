@@ -22,7 +22,7 @@ from ..numerical_libs import enable_cupy, reimport_numerical_libs, xp, xp_ivp
 from ..util.distributions import approx_mPERT, truncnorm
 from ..util.util import TqdmLoggingHandler, _banner
 from .arg_parser_model import parser
-from .estimation import estimate_Rt
+from .estimation import estimate_cfr, estimate_Rt
 from .exceptions import SimulationException
 from .graph import buckyGraphData
 from .mc_instance import buckyMCInstance
@@ -383,9 +383,9 @@ class buckyModelCovid:
             adm2_hosp_frac = xp.sqrt(adm2_hosp_frac * adm0_hosp_frac)
 
             scaling_F = F_RR_fac[self.g_data.adm1_id] * self.consts.F_scaling / H_fac
-            scaling_H = adm2_hosp_frac * H_fac
+            scaling_H = adm2_hosp_frac * H_fac * self.consts.F_scaling
             self.params["F"] = xp.clip(self.params["F"] * scaling_F, 0.0, 1.0)
-            self.params["H"] = xp.clip(self.params["H"] * scaling_H, self.params["F"], 1.0) / 1.2
+            self.params["H"] = xp.clip(self.params["H"] * scaling_H, self.params["F"], 1.0)
             self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0.0, 1.0)
 
             # TODO rename F_eff to HFR
