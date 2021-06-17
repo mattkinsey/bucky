@@ -884,6 +884,7 @@ def main(args=None):
         from .optimize import test_opt
 
         test_opt(env)
+        return
         # TODO Should exit() here
 
     seed_seq = np.random.SeedSequence(args.seed)

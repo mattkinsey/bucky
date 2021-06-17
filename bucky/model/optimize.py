@@ -3,10 +3,13 @@ from pprint import pformat
 
 import numpy as np
 import pandas as pd
-from iPython import embed
+import yaml
+# from iPython import embed
 
 from ..numerical_libs import sync_numerical_libs, xp
 from ..util.scoring import WIS
+
+ID = "baseline"
 
 # TODO better place for these
 columns = ("daily_reported_cases", "daily_deaths", "daily_hospitalizations")
@@ -21,7 +24,11 @@ rolling = False
 spline = True
 dof = 4
 
-local_opt = True
+global_opt = True
+global_multipliers = [(0.5, 2.0), (0.75, 1.33)]
+global_calls = 200
+
+local_calls = 1000
 
 
 def ravel_3d(a: xp.ndarray):
@@ -29,10 +36,7 @@ def ravel_3d(a: xp.ndarray):
     return a.reshape(a.shape[0], -1)
 
 
-def opt_func(params, args):
-    """Function y = f(params, args) to be minimized"""
-    # Convert param list to dictionary
-    print(params)
+def params_flat_to_dict(params):
     new_params = {
         "H_fac": {
             "dist": "approx_mPERT",
@@ -70,6 +74,14 @@ def opt_func(params, args):
             # "CI_scaling": params[16], "CI_init_scale": params[17], "CI_scaling_acc": params[18],
         },
     }
+    return new_params
+
+
+def opt_func(params, args):
+    """Function y = f(params, args) to be minimized"""
+    # Convert param list to dictionary
+    print(params)
+    new_params = params_flat_to_dict(params)
     print(pformat(new_params))
     # Unroll args
     env, hist_daily_cases, hist_daily_deaths, hist_daily_h, fips_mask = args
@@ -271,17 +283,16 @@ def test_opt(env):
     best_params = opt_params
 
     # 2 Global searches
-    if local_opt:
-        for j in range(2):
-            fac = 0.5 + 0.25 * j
-            dims = [Real(fac * best_params[i], 1.0 / fac * best_params[i]) for i in range(len(best_params))]
+    if global_opt:
+        for (lower, upper) in global_multipliers:
+            dims = [Real(lower * p, upper * p) for p in best_params]
             res = gp_minimize(
                 partial(opt_func, args=args),
                 dimensions=dims,
                 x0=best_params.tolist(),
                 initial_point_generator=lhs,
                 # callback=[checkpoint_saver],
-                n_calls=200,
+                n_calls=global_calls,
                 verbose=True,
             )
             if res.fun < best_opt:
@@ -293,7 +304,7 @@ def test_opt(env):
         opt_func,
         best_params,
         (args,),
-        options={"disp": True, "adaptive": True, "maxfev": 1000},
+        options={"disp": True, "adaptive": True, "maxfev": local_calls},  # local_calls
         method="Nelder-Mead",
     )
     if result.fun < best_opt:
@@ -303,11 +314,16 @@ def test_opt(env):
     print("Best Opt:", best_opt)
     print("Best Params:", best_params)
 
-    # with open('best_opt.yml', 'w') as f:
-    # TODO need to recursively convert these from np.float to float for this to work
-    #    yaml.safe_dump(new_params, f)
+    with open('best_opt.yml', 'w') as f:
+        # TODO need to recursively convert these from np.float to float for this to work
+        best_params = [p.item() for p in best_params]
+        new_params = params_flat_to_dict(best_params)
+        yaml.safe_dump(new_params, f)
+
+    with open("values.csv", 'a') as f:
+        f.write('{},{}'.format(ID, best_opt))
     # TODO need function that will take the array being optimized and cast it to a dict (what opt_func is doing but
     #  available more generally)
     # need to be able to dump that dict to a yaml file
 
-    embed()
+    # embed()
