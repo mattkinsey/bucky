@@ -4,10 +4,12 @@ from pprint import pformat
 
 import numpy as np
 import pandas as pd
-from iPython import embed
 
 from ..numerical_libs import sync_numerical_libs, xp
 from ..util.scoring import WIS
+
+# from iPython import embed
+
 
 # TODO better place for these
 columns = ("daily_reported_cases", "daily_deaths", "daily_hospitalizations")
@@ -311,4 +313,4 @@ def test_opt(env):
     #  available more generally)
     # need to be able to dump that dict to a yaml file
 
-    embed()
+    # embed()

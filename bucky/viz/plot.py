@@ -110,7 +110,7 @@ parser.add_argument(
     help="Data will not be plotted past this point",
 )
 
-parser.add_argument("-v", "--verbose", action="store_true", help="Print extra information")
+# parser.add_argument("-v", "--verbose", action="store_true", help="Print extra information")
 
 parser.add_argument(
     "-hist",
@@ -591,7 +591,7 @@ def main(args=None):
     # Parse optional flags
     window = args.window_size
     plot_historical = args.hist
-    verbose = args.verbose
+    # verbose = args.verbose
     plot_end_date = args.end_date
     list_quantiles = args.quantiles
     hist_data_file = args.hist_file

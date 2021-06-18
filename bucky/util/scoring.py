@@ -1,7 +1,5 @@
 """ Provides various scoring metrics for probabilistic forecasts.
 """
-import numpy as np
-
 from ..numerical_libs import sync_numerical_libs, xp
 
 

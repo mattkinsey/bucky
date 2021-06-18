@@ -50,7 +50,7 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
 
         self.indices = indices
 
-        self.n_compartments = xp.to_cpu(sum([n for n in bin_counts.values()])).item()
+        self.n_compartments = xp.to_cpu(sum(list(bin_counts.values()))).item()
 
         self.n_age_grps, self.n_nodes = Nij.shape
 

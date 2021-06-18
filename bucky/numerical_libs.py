@@ -51,7 +51,7 @@ reimport_cache = set()
 
 def reimport_numerical_libs(context=None):
     """Reimport xp, xp_sparse, xp_ivp from the global context (in case they've been update to cupy)."""
-    global reimport_cache  # pylint: global-statement
+    global reimport_cache  # pylint: disable=global-statement
     if context in reimport_cache:
         return
     caller_globals = dict(inspect.getmembers(inspect.stack()[1][0]))["f_globals"]
@@ -69,7 +69,7 @@ def sync_numerical_libs(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         """wrapper that checks if we've already overridden this functions imports"""
-        global reimport_cache  # pylint: global-statement
+        global reimport_cache  # pylint: disable=global-statement
         context = func.__qualname__
         if context in reimport_cache:
             return func(*args, **kwargs)
@@ -192,16 +192,17 @@ def enable_cupy(optimize=False):
             return x
         else:
             out[:] = x
-            return out
+
+        return out
 
     cp.to_cpu = cp_to_cpu
 
     # Default xp.array to fp32
-    cp._oldarray = cp.array
+    cp._oldarray = cp.array  # pylint: disable=protected-access
 
     def array_f32(*args, **kwargs):
         """replacement cp.array that forces all float64 allocs to be float32 instead"""
-        ret = cp._oldarray(*args, **kwargs)
+        ret = cp._oldarray(*args, **kwargs)  # pylint: disable=protected-access
         if ret.dtype == xp.float64:
             ret = ret.astype("float32")
         return ret

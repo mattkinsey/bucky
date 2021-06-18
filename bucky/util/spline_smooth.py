@@ -75,14 +75,14 @@ def nunique(arr, axis=-1):
 def _get_free_crs_dmatrix(x, knots):
     """Builds an unconstrained cubic regression spline design matrix."""
     knots_dict = {}  # defaultdict(list)
-    x_knots_dict_map = {}  # defaultdict(list)
+    # x_knots_dict_map = {}  # defaultdict(list)
 
     # find the uniques sets of knots so we don't do alot of redundant work
     # batch_u_knots, u_knots_x_map = xp.unique(knots, return_inverse=True, axis=0)
     """
     n_knots = nunique(batch_u_knots, axis=-1)
     uniq_n_knots = xp.unique(n_knots)
-    #x_map = 
+    #x_map =
 
     for n in uniq_n_knots:
         # indices of batch_u_knots that have n knots
@@ -146,7 +146,7 @@ def _absorb_constraints(design_matrix, constraints):
     # Have to do this one by one for now
     # batched qr solver for cupy issue: https://github.com/cupy/cupy/issues/4986
     for i in range(constraints.shape[0]):
-        q, r = xp.linalg.qr(xp.transpose(constraints[i]), mode="complete")
+        q, _ = xp.linalg.qr(xp.transpose(constraints[i]), mode="complete")
         ret[i] = xp.dot(design_matrix[i], q[:, m:])
 
     return ret

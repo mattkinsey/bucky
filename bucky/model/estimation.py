@@ -8,7 +8,6 @@ def estimate_cfr(
     g_data,
     params,
     S_age_dist,
-    case_reporting=None,
     days_back=7,
 ):
     """Estimate CFR from recent case data"""
@@ -33,7 +32,7 @@ def estimate_cfr(
     w = w / (1.0 - w)
     w = w[::-1]
 
-    n_loc = rolling_case_hist.shape[1]
+    # n_loc = rolling_case_hist.shape[1]
     cfr = xp.empty((days_back,))
     for i in range(days_back):
         d = i + 1
@@ -76,7 +75,7 @@ def estimate_Rt(
     params,
     days_back=7,
     case_reporting=None,
-    use_geo_mean=False,
+    # use_geo_mean=False,
 ):
     """Estimate R_t from the recent case data"""
 

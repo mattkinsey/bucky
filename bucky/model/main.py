@@ -27,6 +27,7 @@ from .exceptions import SimulationException
 from .graph import buckyGraphData
 from .mc_instance import buckyMCInstance
 from .npi import get_npi_params
+from .optimize import test_opt
 from .parameters import buckyParams
 from .rhs import RHS_func
 from .state import buckyState
@@ -590,6 +591,9 @@ class buckyModelCovid:
                 refresh=True,
             )
             try:
+                if fail > n_mc:
+                    return invalid_ret
+
                 with xp.optimize_kernels():
                     sol = self.run_once(seed=mc_seed)
                     df_data = self.postprocess_run(sol, mc_seed, out_columns)
@@ -602,9 +606,6 @@ class buckyModelCovid:
             except ValueError:
                 fail += 1
                 print("nan in rhs")
-            finally:
-                if fail > n_mc:
-                    return invalid_ret
 
         pbar.close()
         return ret
@@ -881,8 +882,6 @@ def main(args=None):
     )
 
     if args.optimize:
-        from .optimize import test_opt
-
         test_opt(env)
         # TODO Should exit() here
 

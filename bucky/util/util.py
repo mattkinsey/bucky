@@ -128,11 +128,13 @@ def date_to_t_int(dates, start_date):
     return np.array([(date - start_date).days for date in dates], dtype=int)
 
 
-def quad_solve(a, b, c):
-    """Return roots of the quadratic equation ax^2 + bx + c = 0."""
-    r1 = (-b - xp.sqrt(b ** 2 - 4.0 * a * c)) / (2.0 * a)
-    r2 = (-b + xp.sqrt(b ** 2 - 4.0 * a * c)) / (2.0 * a)
-    return r1, r2
+# quadratic solve is unused and would make this file depend on xp, leave it commented out for now...
+
+# def quad_solve(a, b, c):
+#    """Return roots of the quadratic equation ax^2 + bx + c = 0."""
+#    r1 = (-b - xp.sqrt(b ** 2 - 4.0 * a * c)) / (2.0 * a)
+#    r2 = (-b + xp.sqrt(b ** 2 - 4.0 * a * c)) / (2.0 * a)
+#    return r1, r2
 
 
 def _banner():
