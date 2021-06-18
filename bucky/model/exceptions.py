@@ -1,3 +1,6 @@
+"""Some custom bucky related exceptions"""
+
+
 class SimulationException(Exception):
     """A generic exception to throw when there's an error related to the simulation"""
 

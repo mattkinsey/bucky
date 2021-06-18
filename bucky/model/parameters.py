@@ -48,6 +48,7 @@ def CI_to_std(CI):
 
 # TODO move to util
 def recursive_dict_update(d, u):
+    """Recursive update() for nested dicts"""
     for k, v in u.items():
         if isinstance(v, dict):
             d[k] = recursive_dict_update(d.get(k, {}), v)
@@ -77,6 +78,7 @@ class buckyParams:
         self.update_params(self.base_params)
 
     def update_params(self, update_dict):
+        """Update parameter distributions and consts from nested dicts."""
         self.consts = recursive_dict_update(self.consts, {k: xp.array(v) for k, v in update_dict["consts"].items()})
         self.base_params = recursive_dict_update(self.base_params, update_dict)
         self._generate_param_funcs(self.base_params)
@@ -113,6 +115,7 @@ class buckyParams:
             # logging.debug("Rejected params: " + pformat(params))
 
     def _generate_param_funcs(self, base_params):
+        """Generate all the partial functions to roll values of the params"""
         # Default standard deviation (as percentage of mean)
         var = self.consts.reroll_variance if "reroll_variance" in self.consts else 0.2
         # Existing parameter functions

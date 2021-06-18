@@ -68,6 +68,7 @@ def sync_numerical_libs(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
+        """wrapper that checks if we've already overridden this functions imports"""
         global reimport_cache
         context = func.__qualname__
         if context in reimport_cache:
@@ -198,6 +199,7 @@ def enable_cupy(optimize=False):
     cp._oldarray = cp.array
 
     def array_f32(*args, **kwargs):
+        """replacement cp.array that forces all float64 allocs to be float32 instead"""
         ret = cp._oldarray(*args, **kwargs)
         if ret.dtype == xp.float64:
             ret = ret.astype("float32")

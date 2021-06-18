@@ -1,3 +1,4 @@
+"""WIP prior optimization"""
 import datetime
 from pprint import pformat
 

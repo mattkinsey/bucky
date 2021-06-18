@@ -61,6 +61,7 @@ class buckyMCInstance:
         self.vacc_data = None
 
     def set_tmax(self, t_max):
+        """Set a new value for the max integration time"""
         self.t_max = t_max
         self._integrator_args["t_eval"] = xp.arange(0, self.t_max + self.dt, self.dt)
         self._integrator_args["t_span"] = (0.0, self.t_max)

@@ -190,8 +190,6 @@ def main(args=None):
     data_dir = os.path.join(args.file, "data/")
     metadata_dir = os.path.join(args.file, "metadata/")
 
-    # dataset = ds.dataset(data_dir, format="parquet", partitioning=["date"])
-
     adm_mapping = pd.read_csv(os.path.join(metadata_dir, "adm_mapping.csv"))
     dates = pd.read_csv(os.path.join(metadata_dir, "dates.csv"))
     dates = dates["date"].to_numpy()

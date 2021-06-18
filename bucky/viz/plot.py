@@ -546,6 +546,7 @@ def make_plots(
 
 
 def main(args=None):
+    """Main entrypoint"""
 
     if args is None:
         args = sys.argv[1:]

@@ -1,3 +1,4 @@
+"""RHS function that is passed to scipy.solve_ivp"""
 from ..numerical_libs import sync_numerical_libs, xp
 
 #

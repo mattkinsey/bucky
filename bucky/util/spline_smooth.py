@@ -30,6 +30,7 @@ def _get_natural_f(knots):
 
 
 def _find_knots_lower_bounds(x, knots):
+    """Find the lower bound for the knots"""
     lb = xp.empty(x.shape, dtype=int)
     for i in range(knots.shape[0]):
         lb[i] = xp.searchsorted(knots[i], x[i]) - 1
@@ -65,6 +66,7 @@ def _compute_base_functions(x, knots):
 
 
 def nunique(arr, axis=-1):
+    """Return the number of uniq values along a given axis"""
     arr_sorted = xp.sort(arr, axis=axis)
     n_not_uniq = (xp.diff(arr_sorted, axis=axis) == 0).sum(1)
     return arr.shape[axis] - n_not_uniq
