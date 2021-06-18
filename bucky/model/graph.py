@@ -18,7 +18,7 @@ def remove_outliers(arrs):
     tmp = arrs[0].T
     cum_arr = arrs[1]
     rmedian = xp.median(rolling_window(tmp, 7), axis=-1)
-    rstd = xp.var(rolling_window(tmp, 7), axis=-1)
+    # rstd = xp.var(rolling_window(tmp, 7), axis=-1)
     rmean = xp.mean(rolling_window(tmp, 7), axis=-1)
     mask = xp.abs(tmp - rmedian) > 5.0 * (rmedian + rmean) / 2.0
     mask = mask & (tmp > 1.0)
@@ -55,10 +55,10 @@ class buckyGraphData:
 
         # Perform some outlier detection/correction on the cases/deaths
         # TODO this should be a cleaned up and made a utility function for general timeseries
-        old_cases = self.inc_case_hist.copy()
-        old_deaths = self.inc_death_hist.copy()
-        old_ccases = self.cum_case_hist.copy()
-        old_cdeaths = self.cum_death_hist.copy()
+        # old_cases = self.inc_case_hist.copy()
+        # old_deaths = self.inc_death_hist.copy()
+        # old_ccases = self.cum_case_hist.copy()
+        # old_cdeaths = self.cum_death_hist.copy()
         # clean up incidence data to remove data dumps
         for arrs in ((self.inc_case_hist, self.cum_case_hist), (self.inc_death_hist, self.cum_death_hist)):
             remove_outliers(arrs)
@@ -76,12 +76,12 @@ class buckyGraphData:
 
         self.have_hosp = "hhs_data" in G.graph
         if self.have_hosp:
-            adm1_current_hosp = xp.zeros((self.max_adm1 + 1,), dtype=float)
+            # adm1_current_hosp = xp.zeros((self.max_adm1 + 1,), dtype=float)
             hhs_data = G.graph["hhs_data"].reset_index()
             hhs_data["date"] = pd.to_datetime(hhs_data["date"])
 
             # ensure we're not cheating w/ future data
-            hhs_data.loc[hhs_data.date <= pd.Timestamp(self.start_date)]
+            hhs_data = hhs_data.loc[hhs_data.date <= pd.Timestamp(self.start_date)]
 
             # add int index for dates
             hhs_data["date_index"] = pd.Categorical(hhs_data.date, ordered=True).codes
@@ -137,7 +137,8 @@ class buckyGraphData:
         # TODO add in axis param, we call this a bunch on array.T
         # assumes 1st dim is adm2 indexes
         # TODO should take an axis argument and handle reshape, then remove all the transposes floating around
-        # TODO we should use xp.unique(return_inverse=True) to compress these rather than allocing all the adm1 ids that dont exist, see the new postprocess
+        # TODO we should use xp.unique(return_inverse=True) to compress these rather than
+        #  allocing all the adm1 ids that dont exist, see the new postprocess
         shp = (self.max_adm1 + 1,) + adm2_arr.shape[1:]
         out = xp.zeros(shp, dtype=adm2_arr.dtype)
         if mask is None:

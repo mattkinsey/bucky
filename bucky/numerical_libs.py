@@ -51,7 +51,7 @@ reimport_cache = set()
 
 def reimport_numerical_libs(context=None):
     """Reimport xp, xp_sparse, xp_ivp from the global context (in case they've been update to cupy)."""
-    global reimport_cache
+    global reimport_cache  # pylint: global-statement
     if context in reimport_cache:
         return
     caller_globals = dict(inspect.getmembers(inspect.stack()[1][0]))["f_globals"]
@@ -69,7 +69,7 @@ def sync_numerical_libs(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         """wrapper that checks if we've already overridden this functions imports"""
-        global reimport_cache
+        global reimport_cache  # pylint: global-statement
         context = func.__qualname__
         if context in reimport_cache:
             return func(*args, **kwargs)
@@ -139,7 +139,8 @@ def enable_cupy(optimize=False):
         return module
 
     import cupy as cp  # pylint: disable=import-outside-toplevel
-    import numpy as np  # pylint: disable=import-outside-toplevel, reimported
+
+    # import numpy as np  # pylint: disable=import-outside-toplevel, reimported
 
     cp.cuda.set_allocator(cp.cuda.MemoryPool(cp.cuda.memory.malloc_managed).malloc)
     # cp.cuda.set_allocator(cp.cuda.MemoryAsyncPool().malloc)
