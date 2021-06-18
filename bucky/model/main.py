@@ -865,7 +865,7 @@ def main(args=None):
             table = pa.table(pa_data)
             pap.write_to_dataset(table, base_fname, partition_cols=["date"])
 
-    write_thread = threading.Thread(target=writer, daemon=True)
+    write_thread = threading.Thread(target=writer)
     write_thread.start()
 
     logging.info(f"command line args: {args}")

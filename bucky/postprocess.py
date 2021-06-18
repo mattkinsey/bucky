@@ -257,7 +257,7 @@ def main(args=None):
             df.to_csv(fname, header=True, mode="w")
         write_queue.task_done()
 
-    write_thread = threading.Thread(target=_writer, daemon=True)
+    write_thread = threading.Thread(target=_writer)
     write_thread.start()
 
     # TODO this depends on out of scope vars, need to clean that up
