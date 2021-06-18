@@ -21,8 +21,10 @@ def approx_betaincinv(alp1, alp2, u):
 
 
 @sync_numerical_libs
-def approx_mPERT(mu, a=0.0, b=1.0, gamma=4.0, var=None):
-    """Approximate sample from an mPERT distribution that uses a Kumaraswamy distrib in place of the incbeta; Supports Cupy."""
+def approx_mPERT(mu, a=0.0, b=1.0, gamma=4.0):
+    """Approximate sample from an mPERT distribution that uses a Kumaraswamy distrib in place of the incbeta.
+
+    Supports Cupy."""
     mu, a, b = xp.atleast_1d(mu, a, b)
     alp1 = 1.0 + gamma * ((mu - a) / (b - a))
     alp2 = 1.0 + gamma * ((b - mu) / (b - a))

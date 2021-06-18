@@ -190,9 +190,8 @@ def enable_cupy(optimize=False):
             return x.get(stream=stream, out=out)
         if out is None:
             return x
-        else:
-            out[:] = x
 
+        out[:] = x
         return out
 
     cp.to_cpu = cp_to_cpu

@@ -1,7 +1,7 @@
 """Submodule to handle the model parameterization and randomization."""
 import logging
 from functools import partial
-from os import listdir, path  # pylint disable=no-name-in-module
+from os import listdir, path  # pylint: disable=no-name-in-module
 
 import yaml
 

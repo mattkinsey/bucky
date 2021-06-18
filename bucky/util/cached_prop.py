@@ -7,7 +7,7 @@ import sys
 ALLOW_FUNCTOOLS = sys.version_info >= (3, 8, 0)
 
 if ALLOW_FUNCTOOLS:
-    from functools import cached_property
+    from functools import cached_property  # pylint: disable=unused-import
 else:
     # TODO I think this was added to functools in 3.8 or 3.9... -Matt
     class cached_property:  # pylint: disable=too-few-public-methods

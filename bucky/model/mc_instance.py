@@ -119,19 +119,16 @@ class buckyMCInstance:
         """Return the contact matrices after applying time dependent changes"""
         if self.npi_active:
             return norm_Cij(self.npi_params["contact_weights"][t] * self._Cij)
-        else:
-            return self.baseline_Cij
+        return self.baseline_Cij
 
     def BETA_eff(self, t):
         """Return effective value of BETA after time dependent changes"""
         if self.npi_active:
             return self.npi_params["r0_reduct"][t] * self.epi_params["BETA"]
-        else:
-            return self.epi_params["BETA"]
+        return self.epi_params["BETA"]
 
     def S_eff(self, t, y):
         """Return the effective of susceptable (S_ij) after applying time dependent modifications"""
         if self.vacc_active:
             return self.vacc_data.S_eff(y, self.epi_params, t)
-        else:
-            return y.S
+        return y.S
