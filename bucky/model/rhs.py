@@ -71,7 +71,7 @@ def RHS_func(t, y_flat, mc_inst):
     # Infectivity matrix (I made this name up, idk what its really called)
     I_tot = xp.sum(Nij * y.Itot, axis=0) - (1.0 - par["rel_inf_asym"]) * xp.sum(Nij * y.Ia, axis=0)
 
-    I_tmp = I_tot @ Aij  # using identity (A@B).T = B.T @ A.T
+    I_tmp = I_tot @ Aij_eff  # using identity (A@B).T = B.T @ A.T
 
     # beta_mat = y.S * xp.squeeze((Cij @ I_tmp.T[..., None]), axis=-1).T
     beta_mat = S_eff * (Cij @ xp.atleast_3d(I_tmp.T)).T[0]
