@@ -127,8 +127,8 @@ def opt_func(params, args):
                 **dict(zip(["wis_c", "wis_d", "wis_h"], ret)),
                 "mse": ret_mse,
                 **dict(zip(["mse_c", "mse_d", "mse_h"], mse)),
-            }
-        )
+            },
+        ),
     )
     # Sum MSE + WIS
     ret = ret_mse + ret_wis
@@ -264,7 +264,7 @@ def test_opt(env):
             env.bucky_params.base_params["R_fac"]["mu"],
             env.bucky_params.base_params["R_fac"]["b"] - env.bucky_params.base_params["R_fac"]["a"],
             env.bucky_params.base_params["R_fac"]["gamma"],
-        ]
+        ],
     )
     # Global search initialization
     lhs = Lhs(criterion="maximin", iterations=10000)

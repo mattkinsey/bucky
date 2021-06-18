@@ -48,7 +48,7 @@ def CI_to_std(CI):
 
 # TODO move to util
 def recursive_dict_update(d, u):
-    """Recursive update() for nested dicts"""
+    """Recursive update() for nested dicts."""
     for k, v in u.items():
         if isinstance(v, dict):
             d[k] = recursive_dict_update(d.get(k, {}), v)
@@ -85,7 +85,7 @@ class buckyParams:
 
     @staticmethod
     def read_yml(par_file):
-        """Read in the YAML par file"""
+        """Read in the YAML par file."""
         # TODO check file exists
         # If par_file is a directory, read files in alphanumeric order
         if path.isdir(par_file):

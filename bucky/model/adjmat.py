@@ -1,4 +1,4 @@
-""" Utility class to manage the adjacency matrix regardless of if its dense or sparse"""
+""" Utility class to manage the adjacency matrix regardless of if its dense or sparse."""
 # import logging
 
 # import networkx as nx

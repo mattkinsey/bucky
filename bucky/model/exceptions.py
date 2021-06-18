@@ -8,6 +8,6 @@ class SimulationException(Exception):
 
 
 class StateValidationException(SimulationException):
-    """Thrown when the state vector is in an invalid state"""
+    """Thrown when the state vector is in an invalid state."""
 
     pass  # pylint: disable=unnecessary-pass

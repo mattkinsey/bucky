@@ -138,7 +138,7 @@ parser.add_argument("-v", "--verbose", action="store_true", help="Print extra in
 
 # TODO move this to util
 def pinned_array(array):
-    """Allocate a cudy pinned array that shares mem with an input numpy array"""
+    """Allocate a cudy pinned array that shares mem with an input numpy array."""
     # first constructing pinned memory
     mem = xp.cuda.alloc_pinned_memory(array.nbytes)
     src = np.frombuffer(mem, array.dtype, array.size).reshape(array.shape)
@@ -147,7 +147,7 @@ def pinned_array(array):
 
 
 def main(args=None):
-    """Main method for postprocessing the raw outputs from an MC run"""
+    """Main method for postprocessing the raw outputs from an MC run."""
     if args is None:
         args = sys.argv[1:]
     args = parser.parse_args()
@@ -231,7 +231,7 @@ def main(args=None):
     write_queue = queue.Queue()
 
     def _writer():
-        """Write thread that will pull from a queue"""
+        """Write thread that will pull from a queue."""
         # Call to_write.get() until it returns None
         file_tables = {}
         for fname, q_dict in iter(write_queue.get, None):
@@ -260,7 +260,7 @@ def main(args=None):
 
     # TODO this depends on out of scope vars, need to clean that up
     def pa_array_quantiles(array, level):
-        """Calculate the quantiles of a pyarrow array after shipping it to the GPU"""
+        """Calculate the quantiles of a pyarrow array after shipping it to the GPU."""
         data = array.to_numpy().reshape(-1, n_adm2)
         data = data[:, adm2_sorted_ind]
 

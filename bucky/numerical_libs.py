@@ -68,7 +68,7 @@ def sync_numerical_libs(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        """wrapper that checks if we've already overridden this functions imports"""
+        """wrapper that checks if we've already overridden this functions imports."""
         global reimport_cache  # pylint: disable=global-statement
         context = func.__qualname__
         if context in reimport_cache:
@@ -146,7 +146,7 @@ def enable_cupy(optimize=False):
     # cp.cuda.set_allocator(cp.cuda.MemoryAsyncPool().malloc)
 
     def scipy_import_replacement(src):
-        """Perform the required numpy->cupy str replacements on the scipy source files"""
+        """Perform the required numpy->cupy str replacements on the scipy source files."""
         # replace numpy w/ cupy
         src = src.replace("import numpy", "import cupy")
         # fix a call to searchsorted by making sure it's params are typed correctly for the cupy version
@@ -200,7 +200,7 @@ def enable_cupy(optimize=False):
     cp._oldarray = cp.array  # pylint: disable=protected-access
 
     def array_f32(*args, **kwargs):
-        """replacement cp.array that forces all float64 allocs to be float32 instead"""
+        """replacement cp.array that forces all float64 allocs to be float32 instead."""
         ret = cp._oldarray(*args, **kwargs)  # pylint: disable=protected-access
         if ret.dtype == xp.float64:
             ret = ret.astype("float32")
