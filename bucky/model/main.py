@@ -322,7 +322,8 @@ class buckyModelCovid:
 
         self.params["CASE_REPORT"] = mean_case_reporting
         self.params["THETA"] = xp.broadcast_to(
-            self.params["THETA"][:, None], self.Nij.shape
+            self.params["THETA"][:, None],
+            self.Nij.shape,
         )  # TODO move all the broadcast_to's to one place, they're all over reset()
         self.params["GAMMA_H"] = xp.broadcast_to(self.params["GAMMA_H"][:, None], self.Nij.shape)
         self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0.0, 1.0)
@@ -395,9 +396,13 @@ class buckyModelCovid:
             adm2_chr_delay_int = adm2_chr_delay.astype(int)  # TODO temp, this should be a distribution of floats
             adm2_chr_delay_mod = adm2_chr_delay % 1
             inc_case_h_delay = (1.0 - adm2_chr_delay_mod) * xp.take_along_axis(
-                self.g_data.rolling_inc_cases, -adm2_chr_delay_int[None, :], axis=0
+                self.g_data.rolling_inc_cases,
+                -adm2_chr_delay_int[None, :],
+                axis=0,
             )[0] + adm2_chr_delay_mod * xp.take_along_axis(
-                self.g_data.rolling_inc_cases, -adm2_chr_delay_int[None, :] - 1, axis=0
+                self.g_data.rolling_inc_cases,
+                -adm2_chr_delay_int[None, :] - 1,
+                axis=0,
             )[
                 0
             ]
@@ -571,7 +576,7 @@ class buckyModelCovid:
             #    self.base_mc_instance,
             #    #self.base_mc_instance.state,
             # ),
-            **self.base_mc_instance.integrator_args
+            **self.base_mc_instance.integrator_args,
         )
         logging.debug("Done integration")
 

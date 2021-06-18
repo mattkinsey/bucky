@@ -89,7 +89,9 @@ def get_case_history(historical_data, end_date, num_days=DAYS_OF_HIST):
     logging.info("Getting " + str(num_days) + " days of case/death data for each county...")
 
     for adm2_code, group in tqdm.tqdm(
-        historical_data.groupby("adm2"), desc="Grabbing adm2 histories", dynamic_ncols=True
+        historical_data.groupby("adm2"),
+        desc="Grabbing adm2 histories",
+        dynamic_ncols=True,
     ):
 
         # Get block of data

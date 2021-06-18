@@ -185,7 +185,7 @@ class buckyGraphData:
         """Return the rolling mean of incident cases."""
         return xp.clip(
             self.rolling_mean_func_cum(
-                xp.clip(xp.gradient(self.cum_case_hist, axis=0, edge_order=2), a_min=0, a_max=None)
+                xp.clip(xp.gradient(self.cum_case_hist, axis=0, edge_order=2), a_min=0, a_max=None),
             ),
             a_min=0.0,
             a_max=None,
@@ -196,7 +196,7 @@ class buckyGraphData:
         """Return the rolling mean of incident deaths."""
         return xp.clip(
             self.rolling_mean_func_cum(
-                xp.clip(xp.gradient(self.cum_death_hist, axis=0, edge_order=2), a_min=0, a_max=None)
+                xp.clip(xp.gradient(self.cum_death_hist, axis=0, edge_order=2), a_min=0, a_max=None),
             ),
             a_min=0.0,
             a_max=None,
