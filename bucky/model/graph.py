@@ -14,7 +14,7 @@ from .adjmat import buckyAij
 
 # TODO move to util
 def remove_outliers(arrs):
-    """Hackishly remove large outliers in time series, replace with rolling median value"""
+    """Hackishly remove large outliers in time series, replace with rolling median value."""
     tmp = arrs[0].T
     cum_arr = arrs[1]
     rmedian = xp.median(rolling_window(tmp, 7), axis=-1)
@@ -35,7 +35,7 @@ class buckyGraphData:
 
     @sync_numerical_libs
     def __init__(self, G, sparse=True, spline_smooth=False):
-        """Initialize the input data into cupy/numpy, reading it from a networkx graph"""
+        """Initialize the input data into cupy/numpy, reading it from a networkx graph."""
 
         # make sure G is sorted by adm2 id
         adm2_ids = _read_node_attr(G, G.graph["adm2_key"], dtype=int)[0]
@@ -155,27 +155,27 @@ class buckyGraphData:
     # Define and cache some of the reductions on Nij we might want
     @cached_property
     def Nj(self):
-        """Total population per adm2"""
+        """Total population per adm2."""
         return xp.sum(self.Nij, axis=0)
 
     @cached_property
     def N(self):
-        """Total population"""
+        """Total population."""
         return xp.sum(self.Nij)
 
     @cached_property
     def adm0_Ni(self):
-        """Age stratified adm0 population"""
+        """Age stratified adm0 population."""
         return xp.sum(self.Nij, axis=1)
 
     @cached_property
     def adm1_Nij(self):
-        """Age stratified adm1 populations"""
+        """Age stratified adm1 populations."""
         return self.sum_adm1(self.Nij.T).T
 
     @cached_property
     def adm1_Nj(self):
-        """Total adm1 populations"""
+        """Total adm1 populations."""
         return self.sum_adm1(self.Nj)
 
     # Define and cache some rolling means of the historical data @ adm2
@@ -224,43 +224,43 @@ class buckyGraphData:
     # adm1 rollups of historical data
     @cached_property
     def adm1_cum_case_hist(self):
-        """Cumulative cases by adm1"""
+        """Cumulative cases by adm1."""
         return self.sum_adm1(self.cum_case_hist.T).T
 
     @cached_property
     def adm1_inc_case_hist(self):
-        """Incident cases by adm1"""
+        """Incident cases by adm1."""
         return self.sum_adm1(self.inc_case_hist.T).T
 
     @cached_property
     def adm1_cum_death_hist(self):
-        """Cumulative deaths by adm1"""
+        """Cumulative deaths by adm1."""
         return self.sum_adm1(self.cum_death_hist.T).T
 
     @cached_property
     def adm1_inc_death_hist(self):
-        """Incident deaths by adm1"""
+        """Incident deaths by adm1."""
         return self.sum_adm1(self.inc_death_hist.T).T
 
     # adm0 rollups of historical data
     @cached_property
     def adm0_cum_case_hist(self):
-        """Cumulative cases at adm0"""
+        """Cumulative cases at adm0."""
         return xp.sum(self.cum_case_hist, axis=1)
 
     @cached_property
     def adm0_inc_case_hist(self):
-        """Incident cases at adm0"""
+        """Incident cases at adm0."""
         return xp.sum(self.inc_case_hist, axis=1)
 
     @cached_property
     def adm0_cum_death_hist(self):
-        """Cumulative deaths at adm0"""
+        """Cumulative deaths at adm0."""
         return xp.sum(self.cum_death_hist, axis=1)
 
     @cached_property
     def adm0_inc_death_hist(self):
-        """Incident deaths at adm0"""
+        """Incident deaths at adm0."""
         return xp.sum(self.inc_death_hist, axis=1)
 
 

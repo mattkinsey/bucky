@@ -25,7 +25,7 @@ class buckyAij:
         self._Aij, self._Aij_diag = self.normalize(self._base_Aij, self._base_Aij_diag, axis=0)
 
     def normalize(self, mat, mat_diag, axis=0):
-        """Normalize A along a given axis and keep the cache A_diag in sync"""
+        """Normalize A along a given axis and keep the cache A_diag in sync."""
         mat_norm_fac = 1.0 / mat.sum(axis=axis)
         mat_norm_fac = xp.array(mat_norm_fac)
         if self.sparse:
@@ -40,16 +40,16 @@ class buckyAij:
 
     @property
     def A(self):
-        """property refering to the dense/sparse matrix"""
+        """property refering to the dense/sparse matrix."""
         return (self._Aij + xp_sparse.eye(m=self._Aij.shape[0], format="csr")) / 2.0
 
     @property
     def diag(self):
-        """property refering to the cache diagional of the matrix"""
+        """property refering to the cache diagional of the matrix."""
         return (self._Aij_diag + 1.0) / 2.0
 
     def perturb(self, var):
-        """Apply a normal perturbation to the matrix (and keep its diag in sync)"""
+        """Apply a normal perturbation to the matrix (and keep its diag in sync)."""
         # Roll for perturbation in shape of Aij
         # we have to get tricky here b/c of lots of missing cupy methods
         if self.sparse:
@@ -85,7 +85,7 @@ def _read_edge_mat(G, weight_attr="weight", sparse=True, a_min=0.0):
 
 
 def _csr_diag(mat, out=None, indptr_sorted=False):
-    """Get the diagonal of a scipy/cupy CSR sparse matrix quickly
+    """Get the diagonal of a scipy/cupy CSR sparse matrix quickly.
 
     .. deprecated:: 0.9.0
             As of cupy==9.0.0a2 this functionality is provided by scipy.sparse.csr.csr_matrix.diagonal()
@@ -105,7 +105,7 @@ def _csr_diag(mat, out=None, indptr_sorted=False):
 
 
 def _csr_is_ind_sorted(mat):
-    """Check if a cupy/scipy CSR sparse matrix has its indices sorted"""
+    """Check if a cupy/scipy CSR sparse matrix has its indices sorted."""
     out = xp.zeros(mat.shape[0])
     for i in range(mat.shape[0]):
         row_inds = mat.indices[mat.indptr[i] : mat.indptr[i + 1]]

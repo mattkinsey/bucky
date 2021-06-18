@@ -13,7 +13,8 @@ import tqdm
 class TqdmLoggingHandler(logging.Handler):
     """Logging handler that is friendly with tqdm.
 
-    See https://stackoverflow.com/questions/38543506/change-logging-print-function-to-tqdm-write-so-logging-doesnt-interfere-wit
+    See:
+    https://stackoverflow.com/questions/38543506/change-logging-print-function-to-tqdm-write-so-logging-doesnt-interfere-wit
     """
 
     def __init__(self, level=logging.NOTSET):  # pylint: disable=useless-super-delegation
@@ -122,13 +123,13 @@ def bin_age_csv(filename, out_filename):
 
 
 def date_to_t_int(dates, start_date):
-    """Find the indices of a list of dates internally used by time indexed arrays in the modeli."""
+    """Find the indices of a list of dates internally used by time indexed arrays in the model."""
     # TODO handle varied dt
     return np.array([(date - start_date).days for date in dates], dtype=int)
 
 
 def quad_solve(a, b, c):
-    """Return roots of the quadratic equation ax^2 + bx + c = 0"""
+    """Return roots of the quadratic equation ax^2 + bx + c = 0."""
     r1 = (-b - xp.sqrt(b ** 2 - 4.0 * a * c)) / (2.0 * a)
     r2 = (-b + xp.sqrt(b ** 2 - 4.0 * a * c)) / (2.0 * a)
     return r1, r2

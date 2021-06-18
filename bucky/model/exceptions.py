@@ -1,8 +1,8 @@
-"""Some custom bucky related exceptions"""
+"""Some custom bucky related exceptions."""
 
 
 class SimulationException(Exception):
-    """A generic exception to throw when there's an error related to the simulation"""
+    """A generic exception to throw when there's an error related to the simulation."""
 
     pass  # pylint: disable=unnecessary-pass
 
@@ -10,4 +10,4 @@ class SimulationException(Exception):
 class StateValidationException(SimulationException):
     """Thrown when the state vector is in an invalid state"""
 
-    pass
+    pass  # pylint: disable=unnecessary-pass

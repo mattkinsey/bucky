@@ -9,12 +9,12 @@ from ..numerical_libs import sync_numerical_libs, xp
 
 
 def kumaraswamy_invcdf(a, b, u):
-    """Inverse CDF of the Kumaraswamy distribution"""
+    """Inverse CDF of the Kumaraswamy distribution."""
     return (1.0 - (1.0 - u) ** (1.0 / b)) ** (1.0 / a)
 
 
 def approx_betaincinv(alp1, alp2, u):
-    """Approximate betaincinv using Kumaraswamy after converting the params so that the means and modes are equal"""
+    """Approximate betaincinv using Kumaraswamy after converting the params s.t. means and modes are equal."""
     a = alp1
     b = ((alp1 - 1.0) ** (1.0 - alp1) * (alp1 + alp2 - 2.0) ** alp1 + 1) / alp1
     return kumaraswamy_invcdf(a, xp.real(b), u)
@@ -22,7 +22,7 @@ def approx_betaincinv(alp1, alp2, u):
 
 @sync_numerical_libs
 def approx_mPERT(mu, a=0.0, b=1.0, gamma=4.0, var=None):
-    """Approximate sample from an mPERT distribution that uses a Kumaraswamy distribution in place of the incomplete beta; Supports Cupy."""
+    """Approximate sample from an mPERT distribution that uses a Kumaraswamy distrib in place of the incbeta; Supports Cupy."""
     mu, a, b = xp.atleast_1d(mu, a, b)
     alp1 = 1.0 + gamma * ((mu - a) / (b - a))
     alp2 = 1.0 + gamma * ((b - mu) / (b - a))
