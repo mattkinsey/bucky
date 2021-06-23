@@ -9,26 +9,10 @@ import yaml
 from ..numerical_libs import sync_numerical_libs, xp
 from ..util.scoring import WIS
 
-ID = "baseline"
-
 # TODO better place for these
 columns = ("daily_reported_cases", "daily_deaths", "daily_hospitalizations")
 
-n_mc = 100
-base_seed = 2
 default_ret = 1e5
-percentile_params = (0.05, 1, 0.05)  # min, max, delta
-log = False
-
-rolling = False
-spline = True
-dof = 4
-
-global_opt = True
-global_multipliers = [(0.5, 2.0), (0.75, 1.33)]
-global_calls = 200
-
-local_calls = 1000
 
 
 def ravel_3d(a: xp.ndarray):
@@ -36,55 +20,63 @@ def ravel_3d(a: xp.ndarray):
     return a.reshape(a.shape[0], -1)
 
 
-def params_flat_to_dict(params):
-    new_params = {
-        "H_fac": {
-            "dist": "approx_mPERT",
-            "mu": params[0],
-            "a": params[0] - params[1] / 2.0,
-            "b": params[0] + params[1] / 2.0,
-            "gamma": params[2],
-        },
-        "Rt_fac": {
-            "dist": "approx_mPERT",
-            "mu": params[6],
-            "a": params[6] - params[7] / 2.0,
-            "b": params[6] + params[7] / 2.0,
-            "gamma": params[8],
-        },
-        "E_fac": {
-            "dist": "approx_mPERT",
-            "mu": params[9],
-            "a": params[9] - params[10] / 2.0,
-            "b": params[9] + params[10] / 2.0,
-            "gamma": params[11],
-        },
-        "R_fac": {
-            "dist": "approx_mPERT",
-            "mu": params[13],
-            "a": params[13] - params[14] / 2.0,
-            "b": params[13] + params[14] / 2.0,
-            "gamma": params[15],
-        },
-        "consts": {
-            "F_scaling": params[5],
-            "reroll_variance": params[12],
-            "rh_scaling": params[4],
-            "F_RR_var": params[3],
-            # "CI_scaling": params[16], "CI_init_scale": params[17], "CI_scaling_acc": params[18],
-        },
-    }
-    return new_params
+def extract_params(all_params: dict, to_extract: list):
+    all_params = all_params.copy()
+    ordered_params = []
+    values = []
+    for param in to_extract:
+        if type(param) is dict:
+            ordered_p = list(param.items())
+            for k, v in ordered_p:
+                for val in v:
+                    values.append(all_params[k][val])
+        else:
+            vals = all_params[param]
+            if all(p in vals for p in ['a', 'b', 'mu']):
+                vals = vals.copy()
+                vals['b-a'] = vals.pop('b') - vals.pop('a')
+            all_params[param] = vals
+            ordered_p = [(param, list(vals.keys()))]
+        for k, v in ordered_p:
+            for val in v:
+                values.append(all_params[k][val])
+        ordered_params.append(ordered_p)
+    return np.array(values), ordered_params
+
+
+def rebuild_params(values, keys):
+    v_i = 0
+    d = {}
+    for param in keys:
+        for p0, p1 in param:
+            d[p0] = {}
+            r = None
+            mu = None
+            for sub_key in p1:
+                if sub_key == 'b-a':
+                    r = values[v_i]
+                else:
+                    if sub_key == 'mu':
+                        mu = values[v_i]
+                    d[p0][sub_key] = values[v_i]
+                v_i += 1
+            if r is not None and mu is not None:
+                d[p0]['a'] = mu - r / 2
+                d[p0]['b'] = mu + r / 2
+    return d
 
 
 def opt_func(params, args):
     """Function y = f(params, args) to be minimized"""
+    # Unroll args
+    env, hist_daily_cases, hist_daily_deaths, hist_daily_h, fips_mask, keys = args
+
     # Convert param list to dictionary
     print(params)
-    new_params = params_flat_to_dict(params)
+    new_params = rebuild_params(params, keys)
     print(pformat(new_params))
-    # Unroll args
-    env, hist_daily_cases, hist_daily_deaths, hist_daily_h, fips_mask = args
+
+    run_params = env.bucky_params.opt_params
     hist_data = {
         "daily_reported_cases": hist_daily_cases,
         "daily_deaths": hist_daily_deaths,
@@ -95,13 +87,13 @@ def opt_func(params, args):
 
     # Run model
     env.update_params(new_params)
-    data = env.run_multiple(n_mc, base_seed, columns)
+    data = env.run_multiple(run_params.n_mc, run_params.base_seed, columns)
     if data is None:
         return default_ret
     model_data = {}
 
     # Convert array of MC runs into array of percentiles
-    q = xp.arange(*percentile_params)
+    q = xp.arange(*run_params.percentile_params)
     for col in columns:
         # Roll up to admin 1
         tmp = xp.array([env.g_data.sum_adm1(run[col][fips_mask, 1:], mask=fips_mask) for run in data])
@@ -113,7 +105,7 @@ def opt_func(params, args):
     # embed()
 
     # WIS
-    ret = [WIS(hist_data[col], q, model_data[col], norm=True, log=log) for col in columns]
+    ret = [WIS(hist_data[col], q, model_data[col], norm=True, log=run_params.log) for col in columns]
     # Normalize by number of days
     ret = [ret_i / hist_days[col] for ret_i, col in zip(ret, columns)]
     # Sum over admin 2 and days
@@ -184,9 +176,13 @@ def hosp_df(first_day: datetime.datetime, adm1_filter: xp.ndarray) -> pd.DataFra
 @sync_numerical_libs
 def test_opt(env):
     """Wrapper for calling the optimizer"""
+    lksdjf, skdljf = extract_params(env.bucky_params.base_params, env.bucky_params.opt_params.to_opt)
+    rebuild_params(lksdjf, skdljf)
+
     # First day of historical data
     first_day = env.init_date
-    if rolling:
+    run_params = env.bucky_params.opt_params
+    if run_params.rolling:
         first_day -= datetime.timedelta(days=6)
 
     # Environment admin2 and admin1 values
@@ -230,16 +226,16 @@ def test_opt(env):
     hist_vals = [xp.clip(vals, a_min=0.0, a_max=None) for vals in hist_vals]
 
     # Rolling mean
-    if rolling:
+    if run_params.rolling:
         from ..util.rolling_mean import rolling_mean
 
         hist_vals = [rolling_mean(vals, axis=1) for vals in hist_vals]
 
     # Spline
-    if spline:
+    if run_params.spline:
         from ..util.spline_smooth import fit
 
-        hist_vals = [fit(vals, df=dof) for vals in hist_vals]
+        hist_vals = [fit(vals, df=run_params.dof) for vals in hist_vals]
 
     # Get rid of negatives
     hist_vals = [xp.clip(vals, a_min=0.0, a_max=None) for vals in hist_vals]
@@ -251,30 +247,12 @@ def test_opt(env):
     from skopt.sampler import Lhs
     from skopt.space import Real
 
-    # Opt function args
-    args = (env, *hist_vals, fips_mask)
-
     # Opt function params
-    opt_params = np.array(
-        [
-            env.bucky_params.base_params["H_fac"]["mu"],
-            env.bucky_params.base_params["H_fac"]["b"] - env.bucky_params.base_params["H_fac"]["a"],
-            env.bucky_params.base_params["H_fac"]["gamma"],
-            xp.to_cpu(env.consts.F_RR_var),
-            xp.to_cpu(env.consts.rh_scaling),
-            xp.to_cpu(env.consts.F_scaling),
-            env.bucky_params.base_params["Rt_fac"]["mu"],
-            env.bucky_params.base_params["Rt_fac"]["b"] - env.bucky_params.base_params["Rt_fac"]["a"],
-            env.bucky_params.base_params["Rt_fac"]["gamma"],
-            env.bucky_params.base_params["E_fac"]["mu"],
-            env.bucky_params.base_params["E_fac"]["b"] - env.bucky_params.base_params["E_fac"]["a"],
-            env.bucky_params.base_params["E_fac"]["gamma"],
-            xp.to_cpu(env.consts.reroll_variance),
-            env.bucky_params.base_params["R_fac"]["mu"],
-            env.bucky_params.base_params["R_fac"]["b"] - env.bucky_params.base_params["R_fac"]["a"],
-            env.bucky_params.base_params["R_fac"]["gamma"],
-        ]
-    )
+    opt_params, keys = extract_params(env.bucky_params.base_params, env.bucky_params.opt_params.to_opt)
+
+    # Opt function args
+    args = (env, *hist_vals, fips_mask, keys)
+
     # Global search initialization
     lhs = Lhs(criterion="maximin", iterations=10000)
 
@@ -283,8 +261,8 @@ def test_opt(env):
     best_params = opt_params
 
     # 2 Global searches
-    if global_opt:
-        for (lower, upper) in global_multipliers:
+    if run_params.global_opt:
+        for (lower, upper) in run_params.global_multipliers:
             dims = [Real(lower * p, upper * p) for p in best_params]
             res = gp_minimize(
                 partial(opt_func, args=args),
@@ -292,7 +270,7 @@ def test_opt(env):
                 x0=best_params.tolist(),
                 initial_point_generator=lhs,
                 # callback=[checkpoint_saver],
-                n_calls=global_calls,
+                n_calls=run_params.global_calls,
                 verbose=True,
             )
             if res.fun < best_opt:
@@ -304,7 +282,7 @@ def test_opt(env):
         opt_func,
         best_params,
         (args,),
-        options={"disp": True, "adaptive": True, "maxfev": local_calls},  # local_calls
+        options={"disp": True, "adaptive": True, "maxfev": run_params.local_calls},  # local_calls
         method="Nelder-Mead",
     )
     if result.fun < best_opt:
@@ -317,11 +295,11 @@ def test_opt(env):
     with open('best_opt.yml', 'w') as f:
         # TODO need to recursively convert these from np.float to float for this to work
         best_params = [p.item() for p in best_params]
-        new_params = params_flat_to_dict(best_params)
+        new_params = rebuild_params(best_params, keys)
         yaml.safe_dump(new_params, f)
 
     with open("values.csv", 'a') as f:
-        f.write('{},{}'.format(ID, best_opt))
+        f.write('{},{}'.format(run_params.ID, best_opt))
     # TODO need function that will take the array being optimized and cast it to a dict (what opt_func is doing but
     #  available more generally)
     # need to be able to dump that dict to a yaml file

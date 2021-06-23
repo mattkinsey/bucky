@@ -68,6 +68,8 @@ class buckyParams:
         self.param_funcs = dotdict({})
         self.consts = dotdict({})
 
+        self.opt_params = dotdict({})
+
         if par_file is not None:
             self.update_params_from_file(par_file)
 
@@ -78,6 +80,8 @@ class buckyParams:
 
     def update_params(self, update_dict):
         self.consts = recursive_dict_update(self.consts, {k: xp.array(v) for k, v in update_dict["consts"].items()})
+        if "opt" in update_dict:
+            self.opt_params = recursive_dict_update(self.opt_params, update_dict["opt"])
         self.base_params = recursive_dict_update(self.base_params, update_dict)
         self._generate_param_funcs(self.base_params)
 

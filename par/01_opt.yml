@@ -1,0 +1,33 @@
+opt:
+  ID: "baseline"
+
+  n_mc: 100
+  base_seed: 2
+  percentile_params: # min, max, delta
+    - 0.05
+    - 1
+    - 0.05
+  log: False
+
+  rolling: False
+  spline: True
+  dof: 4
+
+  global_opt: True
+  global_multipliers:
+    - [0.5, 2.0]
+    - [0.75, 1.33]
+  global_calls: 200
+
+  local_calls: 2 #1000
+
+  to_opt:
+    - H_fac
+    - Rt_fac
+    - E_fac
+    - R_fac
+    - consts:
+        - F_scaling
+        - reroll_variance
+        - rh_scaling
+        - F_RR_var
