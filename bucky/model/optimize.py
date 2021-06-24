@@ -4,10 +4,12 @@ from pprint import pformat
 import numpy as np
 import pandas as pd
 import yaml
-# from iPython import embed
 
 from ..numerical_libs import sync_numerical_libs, xp
 from ..util.scoring import WIS
+
+# from iPython import embed
+
 
 # TODO better place for these
 columns = ("daily_reported_cases", "daily_deaths", "daily_hospitalizations")
@@ -67,9 +69,9 @@ def extract_values(base_params: dict, to_extract: list):
         else:  # type(param) is string
             k0 = param
             vals = base_params[k0]
-            if all(k1 in vals for k1 in ['a', 'b', 'mu']):
+            if all(k1 in vals for k1 in ["a", "b", "mu"]):
                 vals = vals.copy()
-                vals['b-a'] = vals.pop('b') - vals.pop('a')
+                vals["b-a"] = vals.pop("b") - vals.pop("a")
                 base_params[k0] = vals
             k1s = list(vals.keys())
         for k1 in k1s:
@@ -112,16 +114,16 @@ def rebuild_params(values, keys):
         r = None
         mu = None
         for p1 in p1s:
-            if p1 == 'b-a':
+            if p1 == "b-a":
                 r = values[v_i]
             else:
-                if p1 == 'mu':
+                if p1 == "mu":
                     mu = values[v_i]
                 d[p0][p1] = values[v_i]
             v_i += 1
         if r is not None and mu is not None:
-            d[p0]['a'] = mu - r / 2
-            d[p0]['b'] = mu + r / 2
+            d[p0]["a"] = mu - r / 2
+            d[p0]["b"] = mu + r / 2
     return d
 
 
@@ -349,16 +351,12 @@ def test_opt(env):
     print("Best Opt:", best_opt)
     print("Best Params:", best_params)
 
-    with open('best_opt.yml', 'w') as f:
-        # TODO need to recursively convert these from np.float to float for this to work
+    with open("best_opt.yml", "w") as f:
         best_params = [p.item() for p in best_params]
         new_params = rebuild_params(best_params, keys)
         yaml.safe_dump(new_params, f)
 
-    with open("values.csv", 'a') as f:
-        f.write('{},{}\n'.format(run_params.ID, best_opt))
-    # TODO need function that will take the array being optimized and cast it to a dict (what opt_func is doing but
-    #  available more generally)
-    # need to be able to dump that dict to a yaml file
+    with open("values.csv", "a") as f:
+        f.write("{},{}\n".format(run_params.ID, best_opt))
 
     # embed()
