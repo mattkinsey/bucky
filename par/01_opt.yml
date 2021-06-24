@@ -19,7 +19,7 @@ opt:
     - [0.75, 1.33]
   global_calls: 200
 
-  local_calls: 2 #1000
+  local_calls: 1000
 
   to_opt:
     - H_fac

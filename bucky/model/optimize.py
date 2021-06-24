@@ -20,49 +20,108 @@ def ravel_3d(a: xp.ndarray):
     return a.reshape(a.shape[0], -1)
 
 
-def extract_params(all_params: dict, to_extract: list):
-    all_params = all_params.copy()
+def extract_values(base_params: dict, to_extract: list):
+    """
+    Extract numerical values of specified parameters from base params dictionary.
+
+    For example, given the following (in yaml representation for clarity)
+
+        base_params:
+           Rt_fac:
+              dist: "approx_mPERT"
+              mu: 1.
+              gamma: 5.
+              a: .9
+              b: 1.1
+           R_fac:
+              dist: "approx_mPERT"
+              mu: .5
+              a: .45
+              b: .55
+              gamma: 50.
+           consts:
+              En: 3
+              Im: 3
+              Rhn: 3
+
+        to_extract:
+           - Rt_fac
+           - R_fac
+           - consts:
+              - En
+              - Im
+
+    extract_values(base_params, to_extract) would return:
+
+        np.array([1., 5., .2, .5, 50., .1, 3, 3]),
+        [("Rt_fac", ["mu", "gamma", "b-a"]), ("R_fac", ["mu", "gamma", "b-a"]), ("consts", ["En", "Im"])]
+    """
+
+    base_params = base_params.copy()
     ordered_params = []
     values = []
     for param in to_extract:
-        if type(param) is dict:
-            ordered_p = list(param.items())
-            for k, v in ordered_p:
-                for val in v:
-                    values.append(all_params[k][val])
-        else:
-            vals = all_params[param]
-            if all(p in vals for p in ['a', 'b', 'mu']):
+        these_values = []
+        if type(param) is dict:  # consts
+            k0, k1s = list(param.items())[0]
+        else:  # type(param) is string
+            k0 = param
+            vals = base_params[k0]
+            if all(k1 in vals for k1 in ['a', 'b', 'mu']):
                 vals = vals.copy()
                 vals['b-a'] = vals.pop('b') - vals.pop('a')
-            all_params[param] = vals
-            ordered_p = [(param, list(vals.keys()))]
-        for k, v in ordered_p:
-            for val in v:
-                values.append(all_params[k][val])
-        ordered_params.append(ordered_p)
+                base_params[k0] = vals
+            k1s = list(vals.keys())
+        for k1 in k1s:
+            these_values.append(base_params[k0][k1])
+        numeric_val_indices = [i for i, val in enumerate(these_values) if type(val) is float or type(val) is int]
+        ordered_params.append((k0, [k1s[i] for i in numeric_val_indices]))
+        values.extend([these_values[i] for i in numeric_val_indices])
     return np.array(values), ordered_params
 
 
 def rebuild_params(values, keys):
+    """
+    Build parameter dictionary from flattened values and ordered parameter names.
+
+    For example, given the following:
+
+       values = np.array([1., 5., .2, .5, 50., .1, 3, 3]),
+       keys = [("Rt_fac", ["mu", "gamma", "b-a"]), ("R_fac", ["mu", "gamma", "b-a"]), ("consts", ["En", "Im"])]
+
+    rebuild_params(values, keys) would return (in yaml representation for clarity):
+
+       Rt_fac:
+          mu: 1.
+          gamma: 5.
+          a: .9
+          b: 1.1
+       R_fac:
+          mu: .5
+          gamma: 50.
+          a: .45
+          b: .55
+       consts:
+          En: 3
+          Im: 3
+    """
     v_i = 0
     d = {}
-    for param in keys:
-        for p0, p1 in param:
-            d[p0] = {}
-            r = None
-            mu = None
-            for sub_key in p1:
-                if sub_key == 'b-a':
-                    r = values[v_i]
-                else:
-                    if sub_key == 'mu':
-                        mu = values[v_i]
-                    d[p0][sub_key] = values[v_i]
-                v_i += 1
-            if r is not None and mu is not None:
-                d[p0]['a'] = mu - r / 2
-                d[p0]['b'] = mu + r / 2
+    for p0, p1s in keys:
+        d[p0] = {}
+        r = None
+        mu = None
+        for p1 in p1s:
+            if p1 == 'b-a':
+                r = values[v_i]
+            else:
+                if p1 == 'mu':
+                    mu = values[v_i]
+                d[p0][p1] = values[v_i]
+            v_i += 1
+        if r is not None and mu is not None:
+            d[p0]['a'] = mu - r / 2
+            d[p0]['b'] = mu + r / 2
     return d
 
 
@@ -176,8 +235,6 @@ def hosp_df(first_day: datetime.datetime, adm1_filter: xp.ndarray) -> pd.DataFra
 @sync_numerical_libs
 def test_opt(env):
     """Wrapper for calling the optimizer"""
-    lksdjf, skdljf = extract_params(env.bucky_params.base_params, env.bucky_params.opt_params.to_opt)
-    rebuild_params(lksdjf, skdljf)
 
     # First day of historical data
     first_day = env.init_date
@@ -248,7 +305,7 @@ def test_opt(env):
     from skopt.space import Real
 
     # Opt function params
-    opt_params, keys = extract_params(env.bucky_params.base_params, env.bucky_params.opt_params.to_opt)
+    opt_params, keys = extract_values(env.bucky_params.base_params, env.bucky_params.opt_params.to_opt)
 
     # Opt function args
     args = (env, *hist_vals, fips_mask, keys)
