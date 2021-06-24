@@ -1,4 +1,4 @@
-"""WIP prior optimization"""
+"""WIP prior optimization."""
 import datetime
 from pprint import pformat
 
@@ -19,7 +19,7 @@ default_ret = 1e5
 
 
 def ravel_3d(a: xp.ndarray):
-    """Ravel each element of a, preserving first dimension"""
+    """Ravel each element of a, preserving first dimension."""
     return a.reshape(a.shape[0], -1)
 
 
@@ -129,7 +129,7 @@ def rebuild_params(values, keys):
 
 
 def opt_func(params, args):
-    """Function y = f(params, args) to be minimized"""
+    """Function y = f(params, args) to be minimized."""
     # Unroll args
     env, hist_daily_cases, hist_daily_deaths, hist_daily_h, fips_mask, keys = args
 
@@ -206,7 +206,7 @@ def opt_func(params, args):
 
 
 def case_death_df(first_day: datetime.datetime, adm2_filter: xp.ndarray) -> pd.DataFrame:
-    """Load historical case and death data and filter to correct dates/counties"""
+    """Load historical case and death data and filter to correct dates/counties."""
     # Case and death data
     hist = pd.read_csv("data/cases/csse_hist_timeseries.csv")
     # Types
@@ -225,7 +225,7 @@ def case_death_df(first_day: datetime.datetime, adm2_filter: xp.ndarray) -> pd.D
 
 
 def hosp_df(first_day: datetime.datetime, adm1_filter: xp.ndarray) -> pd.DataFrame:
-    """Load historical hospitalization data and filter to correct dates/states"""
+    """Load historical hospitalization data and filter to correct dates/states."""
     hist = pd.read_csv("data/cases/hhs_hosps.csv")
     hist.date = pd.to_datetime(hist.date)
     hist = hist.loc[hist.date > pd.to_datetime(first_day)]
@@ -237,7 +237,7 @@ def hosp_df(first_day: datetime.datetime, adm1_filter: xp.ndarray) -> pd.DataFra
 
 @sync_numerical_libs
 def test_opt(env):
-    """Wrapper for calling the optimizer"""
+    """Wrapper for calling the optimizer."""
 
     # First day of historical data
     first_day = env.init_date
