@@ -10,7 +10,7 @@ from ..numerical_libs import sync_numerical_libs, xp
 
 @sync_numerical_libs
 def get_npi_params(g_data, first_date, t_max, npi_file=None, disable_npi=False):
-    """Read an npi scenario file or if none is provided provide correctly shaped 'no future changes' npi_params"""
+    """Read an npi scenario file or if none is provided provide correctly shaped 'no future changes' npi_params."""
 
     n_nodes = g_data.Nij.shape[-1]
     if npi_file is not None:

@@ -1,4 +1,4 @@
-"""Rough method of smoothing data w/ splines. Based off the implementation of cr() in patsy"""
+"""Rough method of smoothing data w/ splines. Based off the implementation of cr() in patsy."""
 from collections import defaultdict
 
 from ..numerical_libs import sync_numerical_libs, xp
@@ -30,6 +30,7 @@ def _get_natural_f(knots):
 
 
 def _find_knots_lower_bounds(x, knots):
+    """Find the lower bound for the knots."""
     lb = xp.empty(x.shape, dtype=int)
     for i in range(knots.shape[0]):
         lb[i] = xp.searchsorted(knots[i], x[i]) - 1
@@ -40,7 +41,7 @@ def _find_knots_lower_bounds(x, knots):
 
 
 def _compute_base_functions(x, knots):
-    """Return base functions for the spline basis"""
+    """Return base functions for the spline basis."""
     j = _find_knots_lower_bounds(x, knots)
 
     h = knots[:, 1:] - knots[:, :-1]
@@ -65,6 +66,7 @@ def _compute_base_functions(x, knots):
 
 
 def nunique(arr, axis=-1):
+    """Return the number of uniq values along a given axis."""
     arr_sorted = xp.sort(arr, axis=axis)
     n_not_uniq = (xp.diff(arr_sorted, axis=axis) == 0).sum(1)
     return arr.shape[axis] - n_not_uniq
@@ -73,14 +75,14 @@ def nunique(arr, axis=-1):
 def _get_free_crs_dmatrix(x, knots):
     """Builds an unconstrained cubic regression spline design matrix."""
     knots_dict = {}  # defaultdict(list)
-    x_knots_dict_map = {}  # defaultdict(list)
+    # x_knots_dict_map = {}  # defaultdict(list)
 
     # find the uniques sets of knots so we don't do alot of redundant work
     # batch_u_knots, u_knots_x_map = xp.unique(knots, return_inverse=True, axis=0)
     """
     n_knots = nunique(batch_u_knots, axis=-1)
     uniq_n_knots = xp.unique(n_knots)
-    #x_map = 
+    #x_map =
 
     for n in uniq_n_knots:
         # indices of batch_u_knots that have n knots
@@ -138,20 +140,20 @@ def _get_free_crs_dmatrix(x, knots):
 
 
 def _absorb_constraints(design_matrix, constraints):
-    """Apply constraints to the design matrix"""
+    """Apply constraints to the design matrix."""
     m = constraints.shape[1]
     ret = xp.empty((design_matrix.shape[0], design_matrix.shape[1], design_matrix.shape[2] - m))
     # Have to do this one by one for now
     # batched qr solver for cupy issue: https://github.com/cupy/cupy/issues/4986
     for i in range(constraints.shape[0]):
-        q, r = xp.linalg.qr(xp.transpose(constraints[i]), mode="complete")
+        q, _ = xp.linalg.qr(xp.transpose(constraints[i]), mode="complete")
         ret[i] = xp.dot(design_matrix[i], q[:, m:])
 
     return ret
 
 
 def _cr(x, df, center=True):
-    """Python version of the R lib mgcv function cr()"""
+    """Python version of the R lib mgcv function cr()."""
 
     # TODO make df settable to a vector
     n_constraints = 0
@@ -182,7 +184,7 @@ def _cr(x, df, center=True):
 
 
 def ridge(x, y, alp=0.0):
-    """Calculate the exact soln to the ridge regression of the weights for basis x that fit data y"""
+    """Calculate the exact soln to the ridge regression of the weights for basis x that fit data y."""
     # xtx = xp.dot(x.T, x)
     xtx = xp.einsum("ijk,ijl->ikl", x, x)
     # t1 = xp.empty(xtx.shape)
@@ -200,7 +202,7 @@ def ridge(x, y, alp=0.0):
 
 @sync_numerical_libs
 def fit(y, x=None, df=10, alp=0.6):
-    """Perform fit of natural cubic splines to the vector y, return the smoothed y"""
+    """Perform fit of natural cubic splines to the vector y, return the smoothed y."""
     # TODO handle df and alp as vectors
 
     # standardize ixputs

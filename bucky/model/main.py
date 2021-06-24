@@ -22,11 +22,12 @@ from ..numerical_libs import enable_cupy, reimport_numerical_libs, xp, xp_ivp
 from ..util.distributions import approx_mPERT, truncnorm
 from ..util.util import TqdmLoggingHandler, _banner
 from .arg_parser_model import parser
-from .estimation import estimate_Rt
+from .estimation import estimate_cfr, estimate_Rt
 from .exceptions import SimulationException
 from .graph import buckyGraphData
 from .mc_instance import buckyMCInstance
 from .npi import get_npi_params
+from .optimize import test_opt
 from .parameters import buckyParams
 from .rhs import RHS_func
 from .state import buckyState
@@ -148,7 +149,7 @@ class buckyModelCovid:
         self.Nj = g_data.Nj
         self.n_age_grps = self.Nij.shape[0]  # TODO factor out
 
-        self.init_date = datetime.date.fromisoformat(G.graph["start_date"])
+        self.init_date = g_data.start_date  # datetime.date.fromisoformat(G.graph["start_date"])
 
         self.base_mc_instance = buckyMCInstance(self.init_date, self.t_max, self.Nij, self.Cij)
 
@@ -321,7 +322,8 @@ class buckyModelCovid:
 
         self.params["CASE_REPORT"] = mean_case_reporting
         self.params["THETA"] = xp.broadcast_to(
-            self.params["THETA"][:, None], self.Nij.shape
+            self.params["THETA"][:, None],
+            self.Nij.shape,
         )  # TODO move all the broadcast_to's to one place, they're all over reset()
         self.params["GAMMA_H"] = xp.broadcast_to(self.params["GAMMA_H"][:, None], self.Nij.shape)
         self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0.0, 1.0)
@@ -383,9 +385,9 @@ class buckyModelCovid:
             adm2_hosp_frac = xp.sqrt(adm2_hosp_frac * adm0_hosp_frac)
 
             scaling_F = F_RR_fac[self.g_data.adm1_id] * self.consts.F_scaling / H_fac
-            scaling_H = adm2_hosp_frac * H_fac
+            scaling_H = adm2_hosp_frac * H_fac * self.consts.F_scaling
             self.params["F"] = xp.clip(self.params["F"] * scaling_F, 0.0, 1.0)
-            self.params["H"] = xp.clip(self.params["H"] * scaling_H, self.params["F"], 1.0) / 1.2
+            self.params["H"] = xp.clip(self.params["H"] * scaling_H, self.params["F"], 1.0)
             self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0.0, 1.0)
 
             # TODO rename F_eff to HFR
@@ -394,9 +396,13 @@ class buckyModelCovid:
             adm2_chr_delay_int = adm2_chr_delay.astype(int)  # TODO temp, this should be a distribution of floats
             adm2_chr_delay_mod = adm2_chr_delay % 1
             inc_case_h_delay = (1.0 - adm2_chr_delay_mod) * xp.take_along_axis(
-                self.g_data.rolling_inc_cases, -adm2_chr_delay_int[None, :], axis=0
+                self.g_data.rolling_inc_cases,
+                -adm2_chr_delay_int[None, :],
+                axis=0,
             )[0] + adm2_chr_delay_mod * xp.take_along_axis(
-                self.g_data.rolling_inc_cases, -adm2_chr_delay_int[None, :] - 1, axis=0
+                self.g_data.rolling_inc_cases,
+                -adm2_chr_delay_int[None, :] - 1,
+                axis=0,
             )[
                 0
             ]
@@ -570,7 +576,7 @@ class buckyModelCovid:
             #    self.base_mc_instance,
             #    #self.base_mc_instance.state,
             # ),
-            **self.base_mc_instance.integrator_args
+            **self.base_mc_instance.integrator_args,
         )
         logging.debug("Done integration")
 
@@ -590,6 +596,9 @@ class buckyModelCovid:
                 refresh=True,
             )
             try:
+                if fail > n_mc:
+                    return invalid_ret
+
                 with xp.optimize_kernels():
                     sol = self.run_once(seed=mc_seed)
                     df_data = self.postprocess_run(sol, mc_seed, out_columns)
@@ -602,9 +611,6 @@ class buckyModelCovid:
             except ValueError:
                 fail += 1
                 print("nan in rhs")
-            finally:
-                if fail > n_mc:
-                    return invalid_ret
 
         pbar.close()
         return ret
@@ -865,7 +871,7 @@ def main(args=None):
             table = pa.table(pa_data)
             pap.write_to_dataset(table, base_fname, partition_cols=["date"])
 
-    write_thread = threading.Thread(target=writer, daemon=True)
+    write_thread = threading.Thread(target=writer)
     write_thread.start()
 
     logging.info(f"command line args: {args}")
@@ -881,8 +887,6 @@ def main(args=None):
     )
 
     if args.optimize:
-        from .optimize import test_opt
-
         test_opt(env)
         return
         # TODO Should exit() here

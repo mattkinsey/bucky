@@ -32,6 +32,22 @@ if [ ! -d "cases/COVID-19" ]; then
 	popd > /dev/null
 fi
 
+# Vaccination time series
+if [ ! -d "vac/covid19-vaccine-timeseries" ]; then
+	mkdir -p vac && pushd vac > /dev/null
+        echo Cloning vaccine timeseries
+        git -c http.sslVerify=false clone https://github.com/mattkinsey/covid19-vaccine-timeseries
+	popd > /dev/null
+fi
+
+# County level ACIP demographics 
+if [ ! -d "vac/county-acip-demos" ]; then
+	mkdir -p vac && pushd vac > /dev/null
+        echo Cloning ACIP demos
+        git -c http.sslVerify=false clone https://github.com/mattkinsey/county-acip-demos
+	popd > /dev/null
+fi
+
 # Descartes mobility data
 if [ ! -d "mobility/DL-COVID-19" ]; then
 	mkdir -p mobility && pushd mobility > /dev/null

@@ -1,7 +1,7 @@
-"""Submodule to handle the model parameterization and randomization"""
+"""Submodule to handle the model parameterization and randomization."""
 import logging
 from functools import partial
-from os import listdir, path
+from os import listdir, path  # pylint: disable=no-name-in-module
 
 import yaml
 
@@ -11,36 +11,36 @@ from ..util.distributions import generic_distribution
 
 
 def calc_Te(Tg, Ts, n, f):
-    """Calculate the latent period"""
+    """Calculate the latent period."""
     num = 2.0 * n * f / (n + 1.0) * Tg - Ts
     den = 2.0 * n * f / (n + 1.0) - 1.0
     return num / den
 
 
 def calc_Reff(m, n, Tg, Te, r):
-    """Calculate the effective reproductive number"""
+    """Calculate the effective reproductive number."""
     num = 2.0 * n * r / (n + 1.0) * (Tg - Te) * (1.0 + r * Te / m) ** m
     den = 1.0 - (1.0 + 2.0 * r / (n + 1.0) * (Tg - Te)) ** (-n)
     return num / den
 
 
 def calc_Ti(Te, Tg, n):
-    """Calcuate the infectious period"""
+    """Calcuate the infectious period."""
     return (Tg - Te) * 2.0 * n / (n + 1.0)
 
 
 def calc_beta(Te):
-    """Derive beta from Te"""
+    """Derive beta from Te."""
     return 1.0 / Te
 
 
 def calc_gamma(Ti):
-    """Derive gamma from Ti"""
+    """Derive gamma from Ti."""
     return 1.0 / Ti
 
 
 def CI_to_std(CI):
-    """Convert a 95% confidence interval to an equivilent stddev (assuming its normal)"""
+    """Convert a 95% confidence interval to an equivilent stddev (assuming its normal)."""
     lower, upper = CI
     std95 = xp.sqrt(1.0 / 0.05)
     return (upper + lower) / 2.0, (upper - lower) / std95 / 2.0
@@ -48,6 +48,7 @@ def CI_to_std(CI):
 
 # TODO move to util
 def recursive_dict_update(d, u):
+    """Recursive update() for nested dicts."""
     for k, v in u.items():
         if isinstance(v, dict):
             d[k] = recursive_dict_update(d.get(k, {}), v)
@@ -57,11 +58,11 @@ def recursive_dict_update(d, u):
 
 
 class buckyParams:
-    """Class holding all the model parameters defined in the par file, also used to reroll them for each MC run"""
+    """Class holding all the model parameters defined in the par file, also used to reroll them for each MC run."""
 
     @sync_numerical_libs
     def __init__(self, par_file=None):
-        """Initialize the class, sync up the libs with the parent context and load the par file"""
+        """Initialize the class, sync up the libs with the parent context and load the par file."""
 
         # TODO add flags that are read from the yaml
         self.base_params = dotdict({})
@@ -79,6 +80,7 @@ class buckyParams:
         self.update_params(update_dict)
 
     def update_params(self, update_dict):
+        """Update parameter distributions and consts from nested dicts."""
         self.consts = recursive_dict_update(self.consts, {k: xp.array(v) for k, v in update_dict["consts"].items()})
         if "opt" in update_dict:
             self.opt_params = recursive_dict_update(self.opt_params, update_dict["opt"])
@@ -87,7 +89,7 @@ class buckyParams:
 
     @staticmethod
     def read_yml(par_file):
-        """Read in the YAML par file"""
+        """Read in the YAML par file."""
         # TODO check file exists
         # If par_file is a directory, read files in alphanumeric order
         if path.isdir(par_file):
@@ -108,7 +110,7 @@ class buckyParams:
         return d
 
     def generate_params(self):
-        """Generate a new set of params by rerolling, adding the derived params and rejecting invalid sets"""
+        """Generate a new set of params by rerolling, adding the derived params and rejecting invalid sets."""
         while True:  # WTB python do-while...
             params = self.reroll_params()
             if self.consts.Te_min < params.Te < params.Tg and params.Ti > self.consts.Ti_min:
@@ -117,6 +119,7 @@ class buckyParams:
             # logging.debug("Rejected params: " + pformat(params))
 
     def _generate_param_funcs(self):
+        """Generate all the partial functions to roll values of the params."""
         # Default standard deviation (as percentage of mean)
         var = self.consts.reroll_variance if "reroll_variance" in self.consts else 0.2
         # Existing parameter functions
@@ -170,7 +173,7 @@ class buckyParams:
 
     @staticmethod
     def age_interp(x_bins_new, x_bins, y):
-        """Interpolate parameters define in age groups to a new set of age groups"""
+        """Interpolate parameters define in age groups to a new set of age groups."""
         # TODO we should probably account for population for the 65+ type bins...
         x_bins_new = xp.array(x_bins_new)
         x_bins = xp.array(x_bins)
@@ -181,7 +184,7 @@ class buckyParams:
         return y
 
     def calc_derived_params(self, params):
-        """Add the derived params that are calculated from the rerolled ones"""
+        """Add the derived params that are calculated from the rerolled ones."""
         En = self.consts.En
         Im = self.consts.Im
         params["Te"] = calc_Te(

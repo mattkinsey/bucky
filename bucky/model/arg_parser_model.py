@@ -12,7 +12,7 @@ import os
 from ..util.read_config import bucky_cfg
 
 # TODO this logic should be in numerical_libs so we can apply it everywhere
-if bool(os.getenv("BUCKY_CPU")) or False:
+if bool(os.getenv("BUCKY_CPU")):
     logging.info("BUCKY_CPU found, forcing cpu usage")
     force_cpu = True
 else:

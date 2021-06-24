@@ -1,3 +1,4 @@
+"""WIP prior optimization"""
 import datetime
 from pprint import pformat
 
@@ -189,8 +190,8 @@ def opt_func(params, args):
                 **dict(zip(["wis_c", "wis_d", "wis_h"], ret)),
                 "mse": ret_mse,
                 **dict(zip(["mse_c", "mse_d", "mse_h"], mse)),
-            }
-        )
+            },
+        ),
     )
     # Sum MSE + WIS
     ret = ret_mse + ret_wis

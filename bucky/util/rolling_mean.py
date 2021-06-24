@@ -18,7 +18,7 @@ def rolling_mean(arr, window_size=7, axis=0, weights=None, mean_type="arithmetic
 
 @sync_numerical_libs
 def rolling_window(a, window_size):
-    """Use stride_tricks to add an extra dim on the end of an ndarray for each elements window"""
+    """Use stride_tricks to add an extra dim on the end of an ndarray for each elements window."""
     pad = xp.zeros(len(a.shape), dtype=xp.int32)
     pad[-1] = window_size - 1
     pad = list(zip(list(xp.to_cpu(pad)), list(xp.to_cpu(xp.zeros(len(a.shape), dtype=xp.int32)))))
@@ -29,7 +29,7 @@ def rolling_window(a, window_size):
 
 
 def _rolling_arithmetic_mean(arr, window_size=7, axis=0, weights=None):
-    """Compute a rolling arithmetic mean"""
+    """Compute a rolling arithmetic mean."""
     arr = xp.swapaxes(arr, axis, -1)
 
     if weights is None:
@@ -44,7 +44,7 @@ def _rolling_arithmetic_mean(arr, window_size=7, axis=0, weights=None):
 
 
 def _rolling_geometric_mean(arr, window_size, axis=0, weights=None):
-    """Compute a rolling geometric mean"""
+    """Compute a rolling geometric mean."""
     # TODO add some error checking (for negatives, etc)
     arr = xp.swapaxes(arr, axis, -1)
 
@@ -60,7 +60,7 @@ def _rolling_geometric_mean(arr, window_size, axis=0, weights=None):
 
 
 def _rolling_harmonic_mean(arr, window_size, axis=0, weights=None):
-    """Compute a rolling harmonic mean"""
+    """Compute a rolling harmonic mean."""
     # TODO check for 0s
     arr = xp.swapaxes(arr, axis, -1).astype(float)
 

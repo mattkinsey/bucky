@@ -10,7 +10,7 @@ from .exceptions import StateValidationException
 
 @sync_numerical_libs
 def slice_to_cpu(s):
-    """Ensure the values of the slice aren't cupy arrays to prevent an unsupported implict conversion in xp.r_"""
+    """Ensure the values of the slice aren't cupy arrays to prevent an unsupported implict conversion in xp.r_."""
     return xp.arange(xp.to_cpu(s.start), xp.to_cpu(s.stop), xp.to_cpu(s.step), dtype=xp.int32)
     # return slice(xp.to_cpu(s.start), xp.to_cpu(s.stop), xp.to_cpu(s.step))
 
@@ -20,7 +20,7 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
 
     @sync_numerical_libs
     def __init__(self, consts, Nij, state=None):
-        """Initialize the compartment indices and the state vector using the calling modules numerical libs"""
+        """Initialize the compartment indices and the state vector using the calling modules numerical libs."""
 
         self.En = consts["En"]  # TODO rename these to like gamma shape or something
         self.Im = consts["Im"]
@@ -50,7 +50,7 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
 
         self.indices = indices
 
-        self.n_compartments = xp.to_cpu(sum([n for n in bin_counts.values()])).item()
+        self.n_compartments = xp.to_cpu(sum(list(bin_counts.values()))).item()
 
         self.n_age_grps, self.n_nodes = Nij.shape
 
@@ -60,7 +60,7 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
             self.state = state
 
     def zeros_like(self):
-        """Return a mostly shallow copy of self but with a zeroed out self.state"""
+        """Return a mostly shallow copy of self but with a zeroed out self.state."""
         ret = copy.copy(self)
         ret.state = xp.zeros_like(self.state)
         return ret
@@ -98,7 +98,7 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
         self.S = 1.0 - xp.sum(self.N, axis=0)
 
     def validate_state(self):
-        """Validate that the state is valid (finite, nonnegative, N=1)"""
+        """Validate that the state is valid (finite, nonnegative, N=1)."""
 
         # Assert state is finite valued
         if xp.any(~xp.isfinite(self.state)):
