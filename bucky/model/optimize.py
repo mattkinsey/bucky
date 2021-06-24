@@ -356,7 +356,7 @@ def test_opt(env):
         yaml.safe_dump(new_params, f)
 
     with open("values.csv", 'a') as f:
-        f.write('{},{}'.format(run_params.ID, best_opt))
+        f.write('{},{}\n'.format(run_params.ID, best_opt))
     # TODO need function that will take the array being optimized and cast it to a dict (what opt_func is doing but
     #  available more generally)
     # need to be able to dump that dict to a yaml file
