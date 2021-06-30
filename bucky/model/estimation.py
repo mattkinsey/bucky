@@ -12,7 +12,7 @@ def estimate_cfr(
 ):
     """Estimate CFR from recent case data"""
 
-    mean = params["H_TIME"] + params["I_TO_H_TIME"]
+    mean = params["H_TIME"] + params["I_TO_H_TIME"] + params["D_REPORT_TIME"]
     adm2_mean = xp.sum(S_age_dist * mean[..., None], axis=0)
     k = params.consts["Rhn"]
 
