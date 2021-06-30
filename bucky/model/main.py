@@ -648,7 +648,7 @@ class buckyModelCovid:
                     "adm2": xp.to_cpu(self.g_data.adm2_id),
                     "adm1": xp.to_cpu(self.g_data.adm1_id),
                     "adm0": self.g_data.adm0_name,
-                }
+                },
             )
             adm_map.to_csv(os.path.join(metadata_folder, "adm_mapping.csv"), index=False)
 
