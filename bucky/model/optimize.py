@@ -13,9 +13,10 @@ from ..util.scoring import WIS
 
 
 # TODO better place for these
-columns = ("daily_reported_cases", "daily_deaths", "daily_hospitalizations")
-
-default_ret = 1e5
+COLUMNS = ("daily_reported_cases", "daily_deaths", "daily_hospitalizations")
+DEFAULT_RET = 1e5
+BEST_OPT_FILE = "best_opt.yml"
+VALUES_FILE = "values.csv"
 
 
 def ravel_3d(a: xp.ndarray):
@@ -131,7 +132,7 @@ def rebuild_params(values, keys):
 def opt_func(params, args):
     """Function y = f(params, args) to be minimized."""
     # Unroll args
-    env, hist_daily_cases, hist_daily_deaths, hist_daily_h, fips_mask, keys = args
+    env, hist_vals, fips_mask, keys = args
 
     # Convert param list to dictionary
     print(params)
@@ -139,24 +140,20 @@ def opt_func(params, args):
     print(pformat(new_params))
 
     run_params = env.bucky_params.opt_params
-    hist_data = {
-        "daily_reported_cases": hist_daily_cases,
-        "daily_deaths": hist_daily_deaths,
-        "daily_hospitalizations": hist_daily_h,
-    }
+    hist_data = dict(zip(COLUMNS, hist_vals))
     hist_days = {col: vals.shape[-1] for col, vals in hist_data.items()}
     hist_data = {col: vals.ravel() for col, vals in hist_data.items()}
 
     # Run model
     env.update_params(new_params)
-    data = env.run_multiple(run_params.n_mc, run_params.base_seed, columns)
+    data = env.run_multiple(run_params.n_mc, run_params.base_seed, COLUMNS)
     if data is None:
-        return default_ret
+        return DEFAULT_RET
     model_data = {}
 
     # Convert array of MC runs into array of percentiles
     q = xp.arange(*run_params.percentile_params)
-    for col in columns:
+    for col in COLUMNS:
         # Roll up to admin 1
         tmp = xp.array([env.g_data.sum_adm1(run[col][fips_mask, 1:], mask=fips_mask) for run in data])
         # Cut down to length of available ground truth data
@@ -167,27 +164,29 @@ def opt_func(params, args):
     # embed()
 
     # WIS
-    ret = [WIS(hist_data[col], q, model_data[col], norm=True, log=run_params.log) for col in columns]
+    wis = [WIS(hist_data[col], q, model_data[col], norm=True, log=run_params.log) for col in COLUMNS]
     # Normalize by number of days
-    ret = [ret_i / hist_days[col] for ret_i, col in zip(ret, columns)]
-    # Sum over admin 2 and days
-    ret = xp.array([xp.nansum(ret_i) for ret_i in ret])
+    wis = [ret_i / hist_days[col] for ret_i, col in zip(wis, COLUMNS)]
+    # Sum over admin 1 and days
+    wis = xp.array([xp.nansum(ret_i) for ret_i in wis])
 
     # MSE
     med_ind = q.shape[0] // 2 + 1
-    mse = [(xp.abs(model_data[col][med_ind] - hist_data[col]) / (hist_data[col] + 1)) ** 2 for col in columns]
-    mse = [mse_i / hist_days[col] for mse_i, col in zip(mse, columns)]
+    mse = [(xp.abs(model_data[col][med_ind] - hist_data[col]) / (hist_data[col] + 1)) ** 2 for col in COLUMNS]
+    # Normalize by number of days
+    mse = [mse_i / hist_days[col] for mse_i, col in zip(mse, COLUMNS)]
+    # Sum over admin 1 and days
     mse = xp.array([xp.nansum(mse_i) for mse_i in mse])
 
     # Sum over cases, deaths, hosp
-    ret_wis = xp.sum(ret)  # ret_c + ret_d + ret_h
+    ret_wis = xp.sum(wis)  # ret_c + ret_d + ret_h
     ret_mse = xp.sum(mse)  # mse_c + mse_d + mse_h
     print()
     print(
         pformat(
             {
                 "wis": ret_wis,
-                **dict(zip(["wis_c", "wis_d", "wis_h"], ret)),
+                **dict(zip(["wis_c", "wis_d", "wis_h"], wis)),
                 "mse": ret_mse,
                 **dict(zip(["mse_c", "mse_d", "mse_h"], mse)),
             },
@@ -214,24 +213,26 @@ def case_death_df(first_day: datetime.datetime, adm2_filter: xp.ndarray) -> pd.D
     hist.date = pd.to_datetime(hist.date)
 
     # get incident data
-    hist.set_index(["adm2", "date"], inplace=True)
-    hist = hist.groupby(level=0).diff()
-    hist.reset_index(inplace=True)
-    hist = hist.loc[hist.date > pd.to_datetime(first_day)]
-    hist = hist.loc[hist.adm2.isin(adm2_filter)]
-    hist = hist.set_index(["adm2", "date"])
-    hist = hist.reindex(adm2_filter, level=0)
+    hist = hist.set_index(["adm2", "date"])\
+        .groupby(level=0).diff()\
+        .reset_index()
+    # Filter and sorting
+    hist = hist.loc[(hist.date > pd.to_datetime(first_day)) & hist.adm2.isin(adm2_filter)]\
+        .set_index(["adm2", "date"])\
+        .reindex(adm2_filter, level=0)
     return hist
 
 
 def hosp_df(first_day: datetime.datetime, adm1_filter: xp.ndarray) -> pd.DataFrame:
     """Load historical hospitalization data and filter to correct dates/states."""
+    # Hosp data
     hist = pd.read_csv("data/cases/hhs_hosps.csv")
+    # Types
     hist.date = pd.to_datetime(hist.date)
-    hist = hist.loc[hist.date > pd.to_datetime(first_day)]
-    hist = hist.loc[hist.adm1.isin(adm1_filter)]
-    hist = hist.set_index(["adm1", "date"])
-    hist = hist.sort_index()
+    # Filter and sorting
+    hist = hist.loc[(hist.date > pd.to_datetime(first_day)) & hist.adm1.isin(adm1_filter)]\
+        .set_index(["adm1", "date"])\
+        .sort_index()
     return hist
 
 
@@ -311,31 +312,30 @@ def test_opt(env):
     opt_params, keys = extract_values(env.bucky_params.base_params, env.bucky_params.opt_params.to_opt)
 
     # Opt function args
-    args = (env, *hist_vals, fips_mask, keys)
+    args = (env, hist_vals, fips_mask, keys)
 
     # Global search initialization
     lhs = Lhs(criterion="maximin", iterations=10000)
 
     # Best objective value
-    best_opt = xp.inf
+    best_opt = np.inf
     best_params = opt_params
 
     # 2 Global searches
-    if run_params.global_opt:
-        for (lower, upper) in run_params.global_multipliers:
-            dims = [Real(lower * p, upper * p) for p in best_params]
-            res = gp_minimize(
-                partial(opt_func, args=args),
-                dimensions=dims,
-                x0=best_params.tolist(),
-                initial_point_generator=lhs,
-                # callback=[checkpoint_saver],
-                n_calls=run_params.global_calls,
-                verbose=True,
-            )
-            if res.fun < best_opt:
-                best_opt = res.fun
-                best_params = np.array(res.x)
+    for (lower, upper) in run_params.global_multipliers:
+        dims = [Real(lower * p, upper * p) for p in best_params]
+        res = gp_minimize(
+            partial(opt_func, args=args),
+            dimensions=dims,
+            x0=best_params.tolist(),
+            initial_point_generator=lhs,
+            # callback=[checkpoint_saver],
+            n_calls=run_params.global_calls,
+            verbose=True,
+        )
+        if res.fun < best_opt:
+            best_opt = res.fun
+            best_params = np.array(res.x)
 
     # Local search
     result = minimize(
@@ -352,12 +352,12 @@ def test_opt(env):
     print("Best Opt:", best_opt)
     print("Best Params:", best_params)
 
-    with open("best_opt.yml", "w") as f:
+    with open(BEST_OPT_FILE, "w") as f:
         best_params = [p.item() for p in best_params]
         new_params = rebuild_params(best_params, keys)
         yaml.safe_dump(new_params, f)
 
-    with open("values.csv", "a") as f:
+    with open(VALUES_FILE, "a") as f:
         f.write("{},{}\n".format(run_params.ID, best_opt))
 
     # embed()

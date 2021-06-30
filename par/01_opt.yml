@@ -1,7 +1,7 @@
 opt:
-  ID: "baseline"
+  ID: "baseline"  # Run ID and minimum objective value will be appended to values.csv
 
-  n_mc: 100
+  n_mc: 100  # Number of Monte Carlo runs per opt function evaluation
   base_seed: 2
   percentile_params: # min, max, delta
     - 0.05
@@ -9,18 +9,19 @@ opt:
     - 0.05
   log: False
 
-  rolling: False
-  spline: True
-  dof: 4
+  rolling: False  # Take 7-day rolling mean of values?
+  spline: True  # Fit spline to values?
+  dof: 4  # Spline dof
 
-  global_opt: True
+  # Global opt
   global_multipliers:
     - [0.5, 2.0]
     - [0.75, 1.33]
-  global_calls: 200
+  global_calls: 200  # Max opt function calls per global opt
 
-  local_calls: 1000
+  local_calls: 1000  # Max opt function calls for local opt
 
+  # Parameters to optimize (those with "mu, a, b" will be converted to "mu, b-a" during optimization)
   to_opt:
     - H_fac
     - Rt_fac
