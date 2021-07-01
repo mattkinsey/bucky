@@ -213,13 +213,13 @@ def case_death_df(first_day: datetime.datetime, adm2_filter: xp.ndarray) -> pd.D
     hist.date = pd.to_datetime(hist.date)
 
     # get incident data
-    hist = hist.set_index(["adm2", "date"])\
-        .groupby(level=0).diff()\
-        .reset_index()
+    hist = hist.set_index(["adm2", "date"]).groupby(level=0).diff().reset_index()
     # Filter and sorting
-    hist = hist.loc[(hist.date > pd.to_datetime(first_day)) & hist.adm2.isin(adm2_filter)]\
-        .set_index(["adm2", "date"])\
+    hist = (
+        hist.loc[(hist.date > pd.to_datetime(first_day)) & hist.adm2.isin(adm2_filter)]
+        .set_index(["adm2", "date"])
         .reindex(adm2_filter, level=0)
+    )
     return hist
 
 
@@ -230,9 +230,11 @@ def hosp_df(first_day: datetime.datetime, adm1_filter: xp.ndarray) -> pd.DataFra
     # Types
     hist.date = pd.to_datetime(hist.date)
     # Filter and sorting
-    hist = hist.loc[(hist.date > pd.to_datetime(first_day)) & hist.adm1.isin(adm1_filter)]\
-        .set_index(["adm1", "date"])\
+    hist = (
+        hist.loc[(hist.date > pd.to_datetime(first_day)) & hist.adm1.isin(adm1_filter)]
+        .set_index(["adm1", "date"])
         .sort_index()
+    )
     return hist
 
 
