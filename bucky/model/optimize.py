@@ -1,10 +1,10 @@
 """WIP prior optimization."""
 import datetime
 from pprint import pformat
-import yaml
 
 import numpy as np
 import pandas as pd
+import yaml
 
 from ..numerical_libs import sync_numerical_libs, xp
 from ..util.scoring import WIS
