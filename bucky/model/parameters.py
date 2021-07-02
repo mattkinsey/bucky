@@ -69,19 +69,23 @@ class buckyParams:
         self.param_funcs = dotdict({})
         self.consts = dotdict({})
 
+        self.opt_params = dotdict({})
+
         if par_file is not None:
             self.update_params_from_file(par_file)
 
     def update_params_from_file(self, par_file):
         """Update parameter distributions and consts from new yaml file."""
-        self.base_params = self.read_yml(par_file)
-        self.update_params(self.base_params)
+        update_dict = self.read_yml(par_file)
+        self.update_params(update_dict)
 
     def update_params(self, update_dict):
         """Update parameter distributions and consts from nested dicts."""
         self.consts = recursive_dict_update(self.consts, {k: xp.array(v) for k, v in update_dict["consts"].items()})
+        if "opt" in update_dict:
+            self.opt_params = recursive_dict_update(self.opt_params, update_dict["opt"])
         self.base_params = recursive_dict_update(self.base_params, update_dict)
-        self._generate_param_funcs(self.base_params)
+        self._generate_param_funcs()
 
     @staticmethod
     def read_yml(par_file):
@@ -114,14 +118,15 @@ class buckyParams:
                 return params
             # logging.debug("Rejected params: " + pformat(params))
 
-    def _generate_param_funcs(self, base_params):
+    def _generate_param_funcs(self):
         """Generate all the partial functions to roll values of the params."""
         # Default standard deviation (as percentage of mean)
         var = self.consts.reroll_variance if "reroll_variance" in self.consts else 0.2
         # Existing parameter functions
         param_funcs = self.param_funcs
 
-        for p, params in base_params.items():
+        for p, params in self.base_params.items():
+            params = params.copy()
             # Collect distribution name
             if "dist" not in params:
                 continue
@@ -145,7 +150,7 @@ class buckyParams:
             # Interpolate function
             interp = None
             if "age_bins" in params:
-                standard_age_bins = xp.array(base_params["consts"]["age_bins"])
+                standard_age_bins = xp.array(self.consts.age_bins)
                 age_bins = xp.array(params.pop("age_bins"))
                 interp = partial(self.age_interp, x_bins_new=standard_age_bins, x_bins=age_bins)
 

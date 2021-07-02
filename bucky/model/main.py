@@ -42,7 +42,7 @@ warnings.simplefilter(action="ignore", category=RuntimeWarning)
 def get_runid():  # TODO move to util and rename to timeid or something
     """Gets a UUID based of the current datatime and caches it"""
     dt_now = datetime.datetime.now()
-    return str(dt_now).replace(" ", "__").replace(":", "_").split(".")[0]
+    return str(dt_now).replace(" ", "__").replace(":", "_").split(".", maxsplit=1)[0]
 
 
 def frac_last_n_vals(arr, n, axis=0, offset=0):  # TODO assumes come from end of array currently, move to util
@@ -346,7 +346,7 @@ class buckyModelCovid:
         E_fac = self.params.E_fac
         H_fac = self.params.H_fac
 
-        if "vacc_data" in self.base_mc_instance:
+        if self.base_mc_instance.vacc_data is not None:
             nonvaccs = xp.clip(1 - self.base_mc_instance.vacc_data.V_tot(self.params, 0), a_min=0, a_max=1)  # dose2[0]
         else:
             nonvaccs = 1.0
@@ -474,12 +474,12 @@ class buckyModelCovid:
         # Sanity check state vector
         self.y.validate_state()
         # Reroll vaccine calculations if were running those
-        if self.base_mc_instance.vacc_data.reroll:
+        if self.base_mc_instance.vacc_data is not None and self.base_mc_instance.vacc_data.reroll:
             self.base_mc_instance.vacc_data.reroll_distribution(self.params)
             self.base_mc_instance.vacc_data.reroll_doses(self.params)
-            if SCENARIO_HUB:
-                self.params["vacc_eff_1"] = scen_params["eff_1"]
-                self.params["vacc_eff_2"] = scen_params["eff_2"]
+            # if SCENARIO_HUB:
+            #     self.params["vacc_eff_1"] = scen_params["eff_1"]
+            #     self.params["vacc_eff_2"] = scen_params["eff_2"]
 
         if self.debug:
             logging.debug("done model reset with seed " + str(seed))
@@ -838,11 +838,11 @@ class buckyModelCovid:
 
         # Collapse the gamma-distributed compartments and move everything to cpu
         negative_values = False
-        for k in df_data:
+        for k, val in df_data.items():
             # if df_data[k].ndim == 2:
             #    df_data[k] = xp.sum(df_data[k], axis=0)
 
-            if k != "date" and xp.any(xp.around(df_data[k], 2) < 0.0):
+            if k != "date" and xp.any(xp.around(val, 2) < 0.0):
                 logging.info("Negative values present in " + k)
                 negative_values = True
 
@@ -928,6 +928,7 @@ def main(args=None):
 
     if args.optimize:
         test_opt(env)
+        return
         # TODO Should exit() here
 
     seed_seq = np.random.SeedSequence(args.seed)
