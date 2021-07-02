@@ -602,6 +602,10 @@ class buckyModelCovid:
         self.base_mc_instance.state.E = new_E
         self.base_mc_instance.state.S = new_S
 
+        self.base_mc_instance.epi_params["BETA"] = xp.broadcast_to(
+            self.base_mc_instance.epi_params["BETA"],
+            self.g_data.Nij.shape,
+        )
         # do integration
         logging.debug("Starting integration")
         sol = xp_ivp.solve_ivp(
