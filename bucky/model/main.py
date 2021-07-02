@@ -346,7 +346,7 @@ class buckyModelCovid:
         E_fac = self.params.E_fac
         H_fac = self.params.H_fac
 
-        if "vacc_data" in self.base_mc_instance:
+        if self.base_mc_instance.vacc_data is not None:
             nonvaccs = xp.clip(1 - self.base_mc_instance.vacc_data.V_tot(self.params, 0), a_min=0, a_max=1)  # dose2[0]
         else:
             nonvaccs = 1.0
@@ -474,7 +474,7 @@ class buckyModelCovid:
         # Sanity check state vector
         self.y.validate_state()
         # Reroll vaccine calculations if were running those
-        if self.base_mc_instance.vacc_data.reroll:
+        if self.base_mc_instance.vacc_data is not None and self.base_mc_instance.vacc_data.reroll:
             self.base_mc_instance.vacc_data.reroll_distribution(self.params)
             self.base_mc_instance.vacc_data.reroll_doses(self.params)
             if SCENARIO_HUB:
