@@ -346,7 +346,10 @@ class buckyModelCovid:
         E_fac = self.params.E_fac
         H_fac = self.params.H_fac
 
-        nonvaccs = xp.clip(1 - self.base_mc_instance.vacc_data.V_tot(self.params, 0), a_min=0, a_max=1)  # dose2[0]
+        if "vacc_data" in self.base_mc_instance:
+            nonvaccs = xp.clip(1 - self.base_mc_instance.vacc_data.V_tot(self.params, 0), a_min=0, a_max=1)  # dose2[0]
+        else:
+            nonvaccs = 1.0
         tmp = nonvaccs * self.g_data.Nij / self.g_data.Nj
         non_vac_age_dist = tmp / xp.sum(tmp, axis=0)
 
@@ -396,7 +399,10 @@ class buckyModelCovid:
 
             # TODO rename F_eff to HFR
 
-            adm2_chr_delay = xp.sum(self.params["I_TO_H_TIME"][:, None] * self.g_data.Nij / self.g_data.Nj, axis=0)
+            adm2_chr_delay = xp.sum(
+                self.params["I_TO_H_TIME"][:, None] * non_vac_age_dist,
+                axis=0,
+            )  # * self.g_data.Nij / self.g_data.Nj, axis=0)
             adm2_chr_delay_int = adm2_chr_delay.astype(int)  # TODO temp, this should be a distribution of floats
             adm2_chr_delay_mod = adm2_chr_delay % 1
             inc_case_h_delay = (1.0 - adm2_chr_delay_mod) * xp.take_along_axis(
@@ -412,23 +418,31 @@ class buckyModelCovid:
             ]
             inc_case_h_delay[(inc_case_h_delay > 0.0) & (inc_case_h_delay < 1.0)] = 1.0
             inc_case_h_delay[inc_case_h_delay < 0.0] = 0.0
-            adm2_chr = xp.sum(self.params["H"] * self.g_data.Nij / self.g_data.Nj, axis=0)
+            adm2_chr = xp.sum(self.params["H"] * non_vac_age_dist, axis=0)  # self.g_data.Nij / self.g_data.Nj, axis=0)
 
             tmp = xp.sum(self.params.H * I_init / yy.Im * self.g_data.Nij, axis=0) / 3.0  # 1/3 is mean sigma
             tmp2 = inc_case_h_delay * adm2_chr  # * 3.0  # 3 == mean sigma, these should be read from base_params
 
             ic_fac = tmp2 / tmp
             ic_fac[~xp.isfinite(ic_fac)] = xp.nanmean(ic_fac[xp.isfinite(ic_fac)])
+            ic_fac = xp.clip(ic_fac, a_min=0.1, a_max=10.0)  #####
+
+            # ic_fac = ic_fac/2.
 
             yy.I = (1.0 - self.params.H) * I_init / yy.Im
             yy.Ic = ic_fac * self.params.H * I_init / yy.Im
             yy.Rh = (
                 rh_fac
+                * ic_fac
                 * self.params.H
                 * I_init
                 / yy.Rhn
                 # * 1.15  # fit to runs, we should be able to calculate this somehow...
             )
+
+        self.params["F"] = estimate_cfr(self.g_data, self.params, non_vac_age_dist)
+        self.params["F"] = xp.clip(self.params["F"] * self.consts.F_scaling * F_RR_fac[self.g_data.adm1_id], 0.0, 1.0)
+        self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0.0, 1.0)
 
         R_init -= xp.sum(yy.Rh, axis=0)
 
@@ -438,22 +452,40 @@ class buckyModelCovid:
         yy.D = D_init
 
         # TMP
+        yy.state = xp.clip(yy.state, a_min=0.0, a_max=None)
         mask = xp.sum(yy.N, axis=0) > 1.0
         yy.state[:, mask] /= xp.sum(yy.N, axis=0)[mask]
+        mask = xp.sum(yy.N, axis=0) < 1.0
+        yy.S[mask] /= 1.0 - xp.sum(yy.N, axis=0)[mask]
 
         yy.init_S()
         # init the bin we're using to track incident cases
         # (it's filled with cumulatives until we diff it later)
         # TODO should this come from the rolling hist?
-        yy.incC = xp.clip(self.g_data.cum_case_hist[-1][None, :], a_min=0.0, a_max=None) * age_dist_fac / self.Nij
+        yy.incC = xp.clip(self.g_data.cum_case_hist[-1][None, :], a_min=0.0, a_max=None) * non_vac_age_dist / self.Nij
+
+        # yy.state = xp.clip(yy.state,a_min=0., a_max=None)
 
         self.y = yy
 
+        # from IPython import embed
+        # embed()
+
         # Sanity check state vector
         self.y.validate_state()
+        # Reroll vaccine calculations if were running those
+        if self.base_mc_instance.vacc_data.reroll:
+            self.base_mc_instance.vacc_data.reroll_distribution(self.params)
+            self.base_mc_instance.vacc_data.reroll_doses(self.params)
+            if SCENARIO_HUB:
+                self.params["vacc_eff_1"] = scen_params["eff_1"]
+                self.params["vacc_eff_2"] = scen_params["eff_2"]
 
         if self.debug:
-            logging.debug("done reset()")
+            logging.debug("done model reset with seed " + str(seed))
+
+        # from IPython import embed
+        # embed()
 
         # return y
 
