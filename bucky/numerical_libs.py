@@ -24,9 +24,16 @@ import scipy.special
 # This will be overwritten with a call to .numerical_libs.enable_cupy()
 import bucky
 
+
+def to_cpu_noop(x, stream=None, order="C", out=None):
+    if out is not None:
+        out[:] = x
+    return x
+
+
 xp.scatter_add = xp.add.at
 xp.optimize_kernels = contextlib.nullcontext
-xp.to_cpu = lambda x, **kwargs: x  # noop
+xp.to_cpu = to_cpu_noop  # lambda x, **kwargs: x  # noop
 xp.special = scipy.special
 xp.empty_pinned = xp.empty
 xp.empty_like_pinned = xp.empty_like

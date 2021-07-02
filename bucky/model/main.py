@@ -246,7 +246,7 @@ class buckyModelCovid:
             xp.random.seed(seed)
 
         # reroll model params if we're doing that kind of thing
-        self.g_data.Aij.perturb(self.consts.reroll_variance)
+        # self.g_data.Aij.perturb(self.consts.reroll_variance)
         self.params = self.bucky_params.generate_params()
 
         if params is not None:
@@ -346,15 +346,19 @@ class buckyModelCovid:
         E_fac = self.params.E_fac
         H_fac = self.params.H_fac
 
+        nonvaccs = xp.clip(1 - self.base_mc_instance.vacc_data.V_tot(self.params, 0), a_min=0, a_max=1)  # dose2[0]
+        tmp = nonvaccs * self.g_data.Nij / self.g_data.Nj
+        non_vac_age_dist = tmp / xp.sum(tmp, axis=0)
+
         age_dist_fac = self.Nij / xp.sum(self.Nij, axis=0, keepdims=True)
-        I_init = E_fac * current_I[None, :] * age_dist_fac / self.Nij  # / self.n_age_grps
+        I_init = E_fac * current_I[None, :] * non_vac_age_dist / self.Nij  # / self.n_age_grps
         D_init = self.g_data.cum_death_hist[-1][None, :] * age_dist_fac / self.Nij  # / self.n_age_grps
         recovered_init = (self.g_data.cum_case_hist[-1] / self.params["SYM_FRAC"]) * R_fac
         R_init = (
             (recovered_init) * age_dist_fac / self.Nij - D_init - I_init / self.params["SYM_FRAC"]
         )  # Rh is factored in later
 
-        Rt = estimate_Rt(self.g_data, self.params, 14, self.case_reporting)
+        Rt = estimate_Rt(self.g_data, self.params, 7, self.case_reporting)
         Rt = Rt * self.params.Rt_fac
 
         self.params["R0"] = Rt
@@ -644,7 +648,7 @@ class buckyModelCovid:
                     "adm2": xp.to_cpu(self.g_data.adm2_id),
                     "adm1": xp.to_cpu(self.g_data.adm1_id),
                     "adm0": self.g_data.adm0_name,
-                }
+                },
             )
             adm_map.to_csv(os.path.join(metadata_folder, "adm_mapping.csv"), index=False)
 
