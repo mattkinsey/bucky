@@ -1,10 +1,10 @@
 """WIP prior optimization."""
 import datetime
 from pprint import pformat
+import yaml
 
 import numpy as np
 import pandas as pd
-import yaml
 
 from ..numerical_libs import sync_numerical_libs, xp
 from ..util.scoring import WIS
@@ -66,7 +66,7 @@ def extract_values(base_params: dict, to_extract: list):
     values = []
     for param in to_extract:
         these_values = []
-        if type(param) is dict:  # consts
+        if isinstance(param, dict):  # consts
             k0, k1s = list(param.items())[0]
         else:  # type(param) is string
             k0 = param
@@ -78,7 +78,7 @@ def extract_values(base_params: dict, to_extract: list):
             k1s = list(vals.keys())
         for k1 in k1s:
             these_values.append(base_params[k0][k1])
-        numeric_val_indices = [i for i, val in enumerate(these_values) if type(val) is float or type(val) is int]
+        numeric_val_indices = [i for i, val in enumerate(these_values) if isinstance(val, (float, int))]
         ordered_params.append((k0, [k1s[i] for i in numeric_val_indices]))
         values.extend([these_values[i] for i in numeric_val_indices])
     return np.array(values), ordered_params
