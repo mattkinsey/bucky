@@ -3,6 +3,9 @@ data/
 output/
 raw_output/
 
+# joblib cache
+.cache/
+
 # compiled python
 __pycache__/
 *.py[cod]
