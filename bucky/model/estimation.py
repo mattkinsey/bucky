@@ -63,7 +63,7 @@ def estimate_cfr(
 
     baseline_adm0_cfr = xp.sum(xp.sum(params.F * S_age_dist, axis=0) * g_data.Nj) / g_data.N
     adm0_cfr_fac = adm0_cfr / baseline_adm0_cfr
-    valid = xp.isfinite(cfr_fac) & (cfr_fac > 0.0)
+    valid = xp.isfinite(cfr_fac) & (cfr_fac > 0.2)
     cfr_fac[~valid] = adm0_cfr_fac
 
     return xp.clip(params.F * cfr_fac, 0.0, 1.0)
