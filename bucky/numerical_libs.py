@@ -213,7 +213,7 @@ def enable_cupy(optimize=False):
             ret = ret.astype("float32")
         return ret
 
-    cp.array = array_f32
+    # cp.array = array_f32
 
     import cupyx.scipy.special  # pylint: disable=import-outside-toplevel
 
