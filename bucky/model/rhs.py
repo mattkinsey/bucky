@@ -1,5 +1,6 @@
 """RHS function that is passed to scipy.solve_ivp."""
 from ..numerical_libs import sync_numerical_libs, xp
+from ..util.ode_constraints import constrain_y_range
 
 #
 # RHS for odes - d(sstate)/dt = F(t, state, *mats, *pars)
@@ -8,23 +9,14 @@ from ..numerical_libs import sync_numerical_libs, xp
 
 
 @sync_numerical_libs
+@constrain_y_range([0, 1])
 def RHS_func(t, y_flat, mc_inst):
     """RHS function for the ODEs, get's called in ivp.solve_ivp."""
-
-    # constraint on values
-    lower, upper = (0.0, 1.0)  # bounds for state vars
-
-    # grab index of OOB values so we can zero derivatives (stability...)
-    too_low = y_flat <= lower
-    too_high = y_flat >= upper
 
     # TODO we're passing in y.state just to overwrite it, we probably need another class
     # reshape to the usual state tensor (compartment, age, node)
     y = mc_inst.state
     y.state = y_flat.reshape(y.state_shape)
-
-    # Clip state to be in bounds
-    y.state = xp.clip(y.state, a_min=lower, a_max=upper, out=y.state)
 
     # init d(state)/dt
     dy = mc_inst.dy
@@ -110,9 +102,5 @@ def RHS_func(t, y_flat, mc_inst):
 
     # bring back to 1d for the ODE api
     dy_flat = dy.state.ravel()
-
-    # zero derivatives for things we had to clip if they are going further out of bounds
-    dy_flat = xp.where(too_low & (dy_flat < 0.0), 0.0, dy_flat)
-    dy_flat = xp.where(too_high & (dy_flat > 0.0), 0.0, dy_flat)
 
     return dy_flat
