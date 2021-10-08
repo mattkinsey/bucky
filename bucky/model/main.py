@@ -914,42 +914,42 @@ def main(args=None):
     write_thread = threading.Thread(target=writer)
     write_thread.start()
 
-    logging.info(f"command line args: {args}")
-    env = buckyModelCovid(
-        debug=debug_mode,
-        sparse_aij=(not args.dense),
-        t_max=args.days,
-        graph_file=args.graph_file,
-        par_file=args.par_file,
-        npi_file=args.npi_file,
-        disable_npi=args.disable_npi,
-        reject_runs=args.reject_runs,
-    )
-
-    if args.optimize:
-        test_opt(env)
-        return
-        # TODO Should exit() here
-
-    seed_seq = np.random.SeedSequence(args.seed)
-
-    total_start = datetime.datetime.now()
-    success = 0
-    n_runs = 0
-    pbar = tqdm.tqdm(total=args.n_mc, desc="Performing Monte Carlos", dynamic_ncols=True)
     try:
+        logging.info(f"command line args: {args}")
+        env = buckyModelCovid(
+            debug=debug_mode,
+            sparse_aij=(not args.dense),
+            t_max=args.days,
+            graph_file=args.graph_file,
+            par_file=args.par_file,
+            npi_file=args.npi_file,
+            disable_npi=args.disable_npi,
+            reject_runs=args.reject_runs,
+        )
+
+        if args.optimize:
+            test_opt(env)
+            return
+            # TODO Should exit() here
+
+        seed_seq = np.random.SeedSequence(args.seed)
+
+        pbar = tqdm.tqdm(total=args.n_mc, desc="Performing Monte Carlos", dynamic_ncols=True)
+        total_start = datetime.datetime.now()
+        success = 0
+        n_runs = 0
+
         while success < args.n_mc:
             mc_seed = seed_seq.spawn(1)[0].generate_state(1)[0]  # inc spawn key then grab next seed
             pbar.set_postfix_str(
-                "seed="
-                + str(mc_seed)
-                + ", rej%="  # TODO disable rej% if not -r
+                "seed=" + str(mc_seed)
+                # + ", rej%="  # TODO disable rej% if not -r
                 + str(np.around(float(n_runs - success) / (n_runs + 0.00001) * 100, 1)),
                 refresh=True,
             )
             try:
                 n_runs += 1
-                with xp.optimize_kernels():
+                with xp.optimize_kernels(path="./.cache/main_optuna"):
                     sol = env.run_once(seed=mc_seed)
                     env.save_run(sol, output_folder, mc_seed, output_queue=to_write)
 
@@ -965,8 +965,9 @@ def main(args=None):
     finally:
         to_write.put(None)
         write_thread.join()
-        pbar.close()
-        logging.info(f"Total runtime: {datetime.datetime.now() - total_start}")
+        if "pbar" in locals():
+            pbar.close()
+            logging.info(f"Total runtime: {datetime.datetime.now() - total_start}")
 
 
 if __name__ == "__main__":
