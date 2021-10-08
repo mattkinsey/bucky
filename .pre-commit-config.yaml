@@ -1,19 +1,19 @@
 repos:
 
   - repo: https://github.com/psf/black
-    rev: 20.8b1
+    rev: 21.9b0
     hooks:
       - id: black
         #language_version: python3.8 # Should be a command that runs python3.6+
 
   - repo: https://github.com/pre-commit/mirrors-isort
-    rev: v5.6.4
+    rev: v5.9.3
     hooks:
       - id: isort
         #language_version: python3.8
 
   - repo: https://gitlab.com/pycqa/flake8
-    rev: 3.8.4
+    rev: 3.9.2
     hooks:
       - id: flake8
         args: ['--config=tox.ini', '--exit-zero']
@@ -36,7 +36,7 @@ repos:
         #language_version: python3.8
 
   - repo: https://github.com/econchick/interrogate
-    rev: 1.3.1  # or master if you're bold
+    rev: 1.5.0  # or master if you're bold
     hooks:
       - id: interrogate
         files: 'bucky/'
@@ -50,7 +50,7 @@ repos:
 #        language_version: python3.8
 #
   - repo: https://github.com/terrencepreilly/darglint
-    rev: v1.5.5
+    rev: v1.8.0
     hooks:
     - id: darglint
       args: ['--no-exit-code']
