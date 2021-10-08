@@ -282,62 +282,68 @@ def main(args=None):
             xp.percentile(level_data_gpu, q=percentiles, axis=1, out=q_data_gpu)
         return q_data_gpu
 
-    percentiles = xp.array(quantiles, dtype=np.float64) * 100.0
-    quantiles = np.array(quantiles)
-    for date_i, date in enumerate(tqdm.tqdm(dates)):
-        dataset = ds.dataset(data_dir, format="parquet", partitioning=["date"])
-        table = dataset.to_table(filter=ds.field("date") == "date=" + str(date_i))
-        table = table.drop(("date", "rid", "adm2_id"))  # we don't need these b/c metadata
-        pop_weight_table = table.select(pop_weighted_cols)
-        table = table.drop(pop_weighted_cols)
+    try:
+        percentiles = xp.array(quantiles, dtype=np.float64) * 100.0
+        quantiles = np.array(quantiles)
+        for date_i, date in enumerate(tqdm.tqdm(dates)):
+            dataset = ds.dataset(data_dir, format="parquet", partitioning=["date"])
+            table = dataset.to_table(filter=ds.field("date") == "date=" + str(date_i))
+            table = table.drop(("date", "rid", "adm2_id"))  # we don't need these b/c metadata
+            pop_weight_table = table.select(pop_weighted_cols)
+            table = table.drop(pop_weighted_cols)
 
-        w = np.ravel(np.broadcast_to(weights, (table.shape[0] // weights.shape[0], weights.shape[0])))
-        for i, col in enumerate(table.column_names):
-            if pat.is_float64(table.column(i).type):
-                typed_w = w.astype(np.float64)
-            else:
-                typed_w = w.astype(np.float32)
+            w = np.ravel(np.broadcast_to(weights, (table.shape[0] // weights.shape[0], weights.shape[0])))
+            for i, col in enumerate(table.column_names):
+                if pat.is_float64(table.column(i).type):
+                    typed_w = w.astype(np.float64)
+                else:
+                    typed_w = w.astype(np.float32)
 
-            tmp = pac.multiply_checked(table.column(i), typed_w)
-            table = table.set_column(i, col, tmp)
-
-        for col in pop_weighted_cols:
-            if pat.is_float64(pop_weight_table[col].type):
-                typed_w = table["total_population"].to_numpy().astype(np.float64)
-            else:
-                typed_w = table["total_population"].to_numpy().astype(np.float32)
-            tmp = pac.multiply_checked(pop_weight_table[col], typed_w)
-            table = table.append_column(col, tmp)
-
-        for level in args.levels:
-            all_q_data = {}
-            for col in table.column_names:  # TODO can we do all at once since we dropped date?
-                all_q_data[col] = pa_array_quantiles(table[col], level)
-
-            # all_q_data = {col: pa_array_quantiles(table[col]) for col in table.column_names}
-
-            # we could do this outside the date loop and cache for each adm level...
-            out_shape = (len(percentiles),) + adm_level_values[level].shape
-            all_q_data[level] = np.broadcast_to(adm_level_values[level], out_shape)
-            all_q_data["date"] = np.broadcast_to(date, out_shape)
-            all_q_data["quantile"] = np.broadcast_to(quantiles[..., None], out_shape)
-
-            for col in per_capita_cols:
-                all_q_data[col + "_per_100k"] = 100000.0 * all_q_data[col] / all_q_data["total_population"]
+                tmp = pac.multiply_checked(table.column(i), typed_w)
+                table = table.set_column(i, col, tmp)
 
             for col in pop_weighted_cols:
-                all_q_data[col] = all_q_data[col] / all_q_data["total_population"]
+                if pat.is_float64(pop_weight_table[col].type):
+                    typed_w = table["total_population"].to_numpy().astype(np.float64)
+                else:
+                    typed_w = table["total_population"].to_numpy().astype(np.float32)
+                tmp = pac.multiply_checked(pop_weight_table[col], typed_w)
+                table = table.append_column(col, tmp)
 
-            for col in all_q_data:
-                all_q_data[col] = xp.to_cpu(all_q_data[col].T.ravel())
+            for level in args.levels:
+                all_q_data = {}
+                for col in table.column_names:  # TODO can we do all at once since we dropped date?
+                    all_q_data[col] = pa_array_quantiles(table[col], level)
 
-            write_queue.put((os.path.join(output_dir, level + "_quantiles.csv"), all_q_data))
+                # all_q_data = {col: pa_array_quantiles(table[col]) for col in table.column_names}
 
-        del dataset
-        gc.collect()
+                # we could do this outside the date loop and cache for each adm level...
+                out_shape = (len(percentiles),) + adm_level_values[level].shape
+                all_q_data[level] = np.broadcast_to(adm_level_values[level], out_shape)
+                all_q_data["date"] = np.broadcast_to(date, out_shape)
+                all_q_data["quantile"] = np.broadcast_to(quantiles[..., None], out_shape)
 
-    write_queue.put(None)  # send signal to term loop
-    write_thread.join()  # join the write_thread
+                for col in per_capita_cols:
+                    all_q_data[col + "_per_100k"] = 100000.0 * all_q_data[col] / all_q_data["total_population"]
+
+                for col in pop_weighted_cols:
+                    all_q_data[col] = all_q_data[col] / all_q_data["total_population"]
+
+                for col in all_q_data:
+                    all_q_data[col] = xp.to_cpu(all_q_data[col].T.ravel())
+
+                write_queue.put((os.path.join(output_dir, level + "_quantiles.csv"), all_q_data))
+
+            del dataset
+            gc.collect()
+
+    except (KeyboardInterrupt, SystemExit):
+        logging.warning("Caught SIGINT, cleaning up")
+        write_queue.put(None)  # send signal to term loop
+        write_thread.join()  # join the write_thread
+    finally:
+        write_queue.put(None)  # send signal to term loop
+        write_thread.join()  # join the write_thread
 
 
 if __name__ == "__main__":
