@@ -2,6 +2,79 @@
 
 from ..numerical_libs import sync_numerical_libs, xp
 
+# TODO there's alot of repeated code between estimate_chr/cfr, they should be generalized
+# @sync_numerical_libs
+# def gamma_delayed_ratio(mean_delay, k, numer, denom)
+
+
+@sync_numerical_libs
+def estimate_chr(
+    g_data,
+    params,
+    S_age_dist,
+    days_back=7,
+):
+    """Estimate CHR from recent case data"""
+
+    mean = params["I_TO_H_TIME"]  # + 8
+
+    adm2_mean = xp.sum(S_age_dist * mean[..., None], axis=0)
+    k = params.consts["Rhn"]
+
+    rolling_case_hist = g_data.rolling_inc_cases
+    rolling_hosp_hist = g_data.adm1_inc_hosp_hist
+
+    t_max = rolling_case_hist.shape[0]
+    x = xp.arange(0.0, t_max)
+
+    # adm0
+    adm0_inc_cases = xp.sum(rolling_case_hist, axis=1)
+    adm0_inc_hosp = xp.sum(rolling_hosp_hist, axis=1)
+
+    adm0_theta = xp.sum(adm2_mean * g_data.Nj / g_data.N) / k
+
+    w = 1.0 / (xp.special.gamma(k) * adm0_theta ** k) * x ** (k - 1) * xp.exp(-x / adm0_theta)
+    w = w / (1.0 - w)
+
+    w = w / xp.sum(w)
+    w = w[::-1]
+
+    chr = xp.empty((days_back,))
+    for i in range(days_back):
+        d = i + 1
+        chr[i] = adm0_inc_hosp[-d] / (xp.sum(w[d:] * adm0_inc_cases[:-d], axis=0))
+
+    adm0_chr = 1.0 / xp.nanmean(1.0 / chr, axis=0)
+
+    # adm1
+    adm1_inc_cases = g_data.sum_adm1(rolling_case_hist.T).T
+    adm1_inc_hosp = rolling_hosp_hist
+
+    adm1_theta = g_data.sum_adm1(adm2_mean * g_data.Nj) / g_data.adm1_Nj / k
+
+    x = xp.tile(x, (adm1_theta.shape[0], 1)).T
+    w = 1.0 / (xp.special.gamma(k) * adm1_theta ** k) * x ** (k - 1) * xp.exp(-x / adm1_theta)
+    w = w / (1.0 - w)
+    w = w / xp.sum(w, axis=0)
+    w = w[::-1]
+    chr = xp.empty((days_back, adm1_theta.shape[0]))
+    for i in range(days_back):
+        d = i + 1
+        chr[i] = adm1_inc_hosp[-d] / (xp.sum(w[d:] * adm1_inc_cases[:-d], axis=0))
+
+    adm1_chr = 1.0 / xp.nanmean(1.0 / chr, axis=0)
+
+    baseline_adm1_chr = g_data.sum_adm1(xp.sum(params.CHR * S_age_dist, axis=0) * g_data.Nj) / g_data.adm1_Nj
+
+    chr_fac = (adm1_chr / baseline_adm1_chr)[g_data.adm1_id]
+
+    baseline_adm0_chr = xp.sum(xp.sum(params.CHR * S_age_dist, axis=0) * g_data.Nj) / g_data.N
+    adm0_chr_fac = adm0_chr / baseline_adm0_chr
+    valid = xp.isfinite(chr_fac) & (chr_fac > 0.002) & (xp.mean(adm1_inc_hosp[:7]) > 5.0)
+    chr_fac[~valid] = adm0_chr_fac
+
+    return xp.clip(params.CHR * chr_fac, 0.0, 1.0)
+
 
 @sync_numerical_libs
 def estimate_cfr(
@@ -30,6 +103,7 @@ def estimate_cfr(
 
     w = 1.0 / (xp.special.gamma(k) * adm0_theta ** k) * x ** (k - 1) * xp.exp(-x / adm0_theta)
     w = w / (1.0 - w)
+    w = w / xp.sum(w)
     w = w[::-1]
 
     # n_loc = rolling_case_hist.shape[1]
@@ -49,6 +123,7 @@ def estimate_cfr(
     x = xp.tile(x, (adm1_theta.shape[0], 1)).T
     w = 1.0 / (xp.special.gamma(k) * adm1_theta ** k) * x ** (k - 1) * xp.exp(-x / adm1_theta)
     w = w / (1.0 - w)
+    w = w / xp.sum(w, axis=0)
     w = w[::-1]
     cfr = xp.empty((days_back, adm1_theta.shape[0]))
     for i in range(days_back):
@@ -79,8 +154,6 @@ def estimate_Rt(
 ):
     """Estimate R_t from the recent case data"""
 
-    rolling_case_hist = g_data.rolling_inc_cases / params["CASE_REPORT"]
-
     rolling_case_hist = g_data.rolling_inc_cases[-case_reporting.shape[0] :] / case_reporting
 
     rolling_case_hist = xp.clip(rolling_case_hist, a_min=0.0, a_max=None)
@@ -96,6 +169,7 @@ def estimate_Rt(
 
     w = 1.0 / (xp.special.gamma(k) * theta ** k) * x ** (k - 1) * xp.exp(-x / theta)
     w = w / (1.0 - w)
+    w = w / xp.sum(w)
     w = w[::-1]
     # adm0
     rolling_case_hist_adm0 = xp.nansum(rolling_case_hist, axis=1)[:, None]
@@ -148,11 +222,12 @@ def estimate_Rt(
 
     Rt = rt_harm  # (rt_geo + rt_med) /2.
     # TODO make this max value a param
-    valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist[-7:], axis=0) > 25) & (Rt > 0.1) & (Rt < 2.5)
+    valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist[-7:], axis=0) > 25) & (Rt > 0.1) & (Rt < 5)
     Rt_out[valid_mask] = Rt[valid_mask]
     return Rt_out
 
 
+# TODO this is deprecated...
 @sync_numerical_libs
 def estimate_doubling_time(
     g_data,
