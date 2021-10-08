@@ -17,15 +17,29 @@ def rolling_mean(arr, window_size=7, axis=0, weights=None, mean_type="arithmetic
 
 
 @sync_numerical_libs
-def rolling_window(a, window_size):
+def rolling_window(a, window_size, center=True, axis=0, pad=True, pad_mode="reflect", reflect_type="odd", freq=1):
     """Use stride_tricks to add an extra dim on the end of an ndarray for each elements window."""
-    pad = xp.zeros(len(a.shape), dtype=xp.int32)
-    pad[-1] = window_size - 1
-    pad = list(zip(list(xp.to_cpu(pad)), list(xp.to_cpu(xp.zeros(len(a.shape), dtype=xp.int32)))))
-    a = xp.pad(a, pad, mode="reflect")
-    shape = a.shape[:-1] + (a.shape[-1] - window_size + 1, window_size)
-    strides = a.strides + (a.strides[-1],)
-    return xp.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+
+    if pad:
+        pad_before = xp.zeros(len(a.shape), dtype=xp.int32)
+        pad_after = xp.zeros(len(a.shape), dtype=xp.int32)
+        if center:
+            assert window_size % 2  # only allow odd sized centered windows
+            pad_size = window_size // 2
+            pad_before[axis] = pad_size
+            pad_after[axis] = pad_size
+        else:
+            pad_before[axis] = window_size - 1
+
+        padding = list(zip(list(xp.to_cpu(pad_before)), list(xp.to_cpu(pad_after))))
+        a = xp.pad(a, padding, mode=pad_mode, reflect_type=reflect_type)
+
+    shape = list(a.shape)
+    shape[axis] = a.shape[axis] - window_size + 1
+    shape = tuple(shape) + (window_size,)
+    strides = a.strides + (a.strides[axis],)
+    freq_inds = [slice(None)] * (axis) + [slice(0, shape[axis], freq)] + [slice(None)] * (a.ndim - axis - 1)
+    return xp.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)[tuple(freq_inds)]
 
 
 def _rolling_arithmetic_mean(arr, window_size=7, axis=0, weights=None):
