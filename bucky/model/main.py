@@ -32,11 +32,6 @@ from .parameters import buckyParams
 from .rhs import RHS_func
 from .state import buckyState
 
-# supress pandas warning caused by pyarrow
-warnings.simplefilter(action="ignore", category=FutureWarning)
-# TODO we do alot of allowing div by 0 and then checking for nans later, we should probably refactor that
-warnings.simplefilter(action="ignore", category=RuntimeWarning)
-
 
 @lru_cache(maxsize=None)
 def get_runid():  # TODO move to util and rename to timeid or something

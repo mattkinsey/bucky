@@ -13,7 +13,8 @@ Linters **HATE** this module because it's really abusing the import system (by d
 import contextlib
 import importlib
 import inspect
-from functools import wraps
+import warnings
+from functools import partial, wraps
 
 import numpy as xp
 import scipy.integrate._ivp.ivp as xp_ivp
@@ -187,6 +188,9 @@ def enable_cupy(optimize=False):
         logging.info("Using optuna to optimize kernels, the first calls will be slowwwww")
         cp.optimize_kernels = cupyx.optimizing.optimize
         cp.ExperimentalWarning = optuna.exceptions.ExperimentalWarning
+        warnings.filterwarnings(
+            action="ignore", message="cupyx.time.repeat is experimental. The interface can change in the future."
+        )
     else:
         cp.optimize_kernels = contextlib.nullcontext
         cp.ExperimentalWarning = MockExperimentalWarning

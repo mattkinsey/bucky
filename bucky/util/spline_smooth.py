@@ -1,4 +1,5 @@
 """Method of smoothing data w/ splines. Based of a GAM from mgcv with a cr() basis."""
+import warnings
 from collections import defaultdict
 
 from joblib import Memory
@@ -139,7 +140,9 @@ def _absorb_constraints(design_matrix, constraints, pen=None):
     """Apply constraints to the design matrix."""
     m = constraints.shape[1]
 
-    q, _ = xp.linalg.qr(xp.swapaxes(constraints, 1, 2), mode="complete")
+    with warnings.catch_warnings():
+        warnings.simplefilter(action="ignore", category=FutureWarning)
+        q, _ = xp.linalg.qr(xp.swapaxes(constraints, 1, 2), mode="complete")
     ret = xp.einsum("ijk,ikl->ijl", design_matrix, q[..., m:])
     tmp = xp.einsum("ijk,ikl->ijl", pen, q[..., m:])
     pen_ret = xp.swapaxes(q[..., m:], 1, 2) @ tmp
@@ -327,7 +330,9 @@ def opt_lam(x, y, alp=0.6, w=None, pen=None, min_lam=0.1, step_size=None, tol=1e
 
     q_all = xp.empty_like(x)
     r_all = xp.empty((x.shape[0], x.shape[-1], x.shape[-1]))
-    q_all, r_all = xp.linalg.qr(x.astype(xp.float32))
+    with warnings.catch_warnings():
+        warnings.simplefilter(action="ignore", category=FutureWarning)
+        q_all, r_all = xp.linalg.qr(x.astype(xp.float32))
 
     complete = xp.full((y.shape[0],), False, dtype=bool)
     Vg_out = xp.empty((y.shape[0],))
