@@ -2,6 +2,7 @@
 import warnings
 from collections import defaultdict
 
+import tqdm
 from joblib import Memory
 
 from ..numerical_libs import sync_numerical_libs, xp
@@ -210,7 +211,7 @@ class identity_link:
         return xp.ones_like(mu)
 
 
-def PIRLS(x, y, alp, pen, tol=1.0e-7, dist="g", max_it=10000, w=None, gamma=1.0):
+def PIRLS(x, y, alp, pen, tol=1.0e-7, dist="g", max_it=10000, w=None, gamma=1.0, tqdm_label="PIRLS"):
     """Penalized iterativly reweighted least squares"""
     if dist == "g":
         link = identity_link()
@@ -231,6 +232,8 @@ def PIRLS(x, y, alp, pen, tol=1.0e-7, dist="g", max_it=10000, w=None, gamma=1.0)
     vg_all = xp.full((y_all.shape[0],), xp.inf)
     it_since_step_all = xp.zeros((y_all.shape[0],))
     it = 0
+    bar_format = "{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt}{postfix}"
+    pbar = tqdm.tqdm(desc=tqdm_label, total=y_all.shape[0], bar_format=bar_format, dynamic_ncols=True)
     while True:
         x = x_all[~complete]
         y = y_all[~complete]
@@ -260,9 +263,9 @@ def PIRLS(x, y, alp, pen, tol=1.0e-7, dist="g", max_it=10000, w=None, gamma=1.0)
         )
         diff = xp.sqrt(xp.sum((beta_k - beta_new) ** 2, axis=1)) / xp.sqrt(xp.sum(beta_new ** 2, axis=1))
         alp_diff = xp.abs(alp_k - alp_new) / alp_new
-        print(alp_diff)
-        print(diff)
-        print((vg_all[~complete] - vg_new) / vg_new)
+        # print(alp_diff)
+        # print(diff)
+        # print((vg_all[~complete] - vg_new) / vg_new)
         beta_k_all[~complete] = step_size[..., None] * beta_new + (1.0 - step_size[..., None]) * beta_k
         alp_k_all[~complete] = step_size * alp_new + (1.0 - step_size) * alp_k
         lp_new = xp.einsum("bij,bj->bi", x, beta_k)
@@ -286,10 +289,13 @@ def PIRLS(x, y, alp, pen, tol=1.0e-7, dist="g", max_it=10000, w=None, gamma=1.0)
             batch_complete = ((diff < tol) & (alp_diff < tol)) | xp.isnan(diff) | step_stop
             complete[~complete] = batch_complete
 
-        print("pirls", it, xp.sum(complete), xp.sum(~complete))
+        # print("pirls", it, xp.sum(complete), xp.sum(~complete))
+        pbar.set_postfix_str("iter=" + str(it))
+        pbar.update(xp.to_cpu(xp.sum(complete)) - pbar.n)
         it = it + 1
 
         if xp.all(complete) | (it > max_it):
+            pbar.close()
             return mu_k_all
 
 
@@ -464,7 +470,7 @@ def opt_lam(x, y, alp=0.6, w=None, pen=None, min_lam=0.1, step_size=None, tol=1e
 
 @memory.cache
 @sync_numerical_libs
-def fit(y, x=None, df=10, alp=0.6, dist="g", pirls=False, standardize=True, w=None, gamma=1.0, tol=1.0e-7):
+def fit(y, x=None, df=10, alp=0.6, dist="g", pirls=False, standardize=True, w=None, gamma=1.0, tol=1.0e-7, label="fit"):
     """Perform fit of natural cubic splines to the vector y, return the smoothed y."""
     # TODO handle df and alp as vectors
 
@@ -503,7 +509,17 @@ def fit(y, x=None, df=10, alp=0.6, dist="g", pirls=False, standardize=True, w=No
         else:
             if pirls:
                 with xp.optimize_kernels():
-                    y_fit = PIRLS(full_bs, y_in[x_map[n]], alp=alp, pen=pen, dist=dist, w=w, gamma=gamma, tol=tol)
+                    y_fit = PIRLS(
+                        full_bs,
+                        y_in[x_map[n]],
+                        alp=alp,
+                        pen=pen,
+                        dist=dist,
+                        w=w,
+                        gamma=gamma,
+                        tol=tol,
+                        tqdm_label=label,
+                    )
                 y_fit[x_map[n]] = y_fit
             else:
                 y_fit[x_map[n]], coefs, lam = opt_lam(full_bs, y_in[x_map[n]], alp=alp, pen=pen, gamma=gamma)

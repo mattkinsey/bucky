@@ -3,3 +3,4 @@
 data_dir: ./data
 raw_output_dir: ./raw_output
 output_dir: ./output
+cache_dir: ./.cache
