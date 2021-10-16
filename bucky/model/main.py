@@ -944,7 +944,7 @@ def main(args=None):
             )
             try:
                 n_runs += 1
-                with xp.optimize_kernels(path="./.cache/main_optuna"):
+                with xp.optimize_kernels():
                     sol = env.run_once(seed=mc_seed)
                     env.save_run(sol, output_folder, mc_seed, output_queue=to_write)
 

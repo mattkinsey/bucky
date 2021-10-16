@@ -5,11 +5,11 @@ from collections import defaultdict
 from joblib import Memory
 
 from ..numerical_libs import sync_numerical_libs, xp
+from .read_config import bucky_cfg
 
 dtype = xp.float32
 
-cachedir = "./.cache"  # TODO make a bucky cache dir in config and use it for optuna too
-memory = Memory(cachedir, verbose=0, mmap_mode="r")
+memory = Memory(bucky_cfg["cache_dir"], verbose=0, mmap_mode="r")
 
 
 @memory.cache
@@ -502,7 +502,7 @@ def fit(y, x=None, df=10, alp=0.6, dist="g", pirls=False, standardize=True, w=No
             y_fit[x_map[n]] = xp.sum((coefs[:, None, :] * full_bs), axis=-1)
         else:
             if pirls:
-                with xp.optimize_kernels(path="./.cache/spline_optuna"):
+                with xp.optimize_kernels():
                     y_fit = PIRLS(full_bs, y_in[x_map[n]], alp=alp, pen=pen, dist=dist, w=w, gamma=gamma, tol=tol)
                 y_fit[x_map[n]] = y_fit
             else:

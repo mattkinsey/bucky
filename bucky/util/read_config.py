@@ -12,7 +12,7 @@ with (pathlib.Path.cwd() / "config.yml").open(mode="r") as f:
 bucky_cfg["base_dir"] = str(pathlib.Path.cwd())
 
 # Resolve any relpaths
-for k in ("data_dir", "raw_output_dir", "output_dir"):
+for k in ("data_dir", "raw_output_dir", "output_dir", "cache_dir"):
     path = pathlib.Path(bucky_cfg[k])
     if not path.exists():
         logging.info("Path " + str(path) + " does not exist. Creating...")
