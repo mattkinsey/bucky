@@ -132,16 +132,18 @@ def estimate_cfr(
 
     adm1_cfr = 1.0 / xp.nanmean(1.0 / cfr, axis=0)
 
-    baseline_adm1_cfr = g_data.sum_adm1(xp.sum(params.F * S_age_dist, axis=0) * g_data.Nj) / g_data.adm1_Nj
+    baseline_adm1_cfr = g_data.sum_adm1(xp.sum(params.CFR * S_age_dist, axis=0) * g_data.Nj) / g_data.adm1_Nj
 
     cfr_fac = (adm1_cfr / baseline_adm1_cfr)[g_data.adm1_id]
 
-    baseline_adm0_cfr = xp.sum(xp.sum(params.F * S_age_dist, axis=0) * g_data.Nj) / g_data.N
+    baseline_adm0_cfr = xp.sum(xp.sum(params.CFR * S_age_dist, axis=0) * g_data.Nj) / g_data.N
     adm0_cfr_fac = adm0_cfr / baseline_adm0_cfr
-    valid = xp.isfinite(cfr_fac) & (cfr_fac > 0.2)
+    valid = xp.isfinite(cfr_fac) & (cfr_fac > 0.002) & (xp.mean(adm1_inc_deaths[:7]) > 5.0)
     cfr_fac[~valid] = adm0_cfr_fac
 
-    return xp.clip(params.F * cfr_fac, 0.0, 1.0)
+    cfr_fac = 2.0 / (1.0 / cfr_fac + 1.0 / adm0_cfr_fac[..., None])
+
+    return xp.clip(params.CFR * cfr_fac, 0.0, 1.0)
 
 
 @sync_numerical_libs
@@ -163,7 +165,7 @@ def estimate_Rt(
     t_max = rolling_case_hist.shape[0]
     k = params.consts["En"]
 
-    mean = params["Ts"]
+    mean = params["Tg"]
     theta = mean / k
     x = xp.arange(0.0, t_max)
 
@@ -203,7 +205,8 @@ def estimate_Rt(
 
     # TODO we should mask this before projecting it to adm2...
     Rt = Rt[g_data.adm1_id]
-    valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist_adm1[-7:], axis=0)[g_data.adm1_id] > 25)
+    Rt_adm1 = Rt[g_data.adm1_id]
+    valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist_adm1[-7:], axis=0)[g_data.adm1_id] > 50)
     Rt_out[valid_mask] = Rt[valid_mask]
 
     # adm2
@@ -222,8 +225,9 @@ def estimate_Rt(
 
     Rt = rt_harm  # (rt_geo + rt_med) /2.
     # TODO make this max value a param
-    valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist[-7:], axis=0) > 25) & (Rt > 0.1) & (Rt < 5)
+    valid_mask = xp.isfinite(Rt) & (xp.mean(rolling_case_hist[-7:], axis=0) > 50) & (Rt > 0.1) & (Rt < 5)
     Rt_out[valid_mask] = Rt[valid_mask]
+    Rt_out = 2.0 / (1.0 / Rt_adm1 + 1.0 / Rt_out)
     return Rt_out
 
 
