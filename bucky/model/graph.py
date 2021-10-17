@@ -4,37 +4,208 @@ from functools import partial
 
 import networkx as nx
 import pandas as pd
+import yaml
 
 from ..numerical_libs import sync_numerical_libs, xp
 from ..util.cached_prop import cached_property
+from ..util.extrapolate import interp_extrap
 from ..util.rolling_mean import rolling_mean, rolling_window
 from ..util.spline_smooth import fit
 from .adjmat import buckyAij
-
-
-# TODO move to util
-def remove_outliers(arrs):
-    """Hackishly remove large outliers in time series, replace with rolling median value."""
-    tmp = arrs[0].T
-    cum_arr = arrs[1]
-    rmedian = xp.median(rolling_window(tmp, 7), axis=-1)
-    # rstd = xp.var(rolling_window(tmp, 7), axis=-1)
-    rmean = xp.mean(rolling_window(tmp, 7), axis=-1)
-    mask = xp.abs(tmp - rmedian) > 5.0 * (rmedian + rmean) / 2.0
-    mask = mask & (tmp > 1.0)
-    mask = mask.T
-    rmedian = rmedian.T
-    tmp = arrs[0].copy()
-    arrs[0][mask] = rmedian[mask]
-    cum_change = xp.cumsum(tmp - arrs[0], axis=0)
-    arrs[1][:] = cum_arr - cum_change
 
 
 class buckyGraphData:
     """Contains and preprocesses all the data imported from an input graph file."""
 
     @sync_numerical_libs
-    def __init__(self, G, sparse=True, spline_smooth=False):
+    def clean_historical_data(self, cum_case_hist, cum_death_hist, inc_hosp, start_date, g_data, save_plots=True):
+
+        # interpolate unreported days
+        with open("state_update.yml", "r") as f:
+            state_update_info = yaml.load(f, yaml.SafeLoader)  # nosec
+
+        n_hist = cum_case_hist.shape[1]
+        dow = xp.arange(start=-n_hist + start_date.weekday() + 1, stop=start_date.weekday() + 1, step=1)
+        dow = dow % 7
+
+        update_mask = xp.full_like(cum_case_hist, False, dtype=bool)
+        default_state_mask = xp.isin(dow, xp.array(state_update_info[0]))
+
+        for i in range(1, g_data.max_adm1 + 1):
+            if i in state_update_info:
+                state_mask = xp.isin(dow, xp.array(state_update_info[i]))
+            else:
+                state_mask = default_state_mask
+
+            update_mask[g_data.adm1_id == i] = state_mask[None, ...]
+
+        diff_mask_cases = xp.diff(cum_case_hist, axis=1, prepend=cum_case_hist[:, 0][..., None] - 1) != 0.0
+        diff_mask_deaths = xp.diff(cum_death_hist, axis=1, prepend=cum_death_hist[:, 0][..., None] - 1) != 0.0
+        # diff_mask = diff_mask_cases | diff_mask_deaths
+
+        valid_case_mask = update_mask | diff_mask_cases
+        valid_death_mask = update_mask | diff_mask_deaths
+
+        new_cum_cases = xp.empty_like(cum_case_hist)
+        new_cum_deaths = xp.empty_like(cum_case_hist)
+
+        x = xp.arange(0, new_cum_cases.shape[1])
+        for i in range(new_cum_cases.shape[0]):
+            new_cum_cases[i] = interp_extrap(x, x[valid_case_mask[i]], cum_case_hist[i, valid_case_mask[i]])
+            new_cum_deaths[i] = interp_extrap(x, x[valid_death_mask[i]], cum_death_hist[i, valid_death_mask[i]])
+
+        # TODO remove massive outliers here, they lead to gibbs-like wiggling in the cumulative fitting
+
+        # Apply spline smoothing
+        df = max(1 * n_hist // 7 - 1, 4)
+        # df = n_hist - n_hist//4
+        alp = 1.5
+        tol = 1.0e-5  # 6
+        gam_inc = 8.0  # 8.
+        gam_cum = 8.0  # 8.
+
+        spline_cum_cases = xp.clip(
+            fit(new_cum_cases, df=df, alp=alp, pirls=True, gamma=gam_cum, tol=tol, label="PIRLS Cumulative Cases"),
+            a_min=0.0,
+            a_max=None,
+        )
+        spline_cum_deaths = xp.clip(
+            fit(new_cum_deaths, df=df, alp=alp, pirls=True, gamma=gam_cum, tol=tol, label="PIRLS Cumulative Deaths"),
+            a_min=0.0,
+            a_max=None,
+        )
+
+        # cum_rolling_cases = xp.mean(rolling_window(new_cum_cases, 7, center=True), axis=-1)
+        # cum_rolling_deaths = xp.mean(rolling_window(new_cum_deaths, 7, center=True), axis=-1)
+
+        # inc_spline_cases = xp.clip(xp.gradient(cum_rolling_cases, axis=1, edge_order=2), a_min=0.0, a_max=None)
+        # inc_spline_deaths = xp.clip(xp.gradient(cum_rolling_deaths, axis=1, edge_order=2), a_min=0.0, a_max=None)
+
+        # inc_rolling_cases = xp.mean(rolling_window(inc_spline_cases, 7, reflect_type="even", center=True), axis=-1)
+        # inc_rolling_deaths = xp.mean(rolling_window(inc_spline_deaths, 7, reflect_type="even", center=True), axis=-1)
+
+        inc_cases = xp.clip(xp.gradient(spline_cum_cases, axis=1, edge_order=2), a_min=0.0, a_max=None)
+        inc_deaths = xp.clip(xp.gradient(spline_cum_deaths, axis=1, edge_order=2), a_min=0.0, a_max=None)
+
+        for i in range(inc_cases.shape[0]):
+            inc_cases[i] = interp_extrap(x, x[valid_case_mask[i]], inc_cases[i, valid_case_mask[i]])
+            inc_deaths[i] = interp_extrap(x, x[valid_death_mask[i]], inc_deaths[i, valid_death_mask[i]])
+
+        spline_inc_cases = xp.clip(
+            fit(
+                inc_cases,
+                alp=alp,
+                df=df - 1,
+                dist="g",
+                pirls=True,
+                standardize=True,
+                gamma=gam_inc,
+                tol=tol,
+                label="PIRLS Incident Cases",
+            ),
+            a_min=0.0,
+            a_max=None,
+        )
+        spline_inc_deaths = xp.clip(
+            fit(
+                inc_deaths,
+                alp=alp,
+                df=df - 1,
+                dist="g",
+                pirls=True,
+                standardize=True,
+                gamma=1.5 * gam_inc,
+                tol=tol,
+                label="PIRLS Incident Deaths",
+            ),
+            a_min=0.0,
+            a_max=None,
+        )
+        spline_inc_hosp = xp.clip(
+            fit(
+                inc_hosp,
+                alp=alp,
+                df=df - 1,
+                dist="g",
+                pirls=True,
+                standardize=True,
+                gamma=gam_inc,
+                tol=tol,
+                label="PIRLS Incident Hospitalizations",
+            ),
+            a_min=0.0,
+            a_max=None,
+        )
+
+        # TODO cache this somehow b/c it takes awhile
+        if False:  # save_plots:  # False:
+            import matplotlib
+
+            matplotlib.use("agg")
+            import matplotlib.pyplot as plt
+            import us
+
+            diff_cases = xp.diff(g_data.sum_adm1(cum_case_hist), axis=1)
+            diff_deaths = xp.diff(g_data.sum_adm1(cum_death_hist), axis=1)
+
+            fips_map = us.states.mapping("fips", "abbr")
+            non_state_ind = xp.all(g_data.sum_adm1(cum_case_hist) < 1, axis=1)
+            fig, ax = plt.subplots(nrows=2, ncols=4, figsize=(15, 10))
+            # TODO move the sum_adm1 calls out here, its doing that reduction ALOT
+            for i in range(g_data.max_adm1 + 1):
+                if non_state_ind[i]:
+                    continue
+                fips_str = str(i).zfill(2)
+                if fips_str in fips_map:
+                    name = fips_map[fips_str] + " (" + fips_str + ")"
+                else:
+                    name = fips_str
+                # fig, ax = plt.subplots(nrows=2, ncols=4, figsize=(15, 10))
+                ax = fig.subplots(nrows=2, ncols=4)
+                ax[0, 0].plot(xp.to_cpu(g_data.sum_adm1(cum_case_hist)[i]), label="Cumulative Cases")
+                ax[0, 0].plot(xp.to_cpu(g_data.sum_adm1(spline_cum_cases)[i]), label="Fit")
+                ax[1, 0].plot(xp.to_cpu(g_data.sum_adm1(cum_death_hist)[i]), label="Cumulative Deaths")
+                ax[1, 0].plot(xp.to_cpu(g_data.sum_adm1(spline_cum_deaths)[i]), label="Fit")
+                ax[0, 1].plot(xp.to_cpu(diff_cases[i]), label="Incident Cases")
+                ax[0, 1].plot(xp.to_cpu(g_data.sum_adm1(spline_inc_cases)[i]), label="Fit")
+                ax[0, 2].plot(xp.to_cpu(diff_deaths[i]), label="Incident Deaths")
+                ax[0, 2].plot(xp.to_cpu(g_data.sum_adm1(spline_inc_deaths)[i]), label="Fit")
+                ax[1, 1].plot(xp.to_cpu(xp.log1p(diff_cases[i])), label="Log(Incident Cases)")
+                ax[1, 1].plot(xp.to_cpu(xp.log1p(g_data.sum_adm1(spline_inc_cases)[i])), label="Fit")
+                ax[1, 2].plot(xp.to_cpu(xp.log1p(diff_deaths[i])), label="Log(Incident Deaths)")
+                ax[1, 2].plot(xp.to_cpu(xp.log1p(g_data.sum_adm1(spline_inc_deaths)[i])), label="Fit")
+                ax[0, 3].plot(xp.to_cpu(inc_hosp[i]), label="Incident Hosp")
+                ax[0, 3].plot(xp.to_cpu(spline_inc_hosp[i]), label="Fit")
+                ax[1, 3].plot(xp.to_cpu(xp.log1p(inc_hosp[i])), label="Log(Incident Hosp)")
+                ax[1, 3].plot(xp.to_cpu(xp.log1p(spline_inc_hosp[i])), label="Fit")
+
+                log_cases = xp.to_cpu(xp.log1p(xp.clip(diff_cases[i], a_min=0.0, a_max=None)))
+                log_deaths = xp.to_cpu(xp.log1p(xp.clip(diff_deaths[i], a_min=0.0, a_max=None)))
+                if xp.any(xp.array(log_cases > 0)):
+                    ax[1, 1].set_ylim([0.9 * xp.min(log_cases[log_cases > 0]), 1.1 * xp.max(log_cases)])
+                if xp.any(xp.array(log_deaths > 0)):
+                    ax[1, 2].set_ylim([0.9 * xp.min(log_deaths[log_deaths > 0]), 1.1 * xp.max(log_deaths)])
+
+                ax[0, 0].legend()
+                ax[1, 0].legend()
+                ax[0, 1].legend()
+                ax[1, 1].legend()
+                ax[0, 2].legend()
+                ax[1, 2].legend()
+                ax[0, 3].legend()
+                ax[1, 3].legend()
+
+                fig.suptitle(name)
+                fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+                plt.savefig("fit_plots/" + name + ".png")
+                fig.clf()
+            plt.close(fig)
+            plt.close("all")
+
+        return spline_cum_cases, spline_cum_deaths, spline_inc_cases, spline_inc_deaths, spline_inc_hosp
+
+    @sync_numerical_libs
+    def __init__(self, G, sparse=True, spline_smooth=True):
         """Initialize the input data into cupy/numpy, reading it from a networkx graph."""
 
         # make sure G is sorted by adm2 id
@@ -52,16 +223,6 @@ class buckyGraphData:
         self.cum_death_hist, self.inc_death_hist = _read_node_attr(G, "death_hist", diff=True, a_min=0.0)
         self.n_hist = self.cum_case_hist.shape[0]
         self.Nij = _read_node_attr(G, "N_age_init", a_min=1.0)
-
-        # Perform some outlier detection/correction on the cases/deaths
-        # TODO this should be a cleaned up and made a utility function for general timeseries
-        # old_cases = self.inc_case_hist.copy()
-        # old_deaths = self.inc_death_hist.copy()
-        # old_ccases = self.cum_case_hist.copy()
-        # old_cdeaths = self.cum_death_hist.copy()
-        # clean up incidence data to remove data dumps
-        for arrs in ((self.inc_case_hist, self.cum_case_hist), (self.inc_death_hist, self.cum_death_hist)):
-            remove_outliers(arrs)
 
         # TODO add adm0 to support multiple countries
         self.adm2_id = _read_node_attr(G, G.graph["adm2_key"], dtype=int)[0]
@@ -116,7 +277,7 @@ class buckyGraphData:
 
         # TODO move these params to config?
         if spline_smooth:
-            self.rolling_mean_func_cum = partial(fit, df=self.cum_case_hist.shape[1] // 7)
+            self.rolling_mean_func_cum = partial(fit, df=self.cum_case_hist.shape[0] // 7)
         else:
             self._rolling_mean_type = "arithmetic"  # "geometric"
             self._rolling_mean_window_size = 7
@@ -126,6 +287,24 @@ class buckyGraphData:
                 axis=0,
                 mean_type=self._rolling_mean_type,
             )
+
+        # TODO remove the rolling mean stuff; it's deprecated
+        self.rolling_mean_func_cum = lambda x, **kwargs: x
+
+        (
+            clean_cum_cases,
+            clean_cum_deaths,
+            clean_inc_cases,
+            clean_inc_deaths,
+            clean_inc_hosp,
+        ) = self.clean_historical_data(
+            self.cum_case_hist.T, self.cum_death_hist.T, self.adm1_inc_hosp_hist.T, self.start_date, self
+        )
+        self.cum_case_hist = clean_cum_cases.T
+        self.cum_death_hist = clean_cum_deaths.T
+        self.inc_case_hist = clean_inc_cases.T
+        self.inc_death_hist = clean_inc_deaths.T
+        self.adm1_inc_hosp_hist = clean_inc_hosp.T
 
     # TODO maybe provide a decorator or take a lambda or something to generalize it?
     # also this would be good if it supported rolling up to adm0 for multiple countries
