@@ -22,7 +22,7 @@ from ..numerical_libs import enable_cupy, reimport_numerical_libs, xp, xp_ivp
 from ..util.distributions import approx_mPERT, truncnorm
 from ..util.util import TqdmLoggingHandler, _banner
 from .arg_parser_model import parser
-from .estimation import estimate_cfr, estimate_Rt
+from .estimation import estimate_cfr, estimate_chr, estimate_Rt
 from .exceptions import SimulationException
 from .graph import buckyGraphData
 from .mc_instance import buckyMCInstance
@@ -119,6 +119,7 @@ class buckyModelCovid:
 
         # Load data from input graph
         # TODO we should go through an replace lots of math using self.g_data.* with function IN buckyGraphData
+        # TODO toggle spline smoothing
         g_data = buckyGraphData(G, self.sparse)
 
         # Make contact mats sym and normalized
@@ -144,7 +145,7 @@ class buckyModelCovid:
         self.Nj = g_data.Nj
         self.n_age_grps = self.Nij.shape[0]  # TODO factor out
 
-        self.init_date = g_data.start_date  # datetime.date.fromisoformat(G.graph["start_date"])
+        self.init_date = g_data.start_date
 
         self.base_mc_instance = buckyMCInstance(self.init_date, self.t_max, self.Nij, self.Cij)
 
@@ -235,15 +236,17 @@ class buckyModelCovid:
         """Reset the state of the model and generate new inital data from a new random seed"""
         # TODO we should refactor reset of the compartments to be real pop numbers then /Nij at the end
 
+        # Set random seeds
         if seed is not None:
             random.seed(int(seed))
             np.random.seed(seed)
             xp.random.seed(seed)
 
-        # reroll model params if we're doing that kind of thing
+        # reroll model params
         # self.g_data.Aij.perturb(self.consts.reroll_variance)
         self.params = self.bucky_params.generate_params()
 
+        # Take a deep copy of the params and ensure they are all correctly on cpu/gpu
         if params is not None:
             self.params = copy.deepcopy(params)
 
@@ -296,6 +299,7 @@ class buckyModelCovid:
             self.params.H = self.params.H * adm1_H_fac[self.g_data.adm1_id]
             self.params.H = xp.clip(self.params.H, a_min=self.params.F, a_max=1.0)
 
+        # Estimate the case reporting rate
         # crr_days_needed = max( #TODO this depends on all the Td params, and D_REPORT_TIME...
         case_reporting = self.estimate_reporting(
             self.g_data,
@@ -323,13 +327,11 @@ class buckyModelCovid:
         self.params["GAMMA_H"] = xp.broadcast_to(self.params["GAMMA_H"][:, None], self.Nij.shape)
         self.params["F_eff"] = xp.clip(self.params["F"] / self.params["H"], 0.0, 1.0)
 
-        # state building init state vector (self.y)
+        # Build init state vector (self.y)
         yy = buckyState(self.consts, self.Nij)
 
-        if self.debug:
-            logging.debug("case init")
-        Ti = self.params.Ti
-        current_I = xp.sum(frac_last_n_vals(self.g_data.rolling_inc_cases, Ti, axis=0), axis=0)
+        # Ti = self.params.Ti
+        current_I = xp.sum(frac_last_n_vals(self.g_data.rolling_inc_cases, self.params["Ti"], axis=0), axis=0)
 
         current_I[xp.isnan(current_I)] = 0.0
         current_I[current_I < 0.0] = 0.0
@@ -340,6 +342,7 @@ class buckyModelCovid:
         R_fac = self.params.R_fac
         E_fac = self.params.E_fac
         H_fac = self.params.H_fac
+        # TODO add an mPERT F_fac instead of the truncnorm
 
         if self.base_mc_instance.vacc_data is not None:
             nonvaccs = xp.clip(1 - self.base_mc_instance.vacc_data.V_tot(self.params, 0), a_min=0, a_max=1)  # dose2[0]
@@ -356,7 +359,7 @@ class buckyModelCovid:
             (recovered_init) * age_dist_fac / self.Nij - D_init - I_init / self.params["SYM_FRAC"]
         )  # Rh is factored in later
 
-        Rt = estimate_Rt(self.g_data, self.params, 7, self.case_reporting)
+        Rt = estimate_Rt(self.g_data, self.params, 14, self.case_reporting)
         Rt = Rt * self.params.Rt_fac
 
         self.params["R0"] = Rt
@@ -463,9 +466,6 @@ class buckyModelCovid:
 
         self.y = yy
 
-        # from IPython import embed
-        # embed()
-
         # Sanity check state vector
         self.y.validate_state()
         # Reroll vaccine calculations if were running those
@@ -478,9 +478,6 @@ class buckyModelCovid:
 
         if self.debug:
             logging.debug("done model reset with seed " + str(seed))
-
-        # from IPython import embed
-        # embed()
 
         # return y
 
@@ -937,9 +934,9 @@ def main(args=None):
         while success < args.n_mc:
             mc_seed = seed_seq.spawn(1)[0].generate_state(1)[0]  # inc spawn key then grab next seed
             pbar.set_postfix_str(
-                "seed=" + str(mc_seed)
+                "seed=" + str(mc_seed),
                 # + ", rej%="  # TODO disable rej% if not -r
-                + str(np.around(float(n_runs - success) / (n_runs + 0.00001) * 100, 1)),
+                # + str(np.around(float(n_runs - success) / (n_runs + 0.00001) * 100, 1)),
                 refresh=True,
             )
             try:
