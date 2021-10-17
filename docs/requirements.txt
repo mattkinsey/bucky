@@ -9,7 +9,7 @@ sphinxcontrib-htmlhelp==1.0.3
 sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.4
-sphinxcontrib-tikz==0.4.9
+sphinxcontrib-tikz==0.4.15
 sphinx-copybutton==0.3.0
 pydata_sphinx_theme==0.4.1
 numpy==1.18.1
