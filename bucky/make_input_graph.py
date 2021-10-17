@@ -663,7 +663,7 @@ if __name__ == "__main__":
 
     # iterate over files and read
     for f in glob.glob(contact_mat_folder):
-        mat = pd.read_excel(f, sheet_name="United States of America", header=None).to_numpy()
+        mat = pd.read_excel(f, sheet_name="United States of America", header=None, engine="openpyxl").to_numpy()
         mat_name = "_".join(f.split("/")[-1].split("_")[1:-1])
         contact_mats[mat_name] = mat
 
