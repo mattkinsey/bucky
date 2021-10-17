@@ -43,6 +43,18 @@ xp.empty_like_pinned = xp.empty_like
 xp.zeros_pinned = xp.zeros
 xp.zeros_like_pinned = xp.zeros_like
 
+# If numpy < 1.22.0 we need to patch QR decomp to be vectorized like cupy
+if [int(i) for i in xp.__version__.split(".")] < [1, 22, 0]:
+    xp.linalg._qr = xp.linalg.qr
+    _vec_qr = xp.vectorize(xp.linalg._qr, signature="(m,n)->(m,p),(p,n)", excluded=["mode"])
+
+    def batched_qr(*args, **kwargs):
+        if args[0].ndim == 3:
+            return _vec_qr(*args, **kwargs)
+        else:
+            return xp.linalg._qr(*args, **kwargs)
+
+    xp.linalg.qr = batched_qr
 
 bucky.xp = xp
 bucky.xp_sparse = xp_sparse
