@@ -66,13 +66,12 @@ def add_daily_history(history_data, window_size=None):
     daily_data.columns = [str(col).replace("cumulative", "daily") for col in daily_data.columns]
 
     if window_size is not None:
-
         daily_data = (
             daily_data.reset_index(level=0)
             .groupby("adm2")
             .rolling(window_size, min_periods=window_size // 2)
             .mean()
-            .drop(columns=["adm2"])
+            # .drop(columns=["adm2"])
         )
 
         # daily_data.reset_index().set_index('adm2', inplace=True)
