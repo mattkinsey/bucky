@@ -232,7 +232,7 @@ def PIRLS(x, y, alp, pen, tol=1.0e-7, dist="g", max_it=10000, w=None, gamma=1.0,
     vg_all = xp.full((y_all.shape[0],), xp.inf)
     it_since_step_all = xp.zeros((y_all.shape[0],))
     it = 0
-    bar_format = "{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt}{postfix}"
+    bar_format = "{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}{postfix}]"
     pbar = tqdm.tqdm(desc=tqdm_label, total=y_all.shape[0], bar_format=bar_format, dynamic_ncols=True)
     while True:
         x = x_all[~complete]
