@@ -56,6 +56,11 @@ if [int(i) for i in xp.__version__.split(".")] < [1, 22, 0]:
 
     xp.linalg.qr = batched_qr
 
+# Stop some numpy warnings
+xp.seterr(divide="ignore", invalid="ignore")
+# warnings.filterwarnings(action="ignore", message="invalid value encountered in true_divide")
+warnings.filterwarnings(action="ignore", message="Mean of empty slice")
+
 bucky.xp = xp
 bucky.xp_sparse = xp_sparse
 bucky.xp_ivp = xp_ivp
