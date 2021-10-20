@@ -6,6 +6,7 @@ import glob
 import logging
 import os
 import pickle
+import warnings
 from datetime import timedelta
 
 import geopandas as gpd
@@ -13,6 +14,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import tqdm
+import us
 
 from .util import TqdmLoggingHandler, estimate_IFR
 from .util.read_config import bucky_cfg
@@ -560,18 +562,12 @@ if __name__ == "__main__":
     # Get historical data for start date of the simulation
     date_data = hist_data.set_index(["adm2", "date"]).xs(last_date, level=1)
 
-    # grab from covid tracking project, (only defined at state level)
-    ct_data = pd.read_csv(bucky_cfg["data_dir"] + "/cases/covid_tracking.csv")
-    ct_data = ct_data.loc[ct_data.date <= last_date]
-    ct_data = ct_data.set_index(["adm1", "date"])
-
     # Get historical HHS hospitalization data (at state level)
     hhs_data = pd.read_csv(bucky_cfg["data_dir"] + "/cases/hhs_hosps.csv")
     hhs_data["date"] = pd.to_datetime(hhs_data["date"])
     hhs_data = hhs_data.loc[hhs_data.date <= pd.Timestamp(last_date)]
-    ct_adm1_map = ct_data.reset_index().set_index("state").adm1
-    ct_adm1_map = ct_adm1_map.drop_duplicates()
-    hhs_data["adm1"] = hhs_data.state.map(ct_adm1_map)
+    state_abbr_map = us.states.mapping("abbr", "fips")
+    hhs_data["adm1"] = hhs_data.state.map(state_abbr_map).astype(int)
     hhs_data = hhs_data.set_index(["adm1", "date"])
 
     # Remove duplicates
@@ -663,7 +659,11 @@ if __name__ == "__main__":
 
     # iterate over files and read
     for f in glob.glob(contact_mat_folder):
-        mat = pd.read_excel(f, sheet_name="United States of America", header=None, engine="openpyxl").to_numpy()
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                action="ignore", message="Workbook contains no default style, apply openpyxl's default"
+            )
+            mat = pd.read_excel(f, sheet_name="United States of America", header=None, engine="openpyxl").to_numpy()
         mat_name = "_".join(f.split("/")[-1].split("_")[1:-1])
         contact_mats[mat_name] = mat
 
@@ -699,7 +699,7 @@ if __name__ == "__main__":
         adm1_to_str=statefp_to_name,
         adm0_name="US",
         start_date=last_date,
-        covid_tracking_data=ct_data,
+        # covid_tracking_data=ct_data,
         hhs_data=hhs_data,
     )
     G2.add_edges_from(G.edges(), weight=0.0, R0_frac=1.0)
