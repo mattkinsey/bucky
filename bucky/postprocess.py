@@ -207,10 +207,20 @@ def main(args=None):
         "current_hospitalizations",
         "daily_reported_cases",
         "daily_deaths",
+        "vacc_dose1",
+        "vacc_dose2",
+        "immune",
     ]
     pop_weighted_cols = [
         "case_reporting_rate",
         "R_eff",
+        "frac_vacc_dose1",
+        "frac_vacc_dose2",
+        "frac_vacc_dose1_65",
+        "frac_vacc_dose2_65",
+        "frac_immune",
+        "frac_immune_65",
+        "state_phase",
     ]
 
     adm_mapping["adm0"] = 1

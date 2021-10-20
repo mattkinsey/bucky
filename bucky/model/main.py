@@ -31,6 +31,9 @@ from .optimize import test_opt
 from .parameters import buckyParams
 from .rhs import RHS_func
 from .state import buckyState
+from .vacc import buckyVaccAlloc
+
+SCENARIO_HUB = False  # True
 
 
 class buckyModelCovid:
@@ -710,6 +713,39 @@ class buckyModelCovid:
                 (self.params.R0 * self.g_data.Aij.diag)[:, None], adm2_ids.shape
             )
             df_data["R_eff"] = r_eff
+        if self.consts.vacc_reroll:
+            dose1 = xp.sum(self.base_mc_instance.vacc_data.dose1 * self.Nij[None, ...], axis=1).T
+            dose2 = xp.sum(self.base_mc_instance.vacc_data.dose2 * self.Nij[None, ...], axis=1).T
+            df_data["vacc_dose1"] = dose1
+            df_data["vacc_dose2"] = dose2
+            dose1_65 = xp.sum((self.base_mc_instance.vacc_data.dose1 * self.Nij[None, ...])[:, -3:], axis=1).T
+            dose2_65 = xp.sum((self.base_mc_instance.vacc_data.dose2 * self.Nij[None, ...])[:, -3:], axis=1).T
+            df_data["vacc_dose1_65"] = dose1_65
+            df_data["vacc_dose2_65"] = dose2_65
+
+            pop = xp.sum((self.Nij[None, ...]), axis=1).T
+            pop_65 = xp.sum((self.Nij[None, ...])[:, -3:], axis=1).T
+
+            df_data["frac_vacc_dose1"] = dose1 / pop
+            df_data["frac_vacc_dose2"] = dose2 / pop
+            df_data["frac_vacc_dose1_65"] = dose1_65 / pop_65
+            df_data["frac_vacc_dose2_65"] = dose2_65 / pop_65
+
+            tmp = buckyState(self.consts, self.Nij)
+            v_eff = xp.zeros_like(self.base_mc_instance.vacc_data.dose1)
+            for i in range(y.shape[-1]):
+                tmp.state = y[..., i]
+                v_eff[i] = self.base_mc_instance.vacc_data.V_eff(tmp, self.params, i) + tmp.R
+
+            imm = xp.sum(v_eff * self.Nij[None, ...], axis=1).T
+            imm_65 = xp.sum((v_eff * self.Nij[None, ...])[:, -3:], axis=1).T
+            df_data["immune"] = imm
+            df_data["immune_65"] = imm_65
+            df_data["frac_immune"] = imm / pop
+            df_data["frac_immune_65"] = imm_65 / pop_65
+
+            # phase
+            df_data["state_phase"] = self.base_mc_instance.vacc_data.phase_hist.T
 
         # Collapse the gamma-distributed compartments and move everything to cpu
         negative_values = False
