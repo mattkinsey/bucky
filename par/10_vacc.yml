@@ -1,0 +1,25 @@
+---
+consts:
+  vacc_dose1_t: 14 #0
+  vacc_dose2_t: 35 #21 #25
+  #vacc_per_mo: 25000000
+  #vacc_hesitancy: .7
+  vacc_active: True
+  vacc_reroll: True
+
+
+vacc_hesitancy:
+  dist: "truncnorm"
+  loc: .7
+  a_min: 0.
+  a_max: 1.
+vacc_eff_1:
+  dist: "truncnorm"
+  loc: .35 #.35
+  a_min: 0.
+  a_max: 1.
+vacc_eff_2:
+  dist: "truncnorm"
+  loc: .9 #.75 #.95
+  a_min: 0.
+  a_max: 1.

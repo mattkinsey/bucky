@@ -1,62 +1,86 @@
 # Default model parameters, epi params are largely drawn from CDC planning scenario 5:
 # https://www.cdc.gov/coronavirus/2019-ncov/hcp/planning-scenarios.html
 ---
+flags: # currently using the values in const
+  rescale_chr: True
+  spline_smooth_hist: True
+
 consts:
   En: 3
   Im: 3
   Rhn: 3
-  age_bins: [[0,4], [5,9], [10, 14], [15, 19], [20,24], [25,29], [30,34], [35,39], [40,44], [45, 49], [50,54], [55,59], [60, 64], [65,69], [70,74], [74,120]]
+  age_bins: [[0,4], [5,9], [10, 14], [15, 19], [20,24], [25,29], [30,34], [35,39], [40,44], [45, 49], [50,54], [55,59], [60, 64], [65,69], [70,74], [74,90]]
 
-  reroll_variance: 0.12
+  reroll_variance: 0.0022825319319963455 
   doubling_t_window: 7
   doubling_t_N_historical_days: 3
   case_reporting_min_deaths: 100.
   case_reporting_N_historical_days: 7
-  F_scaling: .9
-  rh_scaling: 1.
+  F_scaling: 1. #.95 #0.44999998807907104
+  rh_scaling: 1. #.75
+  CI_init_scale: 1.
+  CI_scaling: 0.
+  CI_scaling_acc: 0.
+
+  #vacc_eff_1: .5
+  #vacc_eff_2: .95
+  vacc_dose1_t: 14 #0
+  vacc_dose2_t: 35 #21 #25
+  #vacc_per_mo: 25000000
+  #vacc_hesitancy: .7
+  vacc_active: True
+  vacc_reroll: True
+
   rescale_chr: True
+  spline_smooth_hist: True
 
   Te_min: 1.
   Ti_min: 3.
 
-  F_RR_var: 0.12
-  H_RR_var: 0.12
+  F_RR_var: 0. #.3  #1388167142868042
+  #H_RR_var: 0.
 
 Rt_fac:
   dist: "approx_mPERT"
-  mu: 1.
-  gamma: 5.
-  a: .9
-  b: 1.1
+  mu: .95 #.9 #0.6176510928178319
+  a: .65 #.7 #-0.12010041112837577
+  b: 1.25 #1.1 #1.3554025967640397
+  gamma: 4. #7170855214091134
 R_fac:
   dist: "approx_mPERT"
-  mu: .5
-  a: .45
-  b: .55
-  gamma: 50.
+  mu: 1. #0.7347269625913967
+  a: .8 #0.17027650258376748
+  b: 1.2 #1.2991774225990258
+  gamma: 2. #0.2154469659684755
 E_fac:
   dist: "approx_mPERT"
-  mu: 1.3
-  a: .9
-  b: 1.7
-  gamma: 10.
+  mu: .68 #.67 #1.425323533285269
+  a: .38 #.37 #.5 #1.1005507267680303
+  b: .98 #.97 #1.7500963398025076
+  gamma: 8. #3.121055960897806
 H_fac:
   dist: "approx_mPERT"
-  mu: 1.
-  a: .8
-  b: 1.2
-  gamma: 10.
+  mu: .58 #.6 #.8 #.82 #.85 #1.6356815487997305
+  a: .38 #.4 #.6 #.67 #.65 #1.4039050447984203
+  b: .78 #.8 #1. #.87 #1.15 #1.8674580528010407
+  gamma: 3.134454608053486
+F_fac:
+  dist: "approx_mPERT"
+  mu: 1.2 #67 #1.425323533285269
+  a: .9 #.37 #.5 #1.1005507267680303
+  b: 1.5 #.97 #1.7500963398025076
+  gamma: 2. #3.121055960897806
 
 Tg:
   # Mean generation interval
   dist: "truncnorm_from_CI"
-  CI: [5.5,8.5]
+  CI: [4.5,7.5]
   a_min: 1.
 
 Ts:
   # Mean serial interval
   dist: "truncnorm_from_CI"
-  CI: [5.,7.]
+  CI: [4.,6.]
   a_min: 1.
 
 
@@ -86,15 +110,15 @@ frac_trans_before_sym:
 
 
 F:
-  # CFR
+  # Case fatality rate (overwritten based on case data)
   dist: "truncnorm"
   age_bins: [[0,49], [50,64], [65,100]]
   loc: [0.0005, 0.002, 0.013]
   a_min: 0.
   a_max: 1.
 
-H:
-  # CHR
+CHR:
+  # Case hospitalization rate
   dist: "truncnorm"
   age_bins: [[0,49], [50,64], [65,100]]
   loc: [0.017, 0.045, 0.074]
@@ -121,7 +145,7 @@ ICU_TIME:
   dist: "truncnorm"
   age_bins: [[0,49], [50,64], [65,100]]
   loc: [9.5, 10.5, 10.0]
-  #scale: [7.2, 7.0, 6.8]
+  scale: [7.2, 7.0, 6.8]
   a_min: 1.
 
 ICU_FRAC:
@@ -143,6 +167,12 @@ D_REPORT_TIME:
   age_bins: [[0,49], [50,64], [65,100]]
   loc: [7.1, 7.2, 6.6]
   scale: [7.7, 7.7, 7.3]
+  a_min: 0.
+
+CASE_TO_DEATH_TIME:
+  dist: "truncnorm"
+  age_bins: [[0,49], [50,64], [65,100]]
+  loc: [15., 17., 14.]
   a_min: 0.
 
 D:
