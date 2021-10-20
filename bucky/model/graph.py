@@ -5,13 +5,24 @@ from functools import partial
 import networkx as nx
 import pandas as pd
 import yaml
+from joblib import Memory
 
 from ..numerical_libs import sync_numerical_libs, xp
 from ..util.cached_prop import cached_property
 from ..util.extrapolate import interp_extrap
+from ..util.read_config import bucky_cfg
 from ..util.rolling_mean import rolling_mean, rolling_window
 from ..util.spline_smooth import fit
 from .adjmat import buckyAij
+
+memory = Memory(bucky_cfg["cache_dir"], verbose=0, mmap_mode="r")
+
+
+@memory.cache
+def cached_scatter_add(a, slices, value):
+    ret = a.copy()
+    xp.scatter_add(ret, slices, value)
+    return ret
 
 
 class buckyGraphData:
@@ -311,7 +322,7 @@ class buckyGraphData:
     # memo so we don'y have to handle caching this on the input data?
     # TODO! this should be operating on last index, its super fragmented atm
     # also if we sort node indices by adm2 that will at least bring them all together...
-    def sum_adm1(self, adm2_arr, mask=None):
+    def sum_adm1(self, adm2_arr, mask=None, cache=False):
         """Return the adm1 sum of a variable defined at the adm2 level using the mapping on the graph."""
         # TODO add in axis param, we call this a bunch on array.T
         # assumes 1st dim is adm2 indexes
@@ -325,7 +336,10 @@ class buckyGraphData:
         else:
             adm1_ids = self.adm1_id[mask]
             # adm2_arr = adm2_arr[mask]
-        xp.scatter_add(out, adm1_ids, adm2_arr)
+        if cache:
+            out = cached_scatter_add(out, adm1_ids, adm2_arr)
+        else:
+            xp.scatter_add(out, adm1_ids, adm2_arr)
         return out
 
     # TODO add scatter_adm2 with weights. Noone should need to check self.adm1/2_id outside this class
