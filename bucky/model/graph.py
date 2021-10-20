@@ -32,7 +32,7 @@ class buckyGraphData:
     def clean_historical_data(self, cum_case_hist, cum_death_hist, inc_hosp, start_date, g_data, save_plots=True):
 
         # interpolate unreported days
-        with open("state_update.yml", "r") as f:
+        with open("included_data/state_update.yml", "r") as f:
             state_update_info = yaml.load(f, yaml.SafeLoader)  # nosec
 
         n_hist = cum_case_hist.shape[1]
