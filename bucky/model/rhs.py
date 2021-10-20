@@ -33,14 +33,14 @@ def RHS_func(t, y_flat, mc_inst):
     if hasattr(mc_inst, "scen_beta_scale"):
         BETA_eff = mc_inst.scen_beta_scale[t_index] * BETA_eff
 
-    F_eff = par["F_eff"]
-    HOSP = par["H"]
+    HFR = par["HFR"]
+    CHR = par["CHR"]
     THETA = y.Rhn * par["THETA"]
     GAMMA = y.Im * par["GAMMA"]
     GAMMA_H = y.Im * par["GAMMA_H"]
     SIGMA = y.En * par["SIGMA"]
     SYM_FRAC = par["SYM_FRAC"]
-    CASE_REPORT = par["CASE_REPORT"]
+    CRR = par["CRR"]
 
     Cij = mc_inst.Cij(t_index)
     Aij = mc_inst.Aij  # TODO needs to take t and return Aij_eff
@@ -75,16 +75,16 @@ def RHS_func(t, y_flat, mc_inst):
     dy.E[0] = BETA_eff * (beta_mat) - SIGMA * y.E[0]
     dy.E[1:] = SIGMA * (y.E[:-1] - y.E[1:])
 
-    # dI/dt
+    # dIa/dt
     dy.Ia[0] = (1.0 - SYM_FRAC) * SIGMA * y.E[-1] - GAMMA * y.Ia[0]
     dy.Ia[1:] = GAMMA * (y.Ia[:-1] - y.Ia[1:])
 
-    # dIa/dt
-    dy.I[0] = SYM_FRAC * (1.0 - HOSP) * SIGMA * y.E[-1] - GAMMA * y.I[0]
+    # dI/dt
+    dy.I[0] = SYM_FRAC * (1.0 - CHR * CRR) * SIGMA * y.E[-1] - GAMMA * y.I[0]
     dy.I[1:] = GAMMA * (y.I[:-1] - y.I[1:])
 
     # dIc/dt
-    dy.Ic[0] = SYM_FRAC * HOSP * SIGMA * y.E[-1] - GAMMA_H * y.Ic[0]
+    dy.Ic[0] = SYM_FRAC * CHR * CRR * SIGMA * y.E[-1] - GAMMA_H * y.Ic[0]
     dy.Ic[1:] = GAMMA_H * (y.Ic[:-1] - y.Ic[1:])
 
     # dRhi/dt
@@ -92,13 +92,13 @@ def RHS_func(t, y_flat, mc_inst):
     dy.Rh[1:] = THETA * (y.Rh[:-1] - y.Rh[1:])
 
     # dR/dt
-    dy.R = GAMMA * (y.I[-1] + y.Ia[-1]) + (1.0 - F_eff) * THETA * y.Rh[-1]
+    dy.R = GAMMA * (y.I[-1] + y.Ia[-1]) + (1.0 - HFR) * THETA * y.Rh[-1]
 
     # dD/dt
-    dy.D = F_eff * THETA * y.Rh[-1]
+    dy.D = HFR * THETA * y.Rh[-1]
 
-    dy.incH = GAMMA_H * y.Ic[-1]  # SYM_FRAC * HOSP * SIGMA * y.E[-1]
-    dy.incC = SYM_FRAC * CASE_REPORT * SIGMA * y.E[-1]
+    dy.incH = GAMMA_H * y.Ic[-1]  # SYM_FRAC * CHR * SIGMA * y.E[-1]
+    dy.incC = SYM_FRAC * CRR * SIGMA * y.E[-1]
 
     # bring back to 1d for the ODE api
     dy_flat = dy.state.ravel()
