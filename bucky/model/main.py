@@ -23,7 +23,7 @@ from ..util.distributions import approx_mPERT, truncnorm
 from ..util.fractional_slice import frac_last_n_vals
 from ..util.util import TqdmLoggingHandler, _banner
 from .arg_parser_model import parser
-from .estimation import estimate_cfr, estimate_chr, estimate_Rt
+from .estimation import estimate_cfr, estimate_chr, estimate_crr, estimate_Rt
 from .exceptions import SimulationException
 from .graph import buckyGraphData
 from .mc_instance import buckyMCInstance
@@ -39,34 +39,6 @@ def get_runid():  # TODO move to util and rename to timeid or something
     """Gets a UUID based of the current datatime and caches it"""
     dt_now = datetime.datetime.now()
     return str(dt_now).replace(" ", "__").replace(":", "_").split(".", maxsplit=1)[0]
-
-
-def frac_last_n_vals(arr, n, axis=0, offset=0):  # TODO assumes come from end of array currently, move to util
-    """Return the last n values of an array; if n is a float, including fractional amounts"""
-    int_slice_ind = tuple(
-        [slice(None)] * (axis)
-        + [slice(-int(n + offset), -int(xp.ceil(offset)) or None)]
-        + [slice(None)] * (arr.ndim - axis - 1)
-    )
-    ret = arr[int_slice_ind]
-    # handle fractional element before the standard slice
-    if (n + offset) % 1:
-        frac_slice_ind = tuple(
-            [slice(None)] * (axis)
-            + [slice(-int(n + offset + 1), -int(n + offset))]
-            + [slice(None)] * (arr.ndim - axis - 1)
-        )
-        ret = xp.concatenate((((n + offset) % 1) * arr[frac_slice_ind], ret), axis=axis)
-    # handle fractional element after the standard slice
-    if offset % 1:
-        frac_slice_ind = tuple(
-            [slice(None)] * (axis)
-            + [slice(-int(offset + 1), -int(offset) or None)]
-            + [slice(None)] * (arr.ndim - axis - 1)
-        )
-        ret = xp.concatenate((ret, (1.0 - (offset % 1)) * arr[frac_slice_ind]), axis=axis)
-
-    return ret
 
 
 class buckyModelCovid:
@@ -144,8 +116,6 @@ class buckyModelCovid:
         # Get stratified population (and total)
         self.Nij = g_data.Nij
         self.Nj = g_data.Nj
-        self.n_age_grps = self.Nij.shape[0]  # TODO factor out
-
         self.init_date = g_data.start_date
 
         self.base_mc_instance = buckyMCInstance(self.init_date, self.t_max, self.Nij, self.Cij)
@@ -156,9 +126,6 @@ class buckyModelCovid:
         if self.npi_params["npi_active"]:
             self.base_mc_instance.add_npi(self.npi_params)
 
-        self.adm0_cfr_reported = None
-        self.adm1_cfr_reported = None
-        self.adm2_cfr_reported = None
 
         # If HHS hospitalization data is on the graph, use it to rescale initial H counts and CHR
         # self.rescale_chr = "hhs_data" in G.graph
@@ -302,13 +269,14 @@ class buckyModelCovid:
 
         # Estimate the case reporting rate
         # crr_days_needed = max( #TODO this depends on all the Td params, and D_REPORT_TIME...
-        case_reporting = self.estimate_reporting(
+        case_reporting = estimate_crr(
             self.g_data,
             self.params,
-            cfr=self.params.F,
+            cfr=ifr[..., None],  # self.params.F,
             # case_lag=14,
             days_back=25,
             min_deaths=self.consts.case_reporting_min_deaths,
+            S_dist=S_age_dist * 16.0,
         )
 
         self.case_reporting = approx_mPERT(  # TODO these facs should go in param file
@@ -481,84 +449,6 @@ class buckyModelCovid:
             logging.debug("done model reset with seed " + str(seed))
 
         # return y
-
-    # @staticmethod need to move the caching out b/c its in the self namespace
-    def estimate_reporting(self, g_data, params, cfr, days_back=14, case_lag=None, min_deaths=100.0):
-        """Estimate the case reporting rate based off observed vs. expected CFR"""
-
-        if case_lag is None:
-            adm0_cfr_by_age = xp.sum(cfr * g_data.Nij, axis=1) / xp.sum(g_data.Nj, axis=0)
-            adm0_cfr_total = xp.sum(
-                xp.sum(cfr * g_data.Nij, axis=1) / xp.sum(g_data.Nj, axis=0),
-                axis=0,
-            )
-            case_lag = xp.sum(params["D_REPORT_TIME"] * adm0_cfr_by_age / adm0_cfr_total, axis=0)
-
-        case_lag_int = int(case_lag)
-        recent_cum_cases = g_data.rolling_cum_cases - g_data.rolling_cum_cases[0]
-        recent_cum_deaths = g_data.rolling_cum_deaths - g_data.rolling_cum_deaths[0]
-        case_lag_frac = case_lag % 1  # TODO replace with util function for the indexing
-        cases_lagged = frac_last_n_vals(recent_cum_cases, days_back + case_lag_frac, offset=case_lag_int)
-        if case_lag_frac:
-            cases_lagged = cases_lagged[0] + cases_lagged[1:]
-
-        # adm0
-        adm0_cfr_param = xp.sum(xp.sum(cfr * g_data.Nij, axis=1) / xp.sum(g_data.Nj, axis=0), axis=0)
-        if self.adm0_cfr_reported is None:
-            self.adm0_cfr_reported = xp.sum(recent_cum_deaths[-days_back:], axis=1) / xp.sum(cases_lagged, axis=1)
-        adm0_case_report = adm0_cfr_param / self.adm0_cfr_reported
-
-        if self.debug:
-            logging.debug("Adm0 case reporting rate: " + pformat(adm0_case_report))
-        if xp.any(~xp.isfinite(adm0_case_report)):
-            if self.debug:
-                logging.debug("adm0 case report not finite")
-                logging.debug(adm0_cfr_param)
-                logging.debug(self.adm0_cfr_reported)
-            raise SimulationException
-
-        case_report = xp.repeat(adm0_case_report[:, None], cases_lagged.shape[-1], axis=1)
-
-        # adm1
-        adm1_cfr_param = xp.zeros((g_data.max_adm1 + 1,), dtype=float)
-        adm1_totpop = g_data.adm1_Nj  # xp.zeros((self.g_data.max_adm1 + 1,), dtype=float)
-
-        tmp_adm1_cfr = xp.sum(cfr * g_data.Nij, axis=0)
-
-        xp.scatter_add(adm1_cfr_param, g_data.adm1_id, tmp_adm1_cfr)
-        # xp.scatter_add(adm1_totpop, self.g_data.adm1_id, self.Nj)
-        adm1_cfr_param /= adm1_totpop
-
-        # adm1_cfr_reported is const, only calc it once and cache it
-        if self.adm1_cfr_reported is None:
-            self.adm1_deaths_reported = xp.zeros((g_data.max_adm1 + 1, days_back), dtype=float)
-            adm1_lagged_cases = xp.zeros((g_data.max_adm1 + 1, days_back), dtype=float)
-
-            xp.scatter_add(
-                self.adm1_deaths_reported,
-                g_data.adm1_id,
-                recent_cum_deaths[-days_back:].T,
-            )
-            xp.scatter_add(adm1_lagged_cases, g_data.adm1_id, cases_lagged.T)
-
-            self.adm1_cfr_reported = self.adm1_deaths_reported / adm1_lagged_cases
-
-        adm1_case_report = (adm1_cfr_param[:, None] / self.adm1_cfr_reported)[g_data.adm1_id].T
-
-        valid_mask = (self.adm1_deaths_reported > min_deaths)[g_data.adm1_id].T & xp.isfinite(adm1_case_report)
-        case_report[valid_mask] = adm1_case_report[valid_mask]
-
-        # adm2
-        adm2_cfr_param = xp.sum(cfr * (g_data.Nij / g_data.Nj), axis=0)
-
-        if self.adm2_cfr_reported is None:
-            self.adm2_cfr_reported = recent_cum_deaths[-days_back:] / cases_lagged
-        adm2_case_report = adm2_cfr_param / self.adm2_cfr_reported
-
-        valid_adm2_cr = xp.isfinite(adm2_case_report) & (recent_cum_deaths[-days_back:] > min_deaths)
-        case_report[valid_adm2_cr] = adm2_case_report[valid_adm2_cr]
-
-        return case_report
 
     def run_once(self, seed=None):
         """Perform one complete run of the simulation"""

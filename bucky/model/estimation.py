@@ -1,10 +1,96 @@
 """Submodule that manages some of the calculations for estimating params from the historical data"""
 
 from ..numerical_libs import sync_numerical_libs, xp
+from ..util.fractional_slice import frac_last_n_vals
 
 # TODO there's alot of repeated code between estimate_chr/cfr, they should be generalized
 # @sync_numerical_libs
 # def gamma_delayed_ratio(mean_delay, k, numer, denom)
+
+# TODO refactor crr to be more like the other estimates (use the gamma delay)
+
+
+@sync_numerical_libs
+def estimate_crr(g_data, params, cfr, days_back=14, case_lag=None, min_deaths=100.0, S_dist=1.0):
+    """Estimate the case reporting rate based off observed vs. expected CFR"""
+
+    if case_lag is None:
+        adm0_cfr_by_age = xp.sum(S_dist * cfr * g_data.Nij, axis=1) / xp.sum(g_data.Nj, axis=0)
+        adm0_cfr_total = xp.sum(
+            xp.sum(S_dist * cfr * g_data.Nij, axis=1) / xp.sum(g_data.Nj, axis=0),
+            axis=0,
+        )
+        case_lag = xp.sum(params["CASE_TO_DEATH_TIME"] * adm0_cfr_by_age / adm0_cfr_total, axis=0)
+
+    case_lag_int = int(case_lag)
+    recent_cum_cases = g_data.rolling_cum_cases - g_data.rolling_cum_cases[0]
+    recent_cum_deaths = g_data.rolling_cum_deaths - g_data.rolling_cum_deaths[0]
+    case_lag_frac = case_lag % 1  # TODO replace with util function for the indexing
+    cases_lagged = frac_last_n_vals(recent_cum_cases, days_back + case_lag_frac, offset=case_lag_int)
+    if case_lag_frac:
+        cases_lagged = cases_lagged[0] + cases_lagged[1:]
+
+    # adm0
+    adm0_cfr_param = xp.sum(xp.sum(S_dist * cfr * g_data.Nij, axis=1) / xp.sum(g_data.Nj, axis=0), axis=0)
+    adm0_cfr_reported = xp.sum(recent_cum_deaths[-days_back:], axis=1) / xp.sum(cases_lagged, axis=1)
+    adm0_case_report = adm0_cfr_param / adm0_cfr_reported
+
+    # if self.debug:
+    #    logging.debug("Adm0 case reporting rate: " + pformat(adm0_case_report))
+    # if xp.any(~xp.isfinite(adm0_case_report)):
+    #    if self.debug:
+    #        logging.debug("adm0 case report not finite")
+    #        logging.debug(adm0_cfr_param)
+    #        logging.debug(self.adm0_cfr_reported)
+    #    raise SimulationException
+
+    case_report = xp.repeat(adm0_case_report[:, None], cases_lagged.shape[-1], axis=1)
+
+    # adm1
+    adm1_cfr_param = xp.zeros((g_data.max_adm1 + 1,), dtype=float)
+    adm1_totpop = g_data.adm1_Nj  # xp.zeros((self.g_data.max_adm1 + 1,), dtype=float)
+
+    tmp_adm1_cfr = xp.sum(S_dist * cfr * g_data.Nij, axis=0)
+
+    xp.scatter_add(adm1_cfr_param, g_data.adm1_id, tmp_adm1_cfr)
+    # xp.scatter_add(adm1_totpop, self.g_data.adm1_id, self.Nj)
+    adm1_cfr_param /= adm1_totpop
+
+    # adm1_cfr_reported is const, only calc it once and cache it
+    adm1_deaths_reported = g_data.sum_adm1(recent_cum_deaths[-days_back:].T, cache=True)
+    adm1_lagged_cases = g_data.sum_adm1(cases_lagged.T)
+    # adm1_deaths_reported = xp.zeros((g_data.max_adm1 + 1, days_back), dtype=float)
+    # adm1_lagged_cases = xp.zeros((g_data.max_adm1 + 1, days_back), dtype=float)
+
+    # TODO use sum_adm1...
+    # xp.scatter_add(
+    #    adm1_deaths_reported,
+    #    g_data.adm1_id,
+    #    recent_cum_deaths[-days_back:].T,
+    # )
+    # xp.scatter_add(adm1_lagged_cases, g_data.adm1_id, cases_lagged.T)
+
+    adm1_cfr_reported = adm1_deaths_reported / adm1_lagged_cases
+
+    adm1_case_report = (adm1_cfr_param[:, None] / adm1_cfr_reported)[g_data.adm1_id].T
+
+    valid_mask = (adm1_deaths_reported > min_deaths)[g_data.adm1_id].T & xp.isfinite(adm1_case_report)
+    case_report[valid_mask] = adm1_case_report[valid_mask]
+
+    # adm2
+    adm2_cfr_param = xp.sum(S_dist * cfr * (g_data.Nij / g_data.Nj), axis=0)
+
+    adm2_cfr_reported = recent_cum_deaths[-days_back:] / cases_lagged
+    adm2_case_report = adm2_cfr_param / adm2_cfr_reported
+
+    valid_adm2_cr = xp.isfinite(adm2_case_report) & (recent_cum_deaths[-days_back:] > min_deaths)
+    case_report[valid_adm2_cr] = adm2_case_report[valid_adm2_cr]
+
+    # from IPython import embed
+    # embed()
+    case_report = 2.0 / (1.0 / adm0_case_report[..., None] + 1.0 / case_report)
+
+    return case_report
 
 
 @sync_numerical_libs
