@@ -3,6 +3,7 @@ channels:
   - conda-forge   #for up to date pyarrow
   - defaults
 dependencies:
+  - "libblas=*=*mkl"
   - numpy
   - pandas
   - geopandas
@@ -15,3 +16,4 @@ dependencies:
   - openpyxl
   - descartes
   - pyarrow
+  - us
