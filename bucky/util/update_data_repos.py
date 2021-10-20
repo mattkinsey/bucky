@@ -750,7 +750,7 @@ def main():
     process_csse_data()
 
     # Process COVID Tracking Data
-    update_covid_tracking_data()
+    # update_covid_tracking_data()
 
     # Process USA Facts
     # update_usafacts_data()
@@ -776,8 +776,8 @@ def git_pull(abs_path):
     if error:
 
         # Get name of repo
-        git_name = "git remote -v"
-        process = subprocess.Popen(git_name.split(), stdout=subprocess.PIPE)
+        # git_name = "git remote -v"
+        # process = subprocess.Popen(git_name.split(), stdout=subprocess.PIPE)
         logging.error("Error pulling from repo: " + output)
 
 
