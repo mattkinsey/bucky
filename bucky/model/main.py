@@ -9,7 +9,6 @@ import random
 import sys
 import threading
 import warnings
-from functools import lru_cache
 from pprint import pformat  # TODO set some defaults for width/etc with partial?
 
 import numpy as np
@@ -19,9 +18,9 @@ import pyarrow.parquet as pap
 import tqdm
 
 from ..numerical_libs import enable_cupy, reimport_numerical_libs, xp, xp_ivp
-from ..util.distributions import approx_mPERT, truncnorm
+from ..util.distributions import approx_mPERT
 from ..util.fractional_slice import frac_last_n_vals
-from ..util.util import TqdmLoggingHandler, _banner
+from ..util.util import TqdmLoggingHandler, _banner, get_runid
 from .arg_parser_model import parser
 from .estimation import estimate_cfr, estimate_chr, estimate_crr, estimate_Rt
 from .exceptions import SimulationException
@@ -32,13 +31,6 @@ from .optimize import test_opt
 from .parameters import buckyParams
 from .rhs import RHS_func
 from .state import buckyState
-
-
-@lru_cache(maxsize=None)
-def get_runid():  # TODO move to util and rename to timeid or something
-    """Gets a UUID based of the current datatime and caches it"""
-    dt_now = datetime.datetime.now()
-    return str(dt_now).replace(" ", "__").replace(":", "_").split(".", maxsplit=1)[0]
 
 
 class buckyModelCovid:

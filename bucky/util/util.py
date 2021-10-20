@@ -3,7 +3,9 @@
 # TODO break into files now that we have the utils submodule (also update __init__)
 
 import copy
+import datetime
 import logging
+from functools import lru_cache
 
 import numpy as np
 import pandas as pd
@@ -44,6 +46,13 @@ class dotdict(dict):
     def __deepcopy__(self, memo=None):
         """Return a deepcopy of the dict."""
         return dotdict({key: copy.deepcopy(value) for key, value in self.items()})
+
+
+@lru_cache(maxsize=None)
+def get_runid():  # TODO rename to timeid or something
+    """Gets a UUID based of the current datatime and caches it"""
+    dt_now = datetime.datetime.now()
+    return str(dt_now).replace(" ", "__").replace(":", "_").split(".", maxsplit=1)[0]
 
 
 def remove_chars(seq):
