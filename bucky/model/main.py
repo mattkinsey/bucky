@@ -20,6 +20,7 @@ import tqdm
 
 from ..numerical_libs import enable_cupy, reimport_numerical_libs, xp, xp_ivp
 from ..util.distributions import approx_mPERT, truncnorm
+from ..util.fractional_slice import frac_last_n_vals
 from ..util.util import TqdmLoggingHandler, _banner
 from .arg_parser_model import parser
 from .estimation import estimate_cfr, estimate_chr, estimate_Rt
