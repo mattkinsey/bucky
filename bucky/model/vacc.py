@@ -141,13 +141,13 @@ class buckyVaccAlloc:
         self.baseline_vacc_demos = vacc_demos
 
         # Read in hes data
-        df = pd.read_csv("data/vac/hes/vaccine_hesitancy_all_cols.csv")
+        df = pd.read_csv("data/vaccine_hesitancy/vaccine_hesitancy_all_cols.csv")
         last_wk = xp.sort(df.wk.unique())[-1]
         df = df.loc[df.wk == last_wk]
         df = df.drop(columns=["wk"])
         df["adm1"] = df.state.map(state_abbr_map).astype(int)
         # df = df.set_index(['age_grp', 'adm1']).Total.unstack(0)
-        df_se = pd.read_csv("data/vac/hes/vaccine_hesitancy_all_cols_se.csv")
+        df_se = pd.read_csv("data/vaccine_hesitancy/vaccine_hesitancy_all_cols_se.csv")
         df_se = df_se.loc[df_se.wk == last_wk]
         df_se = df_se.drop(columns=["wk"])
         df_se["adm1"] = df_se.state.map(state_abbr_map).astype(int)
