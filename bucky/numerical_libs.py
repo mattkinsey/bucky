@@ -206,7 +206,7 @@ def enable_cupy(optimize=False):
 
         optuna.logging.set_verbosity(optuna.logging.WARN)
         logging.info("Using optuna to optimize kernels, the first calls will be slowwwww")
-        cp.optimize_kernels = partial(cupyx.optimizing.optimize, path=bucky_cfg["cache_dir"] + "optuna")
+        cp.optimize_kernels = partial(cupyx.optimizing.optimize, path=bucky_cfg["cache_dir"] + "/optuna")
         cp.ExperimentalWarning = optuna.exceptions.ExperimentalWarning
         warnings.filterwarnings(
             action="ignore", message="cupyx.time.repeat is experimental. The interface can change in the future."
