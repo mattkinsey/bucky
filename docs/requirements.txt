@@ -23,3 +23,4 @@ xlrd==1.2.0
 PyYAML==5.4
 numpydoc==1.1.0
 pyarrow==2.0.0
+us==2.0.2
