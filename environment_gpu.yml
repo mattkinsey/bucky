@@ -1,18 +1,25 @@
 name: bucky_gpu
 channels:
-  - conda-forge   #for up to date cupy/pyarrow
+  - conda-forge
   - defaults
 dependencies:
-  - cupy
+  - "libblas=*=*mkl"
+  - cupy/label/cupy_rc
+  - cudatoolkit=11.5
+  - cudnn
+  - cutensor
+  - nccl
   - numpy
   - pandas
   - geopandas
   - matplotlib
   - pyyaml
-  - pyarrow
   - tqdm
   - scipy
   - networkx
   - openpyxl
   - descartes
-  - pyarrow
+  - pip
+  - pip:
+    - pyarrow
+    - us

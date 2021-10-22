@@ -1,6 +1,6 @@
 name: bucky
 channels:
-  - conda-forge   #for up to date pyarrow
+  - conda-forge
   - defaults
 dependencies:
   - "libblas=*=*mkl"
@@ -9,11 +9,12 @@ dependencies:
   - geopandas
   - matplotlib
   - pyyaml
-  - pyarrow
   - tqdm
   - scipy
   - networkx
   - openpyxl
   - descartes
-  - pyarrow
-  - us
+  - pip
+  - pip:
+    - pyarrow
+    - us
