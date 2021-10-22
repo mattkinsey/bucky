@@ -149,12 +149,23 @@ class buckyGraphData:
         )
 
         # TODO cache this somehow b/c it takes awhile
-        if False:  # save_plots:  # False:
+        if save_plots:  # False:
             import matplotlib
 
             matplotlib.use("agg")
+            import pathlib
+
             import matplotlib.pyplot as plt
+            import tqdm
             import us
+
+            from ..util.read_config import bucky_cfg
+
+            # TODO we should drop these in raw_output_dir and have postprocess put them in the run's dir
+            # TODO we could also drop the data for viz.plot...
+            # if we just drop the data this should be moved to viz.historical_plots or something
+            out_dir = bucky_cfg["output_dir"] + "/_historical_fit_plots"
+            pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
 
             diff_cases = xp.diff(g_data.sum_adm1(cum_case_hist), axis=1)
             diff_deaths = xp.diff(g_data.sum_adm1(cum_death_hist), axis=1)
@@ -163,7 +174,7 @@ class buckyGraphData:
             non_state_ind = xp.all(g_data.sum_adm1(cum_case_hist) < 1, axis=1)
             fig, ax = plt.subplots(nrows=2, ncols=4, figsize=(15, 10))
             # TODO move the sum_adm1 calls out here, its doing that reduction ALOT
-            for i in range(g_data.max_adm1 + 1):
+            for i in tqdm.tqdm(range(g_data.max_adm1 + 1), desc="Ploting fits", dynamic_ncols=True):
                 if non_state_ind[i]:
                     continue
                 fips_str = str(i).zfill(2)
@@ -208,7 +219,7 @@ class buckyGraphData:
 
                 fig.suptitle(name)
                 fig.tight_layout(rect=[0, 0.03, 1, 0.95])
-                plt.savefig("fit_plots/" + name + ".png")
+                plt.savefig(out_dir + "/" + name + ".png")
                 fig.clf()
             plt.close(fig)
             plt.close("all")
