@@ -5,8 +5,7 @@ channels:
 dependencies:
   - python==3.9.7
   - "libblas=*=*mkl"
-  - cupy/label/cupy_rc
-  - cudatoolkit=11.5
+  - cudatoolkit==11.4.2
   - cudnn
   - cutensor
   - nccl
@@ -22,5 +21,6 @@ dependencies:
   - descartes
   - pip
   - pip:
+    - cupy==10.0.0b3
     - pyarrow
     - us
