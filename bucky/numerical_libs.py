@@ -34,6 +34,7 @@ def to_cpu_noop(x, stream=None, order="C", out=None):
     return x
 
 
+xp.is_cupy = False
 xp.scatter_add = xp.add.at
 xp.optimize_kernels = contextlib.nullcontext
 xp.to_cpu = to_cpu_noop  # lambda x, **kwargs: x  # noop
@@ -248,6 +249,9 @@ def enable_cupy(optimize=False):
     cp.empty_like_pinned = cupyx.empty_like_pinned
     cp.zeros_pinned = cupyx.zeros_pinned
     cp.zeros_like_pinned = cupyx.zeros_like_pinned
+
+    # Add is_cupy flag to xp
+    cp.is_cupy = True
 
     bucky.xp = cp
 
