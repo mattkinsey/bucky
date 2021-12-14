@@ -468,7 +468,7 @@ def opt_lam(x, y, alp=0.6, w=None, pen=None, min_lam=0.1, step_size=None, tol=1e
     return y_out, beta_out, lam_all, Vg_out
 
 
-@memory.cache
+@memory.cache(ignore=["label"])
 @sync_numerical_libs
 def fit(
     y,
