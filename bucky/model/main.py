@@ -190,7 +190,7 @@ class buckyModelCovid:
         # estimate IFR for our age bins
         # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7721859/
         mean_ages = xp.mean(self.params.consts.age_bins, axis=1)
-        ifr = np.exp(-7.56 + 0.121 * mean_ages) / 100.0
+        ifr = xp.exp(-7.56 + 0.121 * mean_ages) / 100.0
 
         # Estimate the case reporting rate
         # crr_days_needed = max( #TODO this depends on all the Td params, and D_REPORT_TIME...
@@ -407,16 +407,7 @@ class buckyModelCovid:
         )
         # do integration
         logging.debug("Starting integration")
-        sol = xp_ivp.solve_ivp(
-            # self.RHS_func,
-            # y0=self.y.state.ravel(),
-            # args=(
-            #    #self.g_data.Aij.A,
-            #    self.base_mc_instance,
-            #    #self.base_mc_instance.state,
-            # ),
-            **self.base_mc_instance.integrator_args,
-        )
+        sol = xp_ivp.solve_ivp(**self.base_mc_instance.integrator_args)
         logging.debug("Done integration")
 
         return sol
