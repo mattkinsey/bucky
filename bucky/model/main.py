@@ -4,17 +4,12 @@ import datetime
 import logging
 import os
 import pickle
-import queue
 import random
 import sys
-import threading
 import warnings
 from pprint import pformat  # TODO set some defaults for width/etc with partial?
 
 import numpy as np
-import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pap
 import tqdm
 
 from ..numerical_libs import enable_cupy, reimport_numerical_libs, xp, xp_ivp
@@ -25,6 +20,7 @@ from .arg_parser_model import parser
 from .estimation import estimate_cfr, estimate_chr, estimate_crr, estimate_Rt
 from .exceptions import SimulationException
 from .graph import buckyGraphData
+from .io import BuckyOutputWriter
 from .mc_instance import buckyMCInstance
 from .npi import get_npi_params
 from .optimize import test_opt
@@ -49,6 +45,7 @@ class buckyModelCovid:
         npi_file=None,
         disable_npi=False,
         reject_runs=False,
+        output_dir=None,
     ):
         """Initialize the class, do some bookkeeping and read in the input graph"""
         self.debug = debug
@@ -71,6 +68,9 @@ class buckyModelCovid:
         self.consts = self.bucky_params.consts
 
         self.g_data = self.load_graph(graph_file)
+
+        self.writer = BuckyOutputWriter(output_dir, self.run_id)
+        self.writer.write_metadata(self.g_data, self.t_max)
 
     def update_params(self, update_dict):
         """Update the params based of a dict of new values"""
@@ -440,8 +440,8 @@ class buckyModelCovid:
 
                 with xp.optimize_kernels():
                     sol = self.run_once(seed=mc_seed)
-                    df_data = self.postprocess_run(sol, mc_seed, out_columns)
-                ret.append(df_data)
+                    mc_data = self.postprocess_run(sol, mc_seed, out_columns)
+                ret.append(mc_data)
                 success += 1
                 pbar.update(1)
             except SimulationException:
@@ -454,38 +454,13 @@ class buckyModelCovid:
         pbar.close()
         return ret
 
-    # TODO Move this to a class thats like run_parser or something
-    # (that caches all the info it needs like Nij, and manages the write thread/queue)
-    # Also give it methods like to_dlpack, to_pytorch, etc
-    def save_run(self, sol, base_filename, seed, output_queue):
+    # TODO Also provide methods like to_dlpack, to_pytorch, etc
+    def save_run(self, sol, seed):
         """Postprocess and write to disk the output of run_once"""
 
-        df_data = self.postprocess_run(sol, seed)
+        mc_data = self.postprocess_run(sol, seed)
 
-        # flatten the shape
-        for c in df_data:
-            df_data[c] = df_data[c].ravel()
-
-        # push the data off to the write thread
-        data_folder = os.path.join(base_filename, "data")
-        output_queue.put((data_folder, df_data))
-        metadata_folder = os.path.join(base_filename, "metadata")
-        if not os.path.exists(metadata_folder):
-            os.mkdir(metadata_folder)
-
-            # write dates
-            uniq_dates = pd.Series(self.output_dates)
-            pd.DataFrame({"date": uniq_dates}).to_csv(os.path.join(metadata_folder, "dates.csv"), index=False)
-
-            # write out adm mapping
-            adm_map = pd.DataFrame(
-                {
-                    "adm2": xp.to_cpu(self.g_data.adm2_id),
-                    "adm1": xp.to_cpu(self.g_data.adm1_id),
-                    "adm0": self.g_data.adm0_name,
-                },
-            )
-            adm_map.to_csv(os.path.join(metadata_folder, "adm_mapping.csv"), index=False)
+        self.writer.write_mc_data(mc_data)
 
         # TODO write params out (to yaml?) in another subfolder
 
@@ -516,7 +491,7 @@ class buckyModelCovid:
 
             columns = set(columns)
 
-        df_data = {}
+        mc_data = {}
 
         out = buckyState(self.consts, self.Nij)
 
@@ -538,7 +513,7 @@ class buckyModelCovid:
 
         if "adm2_id" in columns:
             adm2_ids = np.broadcast_to(self.g_data.adm2_id[:, None], out.state.shape[1:])
-            df_data["adm2_id"] = adm2_ids
+            mc_data["adm2_id"] = adm2_ids
 
         if "date" in columns:
             if self.output_dates is None:
@@ -546,23 +521,23 @@ class buckyModelCovid:
                 dates = [str(self.init_date + datetime.timedelta(days=np.round(t))) for t in t_output]
                 self.output_dates = dates
 
-            df_data["date"] = np.broadcast_to(np.arange(len(self.output_dates)), out.state.shape[1:])
+            mc_data["date"] = np.broadcast_to(np.arange(len(self.output_dates)), out.state.shape[1:])
 
         if "rid" in columns:
-            df_data["rid"] = np.broadcast_to(seed, out.state.shape[1:])
+            mc_data["rid"] = np.broadcast_to(seed, out.state.shape[1:])
 
         if "current_icu_usage" in columns or "current_vent_usage" in columns:
             icu = self.Nij[..., None] * self.params["ICU_FRAC"][:, None, None] * xp.sum(y[out.indices["Rh"]], axis=0)
             if "current_icu_usage" in columns:
-                df_data["current_icu_usage"] = xp.sum(icu, axis=0)
+                mc_data["current_icu_usage"] = xp.sum(icu, axis=0)
 
             if "current_vent_usage" in columns:
                 vent = self.params.ICU_VENT_FRAC[:, None, None] * icu
-                df_data["current_vent_usage"] = xp.sum(vent, axis=0)
+                mc_data["current_vent_usage"] = xp.sum(vent, axis=0)
 
         if "daily_deaths" in columns:
             daily_deaths = xp.gradient(out.D, axis=-1, edge_order=2)
-            df_data["daily_deaths"] = daily_deaths
+            mc_data["daily_deaths"] = daily_deaths
 
             if self.reject_runs:
                 init_inc_death_mean = xp.mean(xp.sum(daily_deaths[:, 1:4], axis=0))
@@ -590,68 +565,68 @@ class buckyModelCovid:
                     raise SimulationException
 
             if "daily_reported_cases" in columns:
-                df_data["daily_reported_cases"] = daily_reported_cases
+                mc_data["daily_reported_cases"] = daily_reported_cases
 
             if "daily_cases" in columns:
                 daily_cases_total = daily_reported_cases / self.params.CRR[:, None]
-                df_data["daily_cases"] = daily_cases_total
+                mc_data["daily_cases"] = daily_cases_total
 
         if "cumulative_reported_cases" in columns:
             cum_cases_reported = out.incC
-            df_data["cumulative_reported_cases"] = cum_cases_reported
+            mc_data["cumulative_reported_cases"] = cum_cases_reported
 
         if "cumulative_cases" in columns:
             cum_cases_total = out.incC / self.params.CRR[:, None]
-            df_data["cumulative_cases"] = cum_cases_total
+            mc_data["cumulative_cases"] = cum_cases_total
 
         if "daily_hospitalizations" in columns:
             out.incH[:, 0] = out.incH[:, 1]
             daily_hosp = xp.gradient(out.incH, axis=-1, edge_order=2)
-            df_data["daily_hospitalizations"] = daily_hosp
+            mc_data["daily_hospitalizations"] = daily_hosp
 
         if "total_population" in columns:
             N = xp.broadcast_to(self.g_data.Nj[..., None], out.state.shape[1:])
-            df_data["total_population"] = N
+            mc_data["total_population"] = N
 
         if "current_hospitalizations" in columns:
             hosps = xp.sum(out.Rh, axis=0)  # why not just using .H?
-            df_data["current_hospitalizations"] = hosps
+            mc_data["current_hospitalizations"] = hosps
 
         if "cumulative_deaths" in columns:
             cum_deaths = out.D
-            df_data["cumulative_deaths"] = cum_deaths
+            mc_data["cumulative_deaths"] = cum_deaths
 
         if "active_asymptomatic_cases" in columns:
             asym_I = xp.sum(out.Ia, axis=0)
-            df_data["active_asymptomatic_cases"] = asym_I
+            mc_data["active_asymptomatic_cases"] = asym_I
 
         if "case_reporting_rate" in columns:
             crr = xp.broadcast_to(self.params.CRR[:, None], adm2_ids.shape)
-            df_data["case_reporting_rate"] = crr
+            mc_data["case_reporting_rate"] = crr
 
         if "R_eff" in columns:
             #    r_eff = self.npi_params["r0_reduct"].T * np.broadcast_to(
             #        (self.params.R0 * self.g_data.Aij.diag)[:, None], adm2_ids.shape
             #    )
-            df_data["R_eff"] = xp.broadcast_to(self.params.R0[:, None], adm2_ids.shape)
+            mc_data["R_eff"] = xp.broadcast_to(self.params.R0[:, None], adm2_ids.shape)
 
         if self.consts.vacc_reroll:
             dose1 = xp.sum(self.base_mc_instance.vacc_data.dose1 * self.Nij[None, ...], axis=1).T
             dose2 = xp.sum(self.base_mc_instance.vacc_data.dose2 * self.Nij[None, ...], axis=1).T
-            df_data["vacc_dose1"] = dose1
-            df_data["vacc_dose2"] = dose2
+            mc_data["vacc_dose1"] = dose1
+            mc_data["vacc_dose2"] = dose2
             dose1_65 = xp.sum((self.base_mc_instance.vacc_data.dose1 * self.Nij[None, ...])[:, -3:], axis=1).T
             dose2_65 = xp.sum((self.base_mc_instance.vacc_data.dose2 * self.Nij[None, ...])[:, -3:], axis=1).T
-            df_data["vacc_dose1_65"] = dose1_65
-            df_data["vacc_dose2_65"] = dose2_65
+            mc_data["vacc_dose1_65"] = dose1_65
+            mc_data["vacc_dose2_65"] = dose2_65
 
             pop = xp.sum((self.Nij[None, ...]), axis=1).T
             pop_65 = xp.sum((self.Nij[None, ...])[:, -3:], axis=1).T
 
-            df_data["frac_vacc_dose1"] = dose1 / pop
-            df_data["frac_vacc_dose2"] = dose2 / pop
-            df_data["frac_vacc_dose1_65"] = dose1_65 / pop_65
-            df_data["frac_vacc_dose2_65"] = dose2_65 / pop_65
+            mc_data["frac_vacc_dose1"] = dose1 / pop
+            mc_data["frac_vacc_dose2"] = dose2 / pop
+            mc_data["frac_vacc_dose1_65"] = dose1_65 / pop_65
+            mc_data["frac_vacc_dose2_65"] = dose2_65 / pop_65
 
             tmp = buckyState(self.consts, self.Nij)
             v_eff = xp.zeros_like(self.base_mc_instance.vacc_data.dose1)
@@ -661,20 +636,17 @@ class buckyModelCovid:
 
             imm = xp.sum(v_eff * self.Nij[None, ...], axis=1).T
             imm_65 = xp.sum((v_eff * self.Nij[None, ...])[:, -3:], axis=1).T
-            df_data["immune"] = imm
-            df_data["immune_65"] = imm_65
-            df_data["frac_immune"] = imm / pop
-            df_data["frac_immune_65"] = imm_65 / pop_65
+            mc_data["immune"] = imm
+            mc_data["immune_65"] = imm_65
+            mc_data["frac_immune"] = imm / pop
+            mc_data["frac_immune_65"] = imm_65 / pop_65
 
             # phase
-            df_data["state_phase"] = self.base_mc_instance.vacc_data.phase_hist.T
+            mc_data["state_phase"] = self.base_mc_instance.vacc_data.phase_hist.T
 
         # Collapse the gamma-distributed compartments and move everything to cpu
         negative_values = False
-        for k, val in df_data.items():
-            # if df_data[k].ndim == 2:
-            #    df_data[k] = xp.sum(df_data[k], axis=0)
-
+        for k, val in mc_data.items():
             if k != "date" and xp.any(xp.around(val, 2) < 0.0):
                 logging.info("Negative values present in " + k)
                 negative_values = True
@@ -683,7 +655,9 @@ class buckyModelCovid:
             logging.info("Rejecting run b/c of negative values in output")
             raise SimulationException
 
-        return df_data
+        self.writer.write_params(seed, self.params)
+
+        return mc_data
 
 
 def main(args=None):
@@ -704,12 +678,7 @@ def main(args=None):
         os.mkdir(args.output_dir)
 
     loglevel = 30 - 10 * min(args.verbosity, 2)
-    runid = get_runid()
 
-    # Setup output folder TODO change over to pathlib
-    output_folder = os.path.join(args.output_dir, runid)
-    if not os.path.exists(output_folder):
-        os.mkdir(output_folder)
     # fh = logging.FileHandler(output_folder + "/stdout")
     # fh.setLevel(logging.DEBUG)
     logging.basicConfig(
@@ -722,44 +691,20 @@ def main(args=None):
     # TODO we should output the logs to output_dir too...
     _banner()
 
-    # TODO move the write_thread stuff to a util (postprocess uses something similar)
-    to_write = queue.Queue(maxsize=100)
-
-    def writer():
-        """Write thread loop that pulls from an async queue"""
-        # Call to_write.get() until it returns None
-        stream = xp.cuda.Stream(non_blocking=True) if args.gpu else None
-        pinned_mem = {}
-        for base_fname, df_data in iter(to_write.get, None):
-            for k, v in df_data.items():
-                if k not in pinned_mem:
-                    pinned_mem[k] = xp.empty_like_pinned(v)
-
-                xp.to_cpu(v, stream=stream, out=pinned_mem[k])
-
-            if stream is not None:
-                stream.synchronize()
-
-            pa_data = {k: pa.array(v) for k, v in pinned_mem.items()}
-            table = pa.table(pa_data)
-            pap.write_to_dataset(table, base_fname, partition_cols=["date"])
-
-    write_thread = threading.Thread(target=writer)
-    write_thread.start()
+    logging.info(f"command line args: {args}")
+    env = buckyModelCovid(
+        debug=debug_mode,
+        sparse_aij=(not args.dense),
+        t_max=args.days,
+        graph_file=args.graph_file,
+        par_file=args.par_file,
+        npi_file=args.npi_file,
+        disable_npi=args.disable_npi,
+        reject_runs=args.reject_runs,
+        output_dir=args.output_dir,
+    )
 
     try:
-        logging.info(f"command line args: {args}")
-        env = buckyModelCovid(
-            debug=debug_mode,
-            sparse_aij=(not args.dense),
-            t_max=args.days,
-            graph_file=args.graph_file,
-            par_file=args.par_file,
-            npi_file=args.npi_file,
-            disable_npi=args.disable_npi,
-            reject_runs=args.reject_runs,
-        )
-
         if args.optimize:
             test_opt(env)
             return
@@ -784,7 +729,7 @@ def main(args=None):
                 n_runs += 1
                 with xp.optimize_kernels():
                     sol = env.run_once(seed=mc_seed)
-                    env.save_run(sol, output_folder, mc_seed, output_queue=to_write)
+                    env.save_run(sol, mc_seed)
 
                 success += 1
                 pbar.update(1)
@@ -793,11 +738,9 @@ def main(args=None):
 
     except (KeyboardInterrupt, SystemExit):
         logging.warning("Caught SIGINT, cleaning up")
-        to_write.put(None)
-        write_thread.join()
+        env.writer.close()  # TODO need env.close() which checks if writer is inited
     finally:
-        to_write.put(None)
-        write_thread.join()
+        env.writer.close()
         if "pbar" in locals():
             pbar.close()
             logging.info(f"Total runtime: {datetime.datetime.now() - total_start}")

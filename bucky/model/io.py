@@ -90,7 +90,7 @@ class BuckyOutputWriter:
         str_dates = [str(g_data.start_date + datetime.timedelta(days=int(np.round(t)))) for t in range(t_max + 1)]
         np.savetxt(date_file, str_dates, header="date", comments="", delimiter=",", fmt="%s")
 
-    def write_df_data(self, data_dict):
+    def write_mc_data(self, data_dict):
         """Write the data from one MC to the output dir"""
         # flatten the shape
         for c in data_dict:
