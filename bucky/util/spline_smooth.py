@@ -232,7 +232,7 @@ def PIRLS(x, y, alp, pen, tol=1.0e-7, dist="g", max_it=10000, w=None, gamma=1.0,
     vg_all = xp.full((y_all.shape[0],), xp.inf)
     it_since_step_all = xp.zeros((y_all.shape[0],))
     it = 0
-    bar_format = "{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}{postfix}]"
+    bar_format = "{desc}: {percentage:3.0f}% converged |{bar}| {n_fmt}/{total_fmt} [{elapsed}{postfix}]"
     pbar = tqdm.tqdm(desc=tqdm_label, total=y_all.shape[0], bar_format=bar_format, dynamic_ncols=True)
     while True:
         x = x_all[~complete]
@@ -470,7 +470,20 @@ def opt_lam(x, y, alp=0.6, w=None, pen=None, min_lam=0.1, step_size=None, tol=1e
 
 @memory.cache
 @sync_numerical_libs
-def fit(y, x=None, df=10, alp=0.6, dist="g", pirls=False, standardize=True, w=None, gamma=1.0, tol=1.0e-7, label="fit"):
+def fit(
+    y,
+    x=None,
+    df=10,
+    alp=0.6,
+    dist="g",
+    pirls=False,
+    standardize=True,
+    w=None,
+    gamma=1.0,
+    tol=1.0e-7,
+    clip=(None, None),
+    label="fit",
+):
     """Perform fit of natural cubic splines to the vector y, return the smoothed y."""
     # TODO handle df and alp as vectors
 
@@ -529,5 +542,7 @@ def fit(y, x=None, df=10, alp=0.6, dist="g", pirls=False, standardize=True, w=No
     if standardize:
         y_out = y_fit * y_var + y_mean
     # y_out = y_fit
+    if (clip[0] is not None) or (clip[1] is not None):
+        y_out = xp.clip(y_out, a_min=clip[0], a_max=clip[1])
 
     return y_out
