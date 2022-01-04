@@ -113,7 +113,7 @@ class buckyParams:
         """Generate a new set of params by rerolling, adding the derived params and rejecting invalid sets."""
         while True:  # WTB python do-while...
             params = self.reroll_params()
-            if self.consts.Te_min < params.Te < params.Tg and params.Ti > self.consts.Ti_min:
+            if (self.consts.Te_min < params.Te) and (params.Te < params.Tg) and (params.Ti > self.consts.Ti_min):
                 params.consts = self.consts
                 return params
             # logging.debug("Rejected params: " + pformat(params))
