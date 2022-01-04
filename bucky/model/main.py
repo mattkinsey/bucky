@@ -66,6 +66,7 @@ class buckyModelCovid:
         # COVID/model params from par file
         self.bucky_params = buckyParams(par_file)
         self.consts = self.bucky_params.consts
+        # self.flags = self.bucky_params.flags # TODO split off bool consts into flags
 
         self.g_data = self.load_graph(graph_file)
 
@@ -88,7 +89,7 @@ class buckyModelCovid:
         # Load data from input graph
         # TODO we should go through an replace lots of math using self.g_data.* with function IN buckyGraphData
         # TODO toggle spline smoothing
-        g_data = buckyGraphData(G, self.sparse)
+        g_data = buckyGraphData(G, self.sparse, self.consts.diag_Aij)
 
         # Make contact mats sym and normalized
         self.contact_mats = G.graph["contact_mats"]

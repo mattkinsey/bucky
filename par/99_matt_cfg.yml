@@ -4,8 +4,11 @@
 flags: # currently using the values in const
   rescale_chr: True
   spline_smooth_hist: True
+  diag_Aij: True
 
 consts:
+  diag_Aij: True
+
   En: 3
   Im: 3
   Rhn: 3

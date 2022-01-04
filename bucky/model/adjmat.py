@@ -13,12 +13,19 @@ class buckyAij:
     """Class that handles the adjacency matrix for the model, generalizes between dense/sparse."""
 
     @sync_numerical_libs
-    def __init__(self, G, sparse=True, a_min=0.0):
+    def __init__(self, G, sparse=True, a_min=0.0, force_diag=False):
         """Initialize the stored matrix off of the edges of a networkx graph."""
 
         self.sparse = sparse
         # TODO handle different attr names for edge weight
-        self._base_Aij, self._base_Aij_diag = _read_edge_mat(G, sparse=sparse, a_min=a_min)
+
+        if force_diag:
+            # TODO this assumes sparse == True
+            self._base_Aij = xp_sparse.identity(self._base_Aij.shape[0], format="csr")
+            self._base_Aij_diag = xp.ones(self._base_Aij.shape[0])
+        else:
+            self._base_Aij, self._base_Aij_diag = _read_edge_mat(G, sparse=sparse, a_min=a_min)
+
         if self.sparse:
             self._indptr_sorted = _csr_is_ind_sorted(self._base_Aij)
 
