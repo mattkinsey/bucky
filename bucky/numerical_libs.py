@@ -29,6 +29,7 @@ from .util.read_config import bucky_cfg
 
 
 def to_cpu_noop(x, stream=None, order="C", out=None):
+    """NOOP function that accounts for possible args of to_cpu()"""
     if out is not None:
         out[:] = x
     return x
@@ -50,6 +51,7 @@ if [int(i) for i in xp.__version__.split(".")] < [1, 22, 0]:
     _vec_qr = xp.vectorize(xp.linalg._qr, signature="(m,n)->(m,p),(p,n)", excluded=["mode"])
 
     def batched_qr(*args, **kwargs):
+        """Use vectorized qr() if input dim == 3, otherwise just call qr()"""
         if args[0].ndim == 3:
             return _vec_qr(*args, **kwargs)
         else:
