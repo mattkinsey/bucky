@@ -11,6 +11,7 @@ from pprint import pformat  # TODO set some defaults for width/etc with partial?
 
 import numpy as np
 import tqdm
+from tqdm.contrib.logging import logging_redirect_tqdm
 
 from ..numerical_libs import enable_cupy, reimport_numerical_libs, xp, xp_ivp
 from ..util.distributions import approx_mPERT
