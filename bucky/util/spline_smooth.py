@@ -312,6 +312,49 @@ def ridge(x, y, alp=0.0):
     return w
 
 
+@sync_numerical_libs
+def lin_reg(y, x=None, alp=0.0, quad=False, fit=True):
+    if x is None:
+        x = xp.arange(y.shape[1], dtype=float)
+        x = xp.tile(x, (y.shape[0], 1))
+    basis_list = [xp.ones_like(x), x]
+    if quad:
+        basis_list.append(x ** 2)
+    basis = xp.stack(basis_list, axis=1).swapaxes(1, 2)
+
+    w = ridge(basis, y, alp)
+
+    if fit:
+        fit = xp.sum((w[:, None, :] * basis), axis=-1)
+        return fit
+    else:
+        return w
+
+
+@sync_numerical_libs
+def logistic_fit(y, x_out, x=None, alp=0.6, t0_max=200, L=None):
+    # TODO this is WIP
+    if x is None:
+        x = xp.arange(y.shape[1], dtype=float)
+        x = xp.tile(x, (y.shape[0], 1))
+    slopes = xp.gradient(y, axis=1)
+    ratio = slopes / y
+    w = lin_reg(ratio, xp.array(y), alp=0.6)
+    k = w[:, 0]
+    if L is None:
+        L = -k / w[:, 1]
+    else:
+        L = xp.full_like(k, L)
+    test = L[:, None, None] / (
+        1.0 + xp.exp(-k[:, None, None] * (xp.arange(y.shape[1])[None, :] - xp.arange(t0_max)[:, None])[None, :, :])
+    )
+    err = xp.nansum((test - y[:, None, :]) ** 2.0, axis=-1)
+    t0 = xp.argmin(err, axis=-1)
+
+    y_out = L[:, None] / (1.0 + xp.exp(-k[:, None] * (x_out - t0[:, None])))
+    return y_out
+
+
 # @memory.cache
 def opt_lam(x, y, alp=0.6, w=None, pen=None, min_lam=0.1, step_size=None, tol=1e-3, max_it=100, gamma=1.0):
     """Calculate the exact soln to the ridge regression of the weights for basis x that fit data y."""
