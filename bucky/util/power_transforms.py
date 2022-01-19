@@ -118,7 +118,7 @@ def fit_lam(y, yj=False, lam_range=(-2, 2, 0.1)):
 
     best_ks = xp.full(batch_size, xp.inf)
     best_ks_lam = xp.empty(batch_size)
-    for lam in xp.arange(*lam_range):
+    for lam in xp.around(xp.arange(*lam_range), 6):
         if yj:
             yp, _ = yeojohnson(y, lam)
         else:
