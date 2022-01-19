@@ -225,6 +225,7 @@ class buckyModelCovid:
         )  # TODO move all the broadcast_to's to one place, they're all over reset()
         self.params["GAMMA_H"] = xp.broadcast_to(self.params["GAMMA_H"][:, None], self.Nij.shape)
 
+        self.params["overall_adm2_ifr"] = xp.sum(ifr[:, None] * self.g_data.Nij / self.g_data.Nj, axis=0)
         # Build init state vector (self.y)
         yy = buckyState(self.consts, self.Nij)
 
@@ -282,10 +283,10 @@ class buckyModelCovid:
             # adm2_hosp_frac = xp.sqrt(adm2_hosp_frac * adm0_hosp_frac)
 
             scaling_H = adm2_hosp_frac * H_fac  # * self.consts.F_scaling
-            F_RR_fac = xp.broadcast_to(self.params.F_fac / H_fac, (adm1_hosp.size,))
+            F_RR_fac = xp.broadcast_to(self.params.F_fac / H_fac, (adm1_hosp.size,)) * H_fac  # /scaling_H
             self.params["CFR"] = estimate_cfr(self.g_data, self.params, S_age_dist, days_back=7)
             self.params["CFR"] = xp.clip(
-                self.params["CFR"] * self.consts.F_scaling * F_RR_fac[self.g_data.adm1_id], 0.0, 1.0
+                self.params["CFR"] * self.consts.F_scaling * F_RR_fac[self.g_data.adm1_id] * scaling_H, 0.0, 1.0
             )
             self.params["CHR"] = xp.clip(self.params["CHR"] * scaling_H, self.params["CFR"], 1.0)
 
@@ -311,8 +312,8 @@ class buckyModelCovid:
             adm2_chr = xp.sum(self.params["CHR"] * S_age_dist, axis=0)
 
             tmp = (
-                xp.sum(self.params.CHR * I_init / yy.Im * self.g_data.Nij * self.params["CRR"], axis=0)
-            ) * self.params.SIGMA
+                xp.sum(self.params.CHR * I_init / yy.Im * self.g_data.Nij, axis=0) / self.params["CRR"]
+            ) * self.params.GAMMA_H  # * self.params.SIGMA #** 2
             tmp2 = inc_case_h_delay * adm2_chr
 
             ic_fac = tmp2 / tmp
@@ -320,9 +321,9 @@ class buckyModelCovid:
             # ic_fac = xp.clip(ic_fac, a_min=0.2, a_max=5.0)  #####
 
             self.params["HFR"] = xp.clip(self.params["CFR"] / self.params["CHR"], 0.0, 1.0)
-            yy.I = (1.0 - self.params.CHR * self.params["CRR"]) * I_init / yy.Im
-            yy.Ic *= ic_fac * 0.9
-            yy.Rh *= 1.05 * adm2_hosp_frac
+            yy.I = (1.0 - self.params.CHR * self.params["CRR"]) * I_init / yy.Im  # * 0.8
+            yy.Ic *= ic_fac * 0.75  # * 0.9 * .9
+            yy.Rh *= 1.0 * adm2_hosp_frac
 
         R_init -= xp.sum(yy.Rh, axis=0)
 
@@ -380,9 +381,9 @@ class buckyModelCovid:
         # TODO R0 need to be changed before reset()...
         S_eff = self.base_mc_instance.S_eff(0, self.base_mc_instance.state)
         adm2_S_eff = xp.sum(S_eff * self.g_data.Nij / self.g_data.Nj, axis=0)
-        adm2_beta_scale = xp.clip(1.0 / (adm2_S_eff + 1e-10), a_min=0.5, a_max=10.0)
+        adm2_beta_scale = xp.clip(1.0 / (adm2_S_eff + 1e-10), a_min=0.1, a_max=10.0)
         adm1_S_eff = xp.sum(self.g_data.sum_adm1((S_eff * self.g_data.Nij).T).T / self.g_data.adm1_Nj, axis=0)
-        adm1_beta_scale = xp.clip(1.0 / (adm1_S_eff + 1e-10), a_min=0.5, a_max=10.0)
+        adm1_beta_scale = xp.clip(1.0 / (adm1_S_eff + 1e-10), a_min=0.1, a_max=10.0)
         adm2_beta_scale = adm1_beta_scale[self.g_data.adm1_id]
 
         # adm2_beta_scale = xp.sqrt(adm2_beta_scale)
