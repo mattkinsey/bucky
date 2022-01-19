@@ -1,15 +1,18 @@
 """Class to read and store all the data from the bucky input graph."""
 import datetime
+import warnings
 from functools import partial
 
 import networkx as nx
 import pandas as pd
 import yaml
 from joblib import Memory
+from numpy import RankWarning
 
 from ..numerical_libs import sync_numerical_libs, xp
 from ..util.cached_prop import cached_property
 from ..util.extrapolate import interp_extrap
+from ..util.power_transforms import BoxCox, YeoJohnson
 from ..util.read_config import bucky_cfg
 from ..util.rolling_mean import rolling_mean, rolling_window
 from ..util.spline_smooth import fit
@@ -29,133 +32,202 @@ class buckyGraphData:
     """Contains and preprocesses all the data imported from an input graph file."""
 
     @sync_numerical_libs
-    def clean_historical_data(self, cum_case_hist, cum_death_hist, inc_hosp, start_date, g_data, save_plots=True):
-
-        # interpolate unreported days
-        with open("included_data/state_update.yml", "r") as f:
-            state_update_info = yaml.load(f, yaml.SafeLoader)  # nosec
-
+    def clean_historical_data(
+        self, cum_case_hist, cum_death_hist, inc_hosp, start_date, g_data, force_save_plots=False
+    ):
         n_hist = cum_case_hist.shape[1]
-        dow = xp.arange(start=-n_hist + start_date.weekday() + 1, stop=start_date.weekday() + 1, step=1)
-        dow = dow % 7
 
-        update_mask = xp.full_like(cum_case_hist, False, dtype=bool)
-        default_state_mask = xp.isin(dow, xp.array(state_update_info[0]))
+        adm1_case_hist = g_data.sum_adm1(cum_case_hist)
+        adm1_death_hist = g_data.sum_adm1(cum_death_hist)
+        adm1_diff_mask_cases = (
+            xp.around(xp.diff(adm1_case_hist, axis=1, prepend=adm1_case_hist[:, 0][..., None]), 2) >= 1.0
+        )
+        adm1_diff_mask_death = (
+            xp.around(xp.diff(adm1_death_hist, axis=1, prepend=adm1_death_hist[:, 0][..., None]), 2) >= 1.0
+        )
 
-        for i in range(1, g_data.max_adm1 + 1):
-            if i in state_update_info:
-                state_mask = xp.isin(dow, xp.array(state_update_info[i]))
-            else:
-                state_mask = default_state_mask
+        adm1_enough_case_data = (adm1_case_hist[:, -1] - adm1_case_hist[:, 0]) > n_hist
+        adm1_enough_death_data = (adm1_death_hist[:, -1] - adm1_death_hist[:, 0]) > n_hist
 
-            update_mask[g_data.adm1_id == i] = state_mask[None, ...]
+        adm1_enough_data = adm1_enough_case_data | adm1_enough_death_data
 
-        diff_mask_cases = xp.diff(cum_case_hist, axis=1, prepend=cum_case_hist[:, 0][..., None] - 1) != 0.0
-        diff_mask_deaths = xp.diff(cum_death_hist, axis=1, prepend=cum_death_hist[:, 0][..., None] - 1) != 0.0
-        # diff_mask = diff_mask_cases | diff_mask_deaths
+        valid_adm1_mask = adm1_diff_mask_cases | adm1_diff_mask_death
 
-        valid_case_mask = update_mask | diff_mask_cases
-        valid_death_mask = update_mask | diff_mask_deaths
+        valid_adm1_case_mask = valid_adm1_mask
+        valid_adm1_death_mask = valid_adm1_mask
+
+        from ..util.spline_smooth import lin_reg
+
+        for i in range(adm1_case_hist.shape[0]):
+            data = adm1_case_hist[i]
+            rw = rolling_window(data, 3, center=True)
+            mask = xp.around(xp.abs((data - xp.mean(lin_reg(rw, fit=True), axis=1)) / data), 2) < 0.1
+            valid_adm1_case_mask[i] = valid_adm1_mask[i] & mask
+
+        valid_case_mask = valid_adm1_case_mask[g_data.adm1_id]
+        valid_death_mask = valid_adm1_death_mask[g_data.adm1_id]
+        enough_data = adm1_enough_data[g_data.adm1_id]
 
         new_cum_cases = xp.empty_like(cum_case_hist)
         new_cum_deaths = xp.empty_like(cum_case_hist)
 
         x = xp.arange(0, new_cum_cases.shape[1])
         for i in range(new_cum_cases.shape[0]):
-            new_cum_cases[i] = interp_extrap(x, x[valid_case_mask[i]], cum_case_hist[i, valid_case_mask[i]])
-            new_cum_deaths[i] = interp_extrap(x, x[valid_death_mask[i]], cum_death_hist[i, valid_death_mask[i]])
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("error")
+                    if ~enough_data[i]:
+                        new_cum_cases[i] = cum_case_hist[i]
+                        new_cum_deaths[i] = cum_death_hist[i]
+                        continue
+                    new_cum_cases[i] = interp_extrap(
+                        x, x[valid_case_mask[i]], cum_case_hist[i, valid_case_mask[i]], n_pts=7, order=2
+                    )
+                    new_cum_deaths[i] = interp_extrap(
+                        x, x[valid_death_mask[i]], cum_death_hist[i, valid_death_mask[i]], n_pts=7, order=2
+                    )
+            except (TypeError, RankWarning, ValueError) as e:
+                print(e)
+                from IPython import embed
 
+                embed()
         # TODO remove massive outliers here, they lead to gibbs-like wiggling in the cumulative fitting
+
+        new_cum_cases = xp.around(new_cum_cases, 6) + 0.0  # plus zero to convert -0 to 0.
+        new_cum_deaths = xp.around(new_cum_deaths, 6) + 0.0
 
         # Apply spline smoothing
         df = max(1 * n_hist // 7 - 1, 4)
-        # df = n_hist - n_hist//4
+
         alp = 1.5
         tol = 1.0e-5  # 6
-        gam_inc = 8.0  # 8.
-        gam_cum = 8.0  # 8.
+        gam_inc = 8.0  # 2.4  # 8.
+        gam_cum = 8.0  # 2.4  # 8.
+
+        # df2 = int(10 * n_hist ** (2.0 / 9.0)) + 1  # from gam book section 4.1.7
+        gam_inc = 2.4  # 2.4
+        gam_cum = 2.4  # 2.4
+        # tol = 1e-3
 
         spline_cum_cases = xp.clip(
-            fit(new_cum_cases, df=df, alp=alp, pirls=True, gamma=gam_cum, tol=tol, label="PIRLS Cumulative Cases"),
+            fit(
+                new_cum_cases,
+                df=df,
+                alp=alp,
+                gamma=gam_cum,
+                tol=tol,
+                label="PIRLS Cumulative Cases",
+                standardize=False,
+            ),
             a_min=0.0,
             a_max=None,
         )
         spline_cum_deaths = xp.clip(
-            fit(new_cum_deaths, df=df, alp=alp, pirls=True, gamma=gam_cum, tol=tol, label="PIRLS Cumulative Deaths"),
+            fit(
+                new_cum_deaths,
+                df=df,
+                alp=alp,
+                gamma=gam_cum,
+                tol=tol,
+                label="PIRLS Cumulative Deaths",
+                standardize=False,
+            ),
             a_min=0.0,
             a_max=None,
         )
-
-        # cum_rolling_cases = xp.mean(rolling_window(new_cum_cases, 7, center=True), axis=-1)
-        # cum_rolling_deaths = xp.mean(rolling_window(new_cum_deaths, 7, center=True), axis=-1)
-
-        # inc_spline_cases = xp.clip(xp.gradient(cum_rolling_cases, axis=1, edge_order=2), a_min=0.0, a_max=None)
-        # inc_spline_deaths = xp.clip(xp.gradient(cum_rolling_deaths, axis=1, edge_order=2), a_min=0.0, a_max=None)
-
-        # inc_rolling_cases = xp.mean(rolling_window(inc_spline_cases, 7, reflect_type="even", center=True), axis=-1)
-        # inc_rolling_deaths = xp.mean(rolling_window(inc_spline_deaths, 7, reflect_type="even", center=True), axis=-1)
 
         inc_cases = xp.clip(xp.gradient(spline_cum_cases, axis=1, edge_order=2), a_min=0.0, a_max=None)
         inc_deaths = xp.clip(xp.gradient(spline_cum_deaths, axis=1, edge_order=2), a_min=0.0, a_max=None)
 
-        for i in range(inc_cases.shape[0]):
-            inc_cases[i] = interp_extrap(x, x[valid_case_mask[i]], inc_cases[i, valid_case_mask[i]])
-            inc_deaths[i] = interp_extrap(x, x[valid_death_mask[i]], inc_deaths[i, valid_death_mask[i]])
+        inc_cases = xp.around(inc_cases, 6) + 0.0
+        inc_deaths = xp.around(inc_deaths, 6) + 0.0
+        inc_hosp = xp.around(inc_hosp, 6) + 0.0
 
-        spline_inc_cases = xp.clip(
-            fit(
-                inc_cases,
-                alp=alp,
-                df=df - 1,
-                dist="g",
-                pirls=True,
-                standardize=True,
-                gamma=gam_inc,
-                tol=tol,
-                label="PIRLS Incident Cases",
-            ),
-            a_min=0.0,
-            a_max=None,
-        )
-        spline_inc_deaths = xp.clip(
-            fit(
-                inc_deaths,
-                alp=alp,
-                df=df - 1,
-                dist="g",
-                pirls=True,
-                standardize=True,
-                gamma=1.5 * gam_inc,
-                tol=tol,
-                label="PIRLS Incident Deaths",
-            ),
-            a_min=0.0,
-            a_max=None,
-        )
-        spline_inc_hosp = xp.clip(
-            fit(
-                inc_hosp,
-                alp=alp,
-                df=df - 1,
-                dist="g",
-                pirls=True,
-                standardize=True,
-                gamma=gam_inc,
-                tol=tol,
-                label="PIRLS Incident Hospitalizations",
-            ),
-            a_min=0.0,
-            a_max=None,
+        # power_transform1 = BoxCox()
+        # power_transform2 = BoxCox()
+        # power_transform3 = BoxCox()
+        power_transform1 = YeoJohnson()
+        power_transform2 = YeoJohnson()
+        power_transform3 = YeoJohnson()
+        # Need to clip negatives for BoxCox
+        # inc_cases = xp.clip(inc_cases, a_min=0., a_max=None)
+        # inc_deaths = xp.clip(inc_deaths, a_min=0., a_max=None)
+        # inc_hosp = xp.clip(inc_hosp, a_min=0., a_max=None)
+        inc_cases = power_transform1.fit(inc_cases)
+        inc_deaths = power_transform2.fit(inc_deaths)
+        inc_hosp2 = power_transform3.fit(inc_hosp)
+
+        inc_cases = xp.around(inc_cases, 6) + 0.0
+        inc_deaths = xp.around(inc_deaths, 6) + 0.0
+        inc_hosp = xp.around(inc_hosp, 6) + 0.0
+
+        inc_fit_args = {
+            "alp": alp,
+            "df": df,  # df // 2 + 2 - 1,
+            "dist": "g",
+            "standardize": False,  # True,
+            "gamma": gam_inc,
+            "tol": tol,
+            "clip": (0.0, None),
+            "bootstrap": False,  # True,
+        }
+
+        all_cached = (
+            fit.check_call_in_cache(inc_cases, **inc_fit_args)
+            and fit.check_call_in_cache(inc_deaths, **inc_fit_args)
+            and fit.check_call_in_cache(inc_hosp2, **inc_fit_args)
         )
 
-        # TODO cache this somehow b/c it takes awhile
-        if save_plots:  # False:
+        spline_inc_cases = fit(
+            inc_cases,
+            **inc_fit_args,
+            label="PIRLS Incident Cases",
+        )
+        spline_inc_deaths = fit(
+            inc_deaths,
+            **inc_fit_args,
+            label="PIRLS Incident Deaths",
+        )
+        spline_inc_hosp = fit(
+            inc_hosp2,
+            **inc_fit_args,
+            label="PIRLS Incident Hospitalizations",
+        )
+        for i in range(5):
+            resid = spline_inc_cases - inc_cases
+            stddev = xp.quantile(xp.abs(resid), axis=1, q=0.682)
+            clean_resid = xp.clip(resid / (6.0 * stddev[:, None] + 1e-8), -1.0, 1.0)
+            robust_weights = xp.clip(1.0 - clean_resid ** 2.0, 0.0, 1.0) ** 2.0
+            spline_inc_cases = fit(inc_cases, **inc_fit_args, label="PIRLS Incident Cases", w=robust_weights)
+
+            resid = spline_inc_deaths - inc_deaths
+            stddev = xp.quantile(xp.abs(resid), axis=1, q=0.682)
+            clean_resid = xp.clip(resid / (6.0 * stddev[:, None] + 1e-8), -1.0, 1.0)
+            robust_weights = xp.clip(1.0 - clean_resid ** 2.0, 0.0, 1.0) ** 2.0
+            spline_inc_deaths = fit(inc_deaths, **inc_fit_args, label="PIRLS Incident Deaths", w=robust_weights)
+
+            resid = spline_inc_hosp - inc_hosp2
+            stddev = xp.quantile(xp.abs(resid), axis=1, q=0.682)
+            clean_resid = xp.clip(resid / (6.0 * stddev[:, None] + 1e-8), -1.0, 1.0)
+            robust_weights = xp.clip(1.0 - clean_resid ** 2.0, 0.0, 1.0) ** 2.0
+            spline_inc_hosp = fit(inc_hosp2, **inc_fit_args, label="PIRLS Incident Hosps", w=robust_weights)
+
+        spline_inc_cases = power_transform1.inv(spline_inc_cases)
+        spline_inc_deaths = power_transform2.inv(spline_inc_deaths)
+        spline_inc_hosp = power_transform3.inv(spline_inc_hosp)
+
+        # Only plot if the fits arent in the cache already
+        # TODO this wont update if doing a historical run thats already cached
+        save_plots = (not all_cached) or force_save_plots
+
+        if save_plots:
             import matplotlib
 
             matplotlib.use("agg")
             import pathlib
 
             import matplotlib.pyplot as plt
+            import numpy as np
             import tqdm
             import us
 
@@ -164,15 +236,18 @@ class buckyGraphData:
             # TODO we should drop these in raw_output_dir and have postprocess put them in the run's dir
             # TODO we could also drop the data for viz.plot...
             # if we just drop the data this should be moved to viz.historical_plots or something
-            out_dir = bucky_cfg["output_dir"] + "/_historical_fit_plots"
-            pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
+            out_dir = pathlib.Path(bucky_cfg["output_dir"]) / "_historical_fit_plots"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_dir.touch(exist_ok=True)  # update mtime
 
             diff_cases = xp.diff(g_data.sum_adm1(cum_case_hist), axis=1)
             diff_deaths = xp.diff(g_data.sum_adm1(cum_death_hist), axis=1)
 
             fips_map = us.states.mapping("fips", "abbr")
             non_state_ind = xp.all(g_data.sum_adm1(cum_case_hist) < 1, axis=1)
+
             fig, ax = plt.subplots(nrows=2, ncols=4, figsize=(15, 10))
+            x = xp.arange(cum_case_hist.shape[1])
             # TODO move the sum_adm1 calls out here, its doing that reduction ALOT
             for i in tqdm.tqdm(range(g_data.max_adm1 + 1), desc="Ploting fits", dynamic_ncols=True):
                 if non_state_ind[i]:
@@ -186,12 +261,48 @@ class buckyGraphData:
                 ax = fig.subplots(nrows=2, ncols=4)
                 ax[0, 0].plot(xp.to_cpu(g_data.sum_adm1(cum_case_hist)[i]), label="Cumulative Cases")
                 ax[0, 0].plot(xp.to_cpu(g_data.sum_adm1(spline_cum_cases)[i]), label="Fit")
+
+                ax[0, 0].fill_between(
+                    xp.to_cpu(x),
+                    xp.to_cpu(xp.min(adm1_case_hist[i])),
+                    xp.to_cpu(xp.max(adm1_case_hist[i])),
+                    where=xp.to_cpu(~valid_adm1_case_mask[i]),
+                    color="grey",
+                    alpha=0.2,
+                )
                 ax[1, 0].plot(xp.to_cpu(g_data.sum_adm1(cum_death_hist)[i]), label="Cumulative Deaths")
                 ax[1, 0].plot(xp.to_cpu(g_data.sum_adm1(spline_cum_deaths)[i]), label="Fit")
+                ax[1, 0].fill_between(
+                    xp.to_cpu(x),
+                    xp.to_cpu(xp.min(adm1_death_hist[i])),
+                    xp.to_cpu(xp.max(adm1_death_hist[i])),
+                    where=xp.to_cpu(~valid_adm1_death_mask[i]),
+                    color="grey",
+                    alpha=0.2,
+                )
+
                 ax[0, 1].plot(xp.to_cpu(diff_cases[i]), label="Incident Cases")
                 ax[0, 1].plot(xp.to_cpu(g_data.sum_adm1(spline_inc_cases)[i]), label="Fit")
+                ax[0, 1].fill_between(
+                    xp.to_cpu(x),
+                    xp.to_cpu(xp.min(diff_cases[i])),
+                    xp.to_cpu(xp.max(diff_cases[i])),
+                    where=xp.to_cpu(~valid_adm1_case_mask[i]),
+                    color="grey",
+                    alpha=0.2,
+                )
+
                 ax[0, 2].plot(xp.to_cpu(diff_deaths[i]), label="Incident Deaths")
                 ax[0, 2].plot(xp.to_cpu(g_data.sum_adm1(spline_inc_deaths)[i]), label="Fit")
+                ax[0, 2].fill_between(
+                    xp.to_cpu(x),
+                    xp.to_cpu(xp.min(diff_deaths[i])),
+                    xp.to_cpu(xp.max(diff_deaths[i])),
+                    where=xp.to_cpu(~valid_adm1_death_mask[i]),
+                    color="grey",
+                    alpha=0.2,
+                )
+
                 ax[1, 1].plot(xp.to_cpu(xp.log1p(diff_cases[i])), label="Log(Incident Cases)")
                 ax[1, 1].plot(xp.to_cpu(xp.log1p(g_data.sum_adm1(spline_inc_cases)[i])), label="Fit")
                 ax[1, 2].plot(xp.to_cpu(xp.log1p(diff_deaths[i])), label="Log(Incident Deaths)")
@@ -219,10 +330,33 @@ class buckyGraphData:
 
                 fig.suptitle(name)
                 fig.tight_layout(rect=[0, 0.03, 1, 0.95])
-                plt.savefig(out_dir + "/" + name + ".png")
+                plt.savefig(out_dir / (name + ".png"))
                 fig.clf()
             plt.close(fig)
             plt.close("all")
+
+            spline_inc_hosp_adm2 = (
+                spline_inc_hosp[g_data.adm1_id] * (g_data.Nj / g_data.adm1_Nj[g_data.adm1_id])[:, None]
+            )
+            df = {
+                "cum_cases_fitted": spline_cum_cases,
+                "cum_deaths_fitted": spline_cum_deaths,
+                "inc_cases_fitted": spline_inc_cases,
+                "inc_deaths_fitted": spline_inc_deaths,
+                "inc_hosp_fitted": spline_inc_hosp_adm2,
+            }
+            df["adm2"] = xp.broadcast_to(g_data.adm2_id[:, None], spline_cum_cases.shape)
+            df["adm1"] = xp.broadcast_to(g_data.adm1_id[:, None], spline_cum_cases.shape)
+            dates = [str(start_date + datetime.timedelta(days=int(i))) for i in np.arange(-n_hist + 1, 1)]
+            df["date"] = np.broadcast_to(np.array(dates)[None, :], spline_cum_cases.shape)
+            for k in df:
+                df[k] = xp.ravel(xp.to_cpu(df[k]))
+
+            # TODO sort columns
+            df = pd.DataFrame(df)
+            df.to_csv(out_dir / "fit_data.csv", index=False)
+
+            # embed()
 
         return spline_cum_cases, spline_cum_deaths, spline_inc_cases, spline_inc_deaths, spline_inc_hosp
 
