@@ -31,6 +31,11 @@ from .vacc import buckyVaccAlloc
 
 SCENARIO_HUB = False  # True
 
+logging.basicConfig(
+    stream=sys.stdout,
+    format="%(asctime)s - %(levelname)s - %(filename)s:%(funcName)s:%(lineno)d - %(message)s",
+)
+
 
 class buckyModelCovid:
     """Class that handles one full simulation (both time integration and managing MC states)"""
@@ -672,71 +677,67 @@ def main(args=None):
 
     loglevel = 30 - 10 * min(args.verbosity, 2)
 
-    # fh = logging.FileHandler(output_folder + "/stdout")
-    # fh.setLevel(logging.DEBUG)
-    logging.basicConfig(
-        level=loglevel,
-        format="%(asctime)s - %(levelname)s - %(filename)s:%(funcName)s:%(lineno)d - %(message)s",
-        handlers=[TqdmLoggingHandler()],
-    )
+    logging.getLogger().setLevel(loglevel)
     debug_mode = loglevel < 20
 
     # TODO we should output the logs to output_dir too...
     _banner()
 
-    logging.info(f"command line args: {args}")
-    env = buckyModelCovid(
-        debug=debug_mode,
-        sparse_aij=(not args.dense),
-        t_max=args.days,
-        graph_file=args.graph_file,
-        par_file=args.par_file,
-        npi_file=args.npi_file,
-        disable_npi=args.disable_npi,
-        reject_runs=args.reject_runs,
-        output_dir=args.output_dir,
-    )
+    with logging_redirect_tqdm():
+        logging.info(f"command line args: {args}")
+        env = buckyModelCovid(
+            debug=debug_mode,
+            sparse_aij=(not args.dense),
+            t_max=args.days,
+            graph_file=args.graph_file,
+            par_file=args.par_file,
+            npi_file=args.npi_file,
+            disable_npi=args.disable_npi,
+            reject_runs=args.reject_runs,
+            output_dir=args.output_dir,
+        )
 
-    try:
-        if args.optimize:
-            test_opt(env)
-            return
-            # TODO Should exit() here
+        try:
+            if args.optimize:
+                test_opt(env)
+                return
+                # TODO Should exit() here
 
-        seed_seq = np.random.SeedSequence(args.seed)
+            seed_seq = np.random.SeedSequence(args.seed)
 
-        pbar = tqdm.tqdm(total=args.n_mc, desc="Performing Monte Carlos", dynamic_ncols=True)
-        total_start = datetime.datetime.now()
-        success = 0
-        n_runs = 0
+            pbar = tqdm.tqdm(total=args.n_mc, desc="Performing Monte Carlos", dynamic_ncols=True)
+            total_start = datetime.datetime.now()
+            success = 0
+            n_runs = 0
 
-        while success < args.n_mc:
-            mc_seed = seed_seq.spawn(1)[0].generate_state(1)[0]  # inc spawn key then grab next seed
-            pbar.set_postfix_str(
-                "seed=" + str(mc_seed),
-                # + ", rej%="  # TODO disable rej% if not -r
-                # + str(np.around(float(n_runs - success) / (n_runs + 0.00001) * 100, 1)),
-                refresh=True,
-            )
-            try:
-                n_runs += 1
-                with xp.optimize_kernels():
-                    sol = env.run_once(seed=mc_seed)
-                    env.save_run(sol, mc_seed)
+            while success < args.n_mc:
+                mc_seed = seed_seq.spawn(1)[0].generate_state(1)[0]  # inc spawn key then grab next seed
+                pbar.set_postfix_str(
+                    "seed=" + str(mc_seed),
+                    # + ", rej%="  # TODO disable rej% if not -r
+                    # + str(np.around(float(n_runs - success) / (n_runs + 0.00001) * 100, 1)),
+                    # refresh=True,
+                )
+                try:
+                    n_runs += 1
+                    with xp.optimize_kernels():
+                        sol = env.run_once(seed=mc_seed)
+                        env.save_run(sol, mc_seed)
 
-                success += 1
-                pbar.update(1)
-            except SimulationException:
-                pass
+                    success += 1
+                    pbar.update(1)
+                except SimulationException as e:
+                    # print(e)
+                    pass
 
-    except (KeyboardInterrupt, SystemExit):
-        logging.warning("Caught SIGINT, cleaning up")
-        env.writer.close()  # TODO need env.close() which checks if writer is inited
-    finally:
-        env.writer.close()
-        if "pbar" in locals():
-            pbar.close()
-            logging.info(f"Total runtime: {datetime.datetime.now() - total_start}")
+        except (KeyboardInterrupt, SystemExit):
+            logging.warning("Caught SIGINT, cleaning up")
+            env.writer.close()  # TODO need env.close() which checks if writer is inited
+        finally:
+            env.writer.close()
+            if "pbar" in locals():
+                pbar.close()
+                logging.info(f"Total runtime: {datetime.datetime.now() - total_start}")
 
 
 if __name__ == "__main__":
