@@ -125,12 +125,12 @@ def estimate_chr(
     w = w / xp.sum(w)
     w = w[::-1]
 
-    chr = xp.empty((days_back,))
+    chr_ = xp.empty((days_back,))
     for i in range(days_back):
         d = i + 1
-        chr[i] = adm0_inc_hosp[-d] / (xp.sum(w[d:] * adm0_inc_cases[:-d], axis=0))
+        chr_[i] = adm0_inc_hosp[-d] / (xp.sum(w[d:] * adm0_inc_cases[:-d], axis=0))
 
-    adm0_chr = 1.0 / xp.nanmean(1.0 / chr, axis=0)
+    adm0_chr = 1.0 / xp.nanmean(1.0 / chr_, axis=0)
 
     # adm1
     adm1_inc_cases = g_data.sum_adm1(rolling_case_hist.T).T
@@ -143,12 +143,12 @@ def estimate_chr(
     w = w / (1.0 - w)
     w = w / xp.sum(w, axis=0)
     w = w[::-1]
-    chr = xp.empty((days_back, adm1_theta.shape[0]))
+    chr_ = xp.empty((days_back, adm1_theta.shape[0]))
     for i in range(days_back):
         d = i + 1
-        chr[i] = adm1_inc_hosp[-d] / (xp.sum(w[d:] * adm1_inc_cases[:-d], axis=0))
+        chr_[i] = adm1_inc_hosp[-d] / (xp.sum(w[d:] * adm1_inc_cases[:-d], axis=0))
 
-    adm1_chr = 1.0 / xp.nanmean(1.0 / chr, axis=0)
+    adm1_chr = 1.0 / xp.nanmean(1.0 / chr_, axis=0)
 
     baseline_adm1_chr = g_data.sum_adm1(xp.sum(params.CHR * S_age_dist, axis=0) * g_data.Nj) / g_data.adm1_Nj
 
