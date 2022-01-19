@@ -102,7 +102,7 @@ def estimate_chr(
 ):
     """Estimate CHR from recent case data"""
 
-    mean = params["I_TO_H_TIME"]  # + 8
+    mean = params["I_TO_H_TIME"]
 
     adm2_mean = xp.sum(S_age_dist * mean[..., None], axis=0)
     k = params.consts["Rhn"]
@@ -156,7 +156,7 @@ def estimate_chr(
 
     baseline_adm0_chr = xp.sum(xp.sum(params.CHR * S_age_dist, axis=0) * g_data.Nj) / g_data.N
     adm0_chr_fac = adm0_chr / baseline_adm0_chr
-    valid = xp.isfinite(chr_fac) & (chr_fac > 0.002) & (xp.mean(adm1_inc_hosp[:7]) > 5.0)
+    valid = xp.isfinite(chr_fac) & (chr_fac > 0.002) & (xp.mean(adm1_inc_hosp[-7:]) > 4.0)
     chr_fac[~valid] = adm0_chr_fac
 
     return xp.clip(params.CHR * chr_fac, 0.0, 1.0)
@@ -171,7 +171,7 @@ def estimate_cfr(
 ):
     """Estimate CFR from recent case data"""
 
-    mean = params["H_TIME"] + params["I_TO_H_TIME"] + params["D_REPORT_TIME"]
+    mean = params["CASE_TO_DEATH_TIME"]  # params["H_TIME"] + params["I_TO_H_TIME"] #+ params["D_REPORT_TIME"]
     adm2_mean = xp.sum(S_age_dist * mean[..., None], axis=0)
     k = params.consts["Rhn"]
 
@@ -224,10 +224,11 @@ def estimate_cfr(
 
     baseline_adm0_cfr = xp.sum(xp.sum(params.CFR * S_age_dist, axis=0) * g_data.Nj) / g_data.N
     adm0_cfr_fac = adm0_cfr / baseline_adm0_cfr
-    valid = xp.isfinite(cfr_fac) & (cfr_fac > 0.002) & (xp.mean(adm1_inc_deaths[:7]) > 5.0)
+    valid = xp.isfinite(cfr_fac) & (cfr_fac > 0.002) & (xp.mean(adm1_inc_deaths[-days_back:]) > 4.0)
     cfr_fac[~valid] = adm0_cfr_fac
 
-    cfr_fac = 2.0 / (1.0 / cfr_fac + 1.0 / adm0_cfr_fac[..., None])
+    # cfr_fac = 2.0 / (1.0 / cfr_fac + 1.0 / adm0_cfr_fac[..., None])
+    cfr_fac = xp.sqrt(cfr_fac * adm0_cfr_fac[..., None])
 
     return xp.clip(params.CFR * cfr_fac, 0.0, 1.0)
 
