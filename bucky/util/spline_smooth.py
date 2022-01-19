@@ -335,8 +335,8 @@ def PIRLS(
         it_since_step_all[~complete] = it_since_step + 1
 
         if it > 0:
-            # batch_complete = ((diff < tol) & ((alp_diff < tol) | (alp_new < tol))) | xp.isnan(diff) | step_stop
-            batch_complete = ((diff < tol) & (alp_diff < tol)) | xp.isnan(diff) | step_stop
+            batch_complete = ((diff < tol) & ((alp_diff < tol) | (alp_new < tol))) | xp.isnan(diff) | step_stop
+            # batch_complete = ((diff < tol) & (alp_diff < tol)) | xp.isnan(diff) | step_stop
 
             # ignore stepsize if last values met tol (so var_beta is consistant)
             if xp.any(batch_complete):
