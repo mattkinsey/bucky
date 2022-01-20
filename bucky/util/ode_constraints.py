@@ -1,4 +1,4 @@
-"""Constrant decorators for the RHS funcs used in the ODE solvers"""
+"""Constrant decorators for the RHS funcs used in the ODE solvers."""
 
 from functools import wraps
 
@@ -8,7 +8,7 @@ from ..numerical_libs import sync_numerical_libs, xp
 @sync_numerical_libs
 def constrain_y_range(constraints):
     """
-    Decorator which wraps a function to be passed to an ODE solver which constrains the solution space.
+    Decorator wrapping a function to be passed to an ODE solver which constrains the solution space.
 
     Note that this constrains the dependent variable from going *any further* past the constraints.
     The ODE will still treat it as if it were at the value of the constraint,
@@ -34,11 +34,11 @@ def constrain_y_range(constraints):
         assert constraints[0] < constraints[1]
 
     def wrap(f):
-        """wrap"""
+        """Wrap function (for functools)."""
 
         @wraps(f)
         def wrapper(t, y, *args, **kwargs):
-            """wrapper"""
+            """Wrapper function (for functools)."""
             lower, upper = constraints
             if lower is None:
                 lower = -xp.inf

@@ -29,7 +29,7 @@ from .util.read_config import bucky_cfg
 
 
 def to_cpu_noop(x, stream=None, order="C", out=None):
-    """NOOP function that accounts for possible args of to_cpu()"""
+    """NOOP function that accounts for possible args of to_cpu()."""
     if out is not None:
         out[:] = x
     return x
@@ -51,7 +51,7 @@ if [int(i) for i in xp.__version__.split(".")] < [1, 22, 0]:
     _vec_qr = xp.vectorize(xp.linalg._qr, signature="(m,n)->(m,p),(p,n)", excluded=["mode"])
 
     def batched_qr(*args, **kwargs):
-        """Use vectorized qr() if input dim == 3, otherwise just call qr()"""
+        """Use vectorized qr() if input dim == 3, otherwise just call qr()."""
         if args[0].ndim == 3:
             return _vec_qr(*args, **kwargs)
         else:
@@ -94,11 +94,11 @@ def reimport_numerical_libs(context=None):
 
 
 def sync_numerical_libs(func):
-    """Decorator that pulls xp, xp_sparse, xp_ivp from the global bucky context into the wrapped function."""
+    """Decorator pullng xp, xp_sparse, xp_ivp from the global bucky context into the wrapped function."""
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        """wrapper that checks if we've already overridden this functions imports."""
+        """Wrapper checking if we've already overridden this functions imports."""
         global reimport_cache  # pylint: disable=global-statement
         context = func.__qualname__
         if context in reimport_cache:
@@ -212,7 +212,8 @@ def enable_cupy(optimize=False):
         cp.optimize_kernels = partial(cupyx.optimizing.optimize, path=bucky_cfg["cache_dir"] + "/optuna")
         cp.ExperimentalWarning = optuna.exceptions.ExperimentalWarning
         warnings.filterwarnings(
-            action="ignore", message="cupyx.time.repeat is experimental. The interface can change in the future."
+            action="ignore",
+            message="cupyx.time.repeat is experimental. The interface can change in the future.",
         )
     else:
         cp.optimize_kernels = contextlib.nullcontext
@@ -234,7 +235,7 @@ def enable_cupy(optimize=False):
     cp._oldarray = cp.array  # pylint: disable=protected-access
 
     def array_f32(*args, **kwargs):
-        """replacement cp.array that forces all float64 allocs to be float32 instead."""
+        """Replacement cp.array to force all float64 allocs to be float32 instead."""
         ret = cp._oldarray(*args, **kwargs)  # pylint: disable=protected-access
         if ret.dtype == xp.float64:
             ret = ret.astype("float32")

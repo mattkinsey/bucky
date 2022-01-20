@@ -1,4 +1,4 @@
-"""Submodule that manages some of the calculations for estimating params from the historical data"""
+"""Submodule that manages some of the calculations for estimating params from the historical data."""
 
 from ..numerical_libs import sync_numerical_libs, xp
 from ..util.fractional_slice import frac_last_n_vals
@@ -12,7 +12,7 @@ from ..util.fractional_slice import frac_last_n_vals
 
 @sync_numerical_libs
 def estimate_crr(g_data, params, cfr, days_back=14, case_lag=None, min_deaths=100.0, S_dist=1.0):
-    """Estimate the case reporting rate based off observed vs. expected CFR"""
+    """Estimate the case reporting rate based off observed vs. expected CFR."""
 
     if case_lag is None:
         adm0_cfr_by_age = xp.sum(S_dist * cfr * g_data.Nij, axis=1) / xp.sum(g_data.Nj, axis=0)
@@ -100,7 +100,7 @@ def estimate_chr(
     S_age_dist,
     days_back=7,
 ):
-    """Estimate CHR from recent case data"""
+    """Estimate CHR from recent case data."""
 
     mean = params["I_TO_H_TIME"]
 
@@ -169,7 +169,7 @@ def estimate_cfr(
     S_age_dist,
     days_back=7,
 ):
-    """Estimate CFR from recent case data"""
+    """Estimate CFR from recent case data."""
 
     mean = params["CASE_TO_DEATH_TIME"]  # params["H_TIME"] + params["I_TO_H_TIME"] #+ params["D_REPORT_TIME"]
     adm2_mean = xp.sum(S_age_dist * mean[..., None], axis=0)
@@ -241,7 +241,7 @@ def estimate_Rt(
     case_reporting=None,
     # use_geo_mean=False,
 ):
-    """Estimate R_t from the recent case data"""
+    """Estimate R_t from the recent case data."""
 
     rolling_case_hist = g_data.rolling_inc_cases[-case_reporting.shape[0] :] / case_reporting
 
@@ -328,7 +328,7 @@ def estimate_doubling_time(
     min_doubling_t=1.0,
     case_reporting=None,
 ):
-    """Calculate the recent doubling time of the historical case data"""
+    """Calculate the recent doubling time of the historical case data."""
 
     if mean_time_window is not None:
         days_back = mean_time_window

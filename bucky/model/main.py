@@ -39,7 +39,7 @@ logging.basicConfig(
 
 
 class buckyModelCovid:
-    """Class that handles one full simulation (both time integration and managing MC states)"""
+    """Class that handles one full simulation (both time integration and managing MC states)."""
 
     def __init__(
         self,
@@ -53,7 +53,7 @@ class buckyModelCovid:
         reject_runs=False,
         output_dir=None,
     ):
-        """Initialize the class, do some bookkeeping and read in the input graph"""
+        """Initialize the class, do some bookkeeping and read in the input graph."""
         self.debug = debug
         self.sparse = sparse_aij  # we can default to none and autodetect
         # w/ override (maybe when #adm2 > 5k and some sparsity critera?)
@@ -80,12 +80,12 @@ class buckyModelCovid:
         self.writer.write_metadata(self.g_data, self.t_max)
 
     def update_params(self, update_dict):
-        """Update the params based of a dict of new values"""
+        """Update the params based of a dict of new values."""
         self.bucky_params.update_params(update_dict)
         self.consts = self.bucky_params.consts
 
     def load_graph(self, graph_file):
-        """Load the graph data and calculate all the variables that are static across MC runs"""
+        """Load the graph data and calculate all the variables that are static across MC runs."""
         # TODO refactor to just have this return g_data
 
         logging.info("loading graph")
@@ -138,7 +138,7 @@ class buckyModelCovid:
 
     # TODO static?
     def calc_lagged_rate(self, var1, var2, lag, mean_days, rollup_func=None):
-        """WIP"""
+        """WIP."""
 
         var1_lagged = frac_last_n_vals(var1, mean_days, axis=0, offset=lag)
         var1_lagged = var1_lagged - frac_last_n_vals(var1, mean_days, axis=0, offset=lag + mean_days + 1)
@@ -151,7 +151,7 @@ class buckyModelCovid:
         return ret
 
     def reset(self, seed=None, params=None):
-        """Reset the state of the model and generate new inital data from a new random seed"""
+        """Reset the state of the model and generate new inital data from a new random seed."""
         # TODO we should refactor reset of the compartments to be real pop numbers then /Nij at the end
 
         # Set random seeds
@@ -369,7 +369,7 @@ class buckyModelCovid:
         # return y
 
     def run_once(self, seed=None):
-        """Perform one complete run of the simulation"""
+        """Perform one complete run of the simulation."""
         # rename to integrate or something? it also resets...
 
         # reset everything
@@ -421,7 +421,7 @@ class buckyModelCovid:
         return sol
 
     def run_multiple(self, n_mc, base_seed=42, out_columns=None, invalid_ret=None):
-        """Perform multiple monte carlos and return their postprocessed results"""
+        """Perform multiple monte carlos and return their postprocessed results."""
         seed_seq = np.random.SeedSequence(base_seed)
         success = 0
         fail = 0
@@ -455,7 +455,7 @@ class buckyModelCovid:
 
     # TODO Also provide methods like to_dlpack, to_pytorch, etc
     def save_run(self, sol, seed):
-        """Postprocess and write to disk the output of run_once"""
+        """Postprocess and write to disk the output of run_once."""
 
         mc_data = self.postprocess_run(sol, seed)
 
@@ -466,7 +466,7 @@ class buckyModelCovid:
         # TODO we should output the per monte carlo param rolls, this got lost when we switched from hdf5
 
     def postprocess_run(self, sol, seed, columns=None):
-        """Process the output of a run (sol, returned by the integrator) into the requested output vars"""
+        """Process the output of a run (sol, returned by the integrator) into the requested output vars."""
         if columns is None:
             columns = [
                 "adm2_id",
@@ -660,7 +660,7 @@ class buckyModelCovid:
 
 
 def main(args=None):
-    """Main method for a complete simulation called with a set of CLI args"""
+    """Main method for a complete simulation called with a set of CLI args."""
     if args is None:
         args = sys.argv[1:]
     args = parser.parse_args(args=args)

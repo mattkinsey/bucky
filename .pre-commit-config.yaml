@@ -30,7 +30,7 @@ repos:
           flake8-bugbear,
           #flake8-eradicate,
           flake8-use_fstring,
-          pandas-vet, # need to disable once we enforce flake8, there are tons of false positives
+          #pandas-vet, # need to disable once we enforce flake8, there are tons of false positives
         ]
         verbose: true
         #language_version: python3.8

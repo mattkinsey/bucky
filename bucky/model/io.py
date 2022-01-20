@@ -1,7 +1,5 @@
-"""Monte carlo output handler"""
+"""Monte carlo output handler."""
 import datetime
-import queue
-import threading
 from pathlib import Path
 
 import numpy as np
@@ -14,7 +12,7 @@ from ..util.async_thread import AsyncQueueThread
 
 @sync_numerical_libs
 def init_write_thread(**kwargs):
-    """Init write thread w/ a nonblocking stream"""
+    """Init write thread w/ a nonblocking stream."""
     stream = xp.cuda.Stream(non_blocking=True) if xp.is_cupy else None
     pinned_mem = {}
     return {"stream": stream, "pinned_mem": pinned_mem}
@@ -22,7 +20,7 @@ def init_write_thread(**kwargs):
 
 @sync_numerical_libs
 def write_parquet_dataset(df_data, data_dir, stream, pinned_mem):
-    """Write a dataframe of MC output to parquet"""
+    """Write a dataframe of MC output to parquet."""
     for k, v in df_data.items():
         if k not in pinned_mem:
             pinned_mem[k] = xp.empty_like_pinned(v)
@@ -62,7 +60,7 @@ def parquet_writer(write_queue):
 
 class BuckyOutputWriter:
     def __init__(self, output_base_dir, run_id, data_format="parquet"):
-        """Init the writer globals"""
+        """Init the writer globals."""
         self.output_dir = Path(output_base_dir) / str(run_id)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         data_dir = self.output_dir / "data"
@@ -73,7 +71,7 @@ class BuckyOutputWriter:
 
     @sync_numerical_libs
     def write_metadata(self, g_data, t_max):
-        """Write metadata to output dir"""
+        """Write metadata to output dir."""
         metadata_dir = self.output_dir / "metadata"
         metadata_dir.mkdir(exist_ok=True)
 
@@ -91,7 +89,7 @@ class BuckyOutputWriter:
         np.savetxt(date_file, str_dates, header="date", comments="", delimiter=",", fmt="%s")
 
     def write_mc_data(self, data_dict):
-        """Write the data from one MC to the output dir"""
+        """Write the data from one MC to the output dir."""
         # flatten the shape
         for c in data_dict:
             data_dict[c] = data_dict[c].ravel()
@@ -100,7 +98,7 @@ class BuckyOutputWriter:
         self.write_thread.put(data_dict)
 
     def write_params(self, seed, params):
-        """TODO WIP Write MC parameters per iteration"""
+        """TODO WIP Write MC parameters per iteration."""
         # TODO
         metadata_dir = self.output_dir / "metadata"
         metadata_dir.mkdir(exist_ok=True)
@@ -130,15 +128,15 @@ class BuckyOutputWriter:
         pass
 
     def write_historical_data(self):
-        """TODO Write historical data used"""
+        """TODO Write historical data used."""
         # TODO
         pass
 
     def write_par_files(self):
-        """TODO Copy parameter specs"""
+        """TODO Copy parameter specs."""
         # TODO
         pass
 
     def close(self):
-        """Cleanup and join write thread"""
+        """Cleanup and join write thread."""
         self.write_thread.close()

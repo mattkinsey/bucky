@@ -1,10 +1,10 @@
 """Vaccine related functions"""
 import datetime
-import functools
 import pickle
 
 import pandas as pd
 import us
+from cupyx.scipy import signal
 
 from ..numerical_libs import sync_numerical_libs, xp
 from ..util.distributions import truncnorm

@@ -5,7 +5,6 @@ from functools import partial
 
 import networkx as nx
 import pandas as pd
-import yaml
 from joblib import Memory
 from numpy import RankWarning
 
@@ -81,10 +80,18 @@ class buckyGraphData:
                         new_cum_deaths[i] = cum_death_hist[i]
                         continue
                     new_cum_cases[i] = interp_extrap(
-                        x, x[valid_case_mask[i]], cum_case_hist[i, valid_case_mask[i]], n_pts=7, order=2
+                        x,
+                        x[valid_case_mask[i]],
+                        cum_case_hist[i, valid_case_mask[i]],
+                        n_pts=7,
+                        order=2,
                     )
                     new_cum_deaths[i] = interp_extrap(
-                        x, x[valid_death_mask[i]], cum_death_hist[i, valid_death_mask[i]], n_pts=7, order=2
+                        x,
+                        x[valid_death_mask[i]],
+                        cum_death_hist[i, valid_death_mask[i]],
+                        n_pts=7,
+                        order=2,
                     )
             except (TypeError, RankWarning, ValueError) as e:
                 print(e)

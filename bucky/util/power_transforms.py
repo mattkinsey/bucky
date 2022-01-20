@@ -133,41 +133,41 @@ def fit_lam(y, yj=False, lam_range=(-2, 2, 0.1)):
 
 
 class BoxCox:
-    """Wrapper class for a Box-Cox transformer"""
+    """Wrapper class for a Box-Cox transformer."""
 
     def __init__(
         self,
     ):
-        """Init lambda storage"""
+        """Init lambda storage."""
         self.lam1 = None
         self.lam2 = None
 
     def fit(self, y):
-        """Fit the batched 1d variables in y, store the lambdas for the inv transform"""
+        """Fit the batched 1d variables in y, store the lambdas for the inv transform."""
         ks = fit_lam(y, self.yj)
         ret, self.lam1, self.lam2 = boxcox(y, ks[1][:, None])
         return ret
 
     def inv(self, y):
-        """Inverse tranform using the fitted lambda values"""
+        """Inverse tranform using the fitted lambda values."""
         return inv_boxcox(y, self.lam1, self.lam2)
 
 
 class YeoJohnson:
-    """Wrapper class for a Yeo-Johnson transformer"""
+    """Wrapper class for a Yeo-Johnson transformer."""
 
     def __init__(
         self,
     ):
-        """Init lambda storage"""
+        """Init lambda storage."""
         self.lam1 = None
 
     def fit(self, y):
-        """Fit the batched 1d variables in y, store the lambdas for the inv transform"""
+        """Fit the batched 1d variables in y, store the lambdas for the inv transform."""
         ks = fit_lam(y, yj=True)
         ret, self.lam1 = yeojohnson(y, ks[1][:, None])
         return ret
 
     def inv(self, y):
-        """Inverse tranform using the fitted lambda values"""
+        """Inverse tranform using the fitted lambda values."""
         return inv_yeojohnson(y, self.lam1)

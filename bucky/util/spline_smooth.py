@@ -181,39 +181,39 @@ def _cr(x, df, center=True):
 
 
 class log_link:
-    """class for log link functions"""
+    """Class for log link functions."""
 
     def g(self, mu):
-        """g - log link"""
+        """Log link - $g$."""
         return xp.log(mu + 1.0e-12)
 
     def mu(self, eta):
-        """mu - log link"""
+        """Log link - $\mu$."""
         return xp.exp(eta) + 1.0e-12
 
     def g_prime(self, mu):
-        """g' - log link"""
+        """Log link - $g'$."""
         return 1.0 / (mu + 1.0e-12)
 
 
 class identity_link:
-    """class for idenity link functions"""
+    """Class for idenity link functions"""
 
     def g(self, mu):
-        """g - id link"""
+        """Id link - $g$."""
         return mu
 
     def mu(self, eta):
-        """mu - id link"""
+        """Id link - $\mu$."""
         return eta
 
     def g_prime(self, mu):
-        """g' - id link"""
+        """Id link - $g'$."""
         return xp.ones_like(mu)
 
 
 def make_DP(x):
-    """Add I of increasing magnitude to a batch of matrices (...,M,M) until they are all positive-definite (and therefore cholesky-able)"""
+    """Add I to a batch of matrices (...,M,M) until all are positive-definite (and cholesky-able)."""
     # test sym: (make optional?)
     # xp.allclose(x,xp.swapaxes(x.conj(),1,2))
     eye = xp.eye(x[0].shape[-1])[None, ...]
@@ -246,7 +246,7 @@ def PIRLS(
     ret_beta=False,
     bootstrap=False,
 ):
-    """Penalized iterativly reweighted least squares"""
+    """Penalized iterativly reweighted least squares."""
     if dist == "g":
         link = identity_link()
         V_func = xp.ones_like
@@ -387,7 +387,7 @@ def PIRLS(
                         bs_lam_k = [
                             lam,
                         ]
-                        for bs_i in range(20):
+                        for _ in range(20):
                             with warnings.catch_warnings():
                                 warnings.simplefilter(action="ignore", category=FutureWarning)
                                 beta_rand = xp.random.multivariate_normal(

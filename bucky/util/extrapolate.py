@@ -1,11 +1,11 @@
-"""Provides are version of xp.interp that will perform polynomial extrapolation for all OOB x values"""
+"""Provides are version of xp.interp that will perform polynomial extrapolation for all OOB x values."""
 
 from ..numerical_libs import sync_numerical_libs, xp
 
 
 @sync_numerical_libs
 def interp_extrap(x, x1, yp, order=2, n_pts=None):
-    """xp.interp function with polynomial extrapolation"""
+    """Interp function with polynomial extrapolation."""
     if n_pts is None:
         n_pts = order + 1
     y = xp.interp(x, x1, yp)

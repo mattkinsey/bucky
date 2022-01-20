@@ -1,10 +1,10 @@
-"""Wrapper for an async thread operating on data in a queue"""
+"""Wrapper for an async thread operating on data in a queue."""
 import queue
 import threading
 
 
 def _thread_target(_queue, func, pre_func, post_func, **kwargs):
-    """Wrapper around functionals that becomes the target for the thread"""
+    """Wrapper around functionals that becomes the target for the thread."""
     if pre_func is not None:
         pre_func_output = pre_func(**kwargs)
     for item in iter(_queue.get, None):
@@ -17,10 +17,10 @@ def _thread_target(_queue, func, pre_func, post_func, **kwargs):
 
 
 class AsyncQueueThread:
-    """Async thread that processes data put into its queue"""
+    """Async thread that processes data put into its queue."""
 
     def __init__(self, func, pre_func=None, post_func=None, queue_maxsize=100, **kwargs):
-        """Init TODO describe functionals"""
+        """Init TODO describe functionals."""
         self._func = func
         self._pre_func = pre_func
         self._post_func = post_func
@@ -31,11 +31,11 @@ class AsyncQueueThread:
         self._thread.start()
 
     def put(self, x):
-        """Add item to thread's queue"""
+        """Add item to thread's queue."""
         self._queue.put(x)
 
     def close(self):
-        """Close thread and clean up"""
+        """Close thread and clean up."""
         self._queue.put(None)
         self._thread.join()
 
@@ -43,12 +43,12 @@ class AsyncQueueThread:
 if __name__ == "__main__":
 
     def func(x, asdf, y, **kwargs):
-        """test target"""
+        """Test target."""
         print(asdf)
         print(x + y)
 
     def pre_func(**kwargs):
-        """test pre_func"""
+        """Test pre_func."""
         y = 2
         print(locals())
         return {"y": y}
