@@ -31,6 +31,7 @@ from .state import buckyState
 from .vacc import buckyVaccAlloc
 
 SCENARIO_HUB = False  # True
+scen_params = {}
 
 logging.basicConfig(
     stream=sys.stdout,
@@ -137,7 +138,8 @@ class buckyModelCovid:
         return g_data
 
     # TODO static?
-    def calc_lagged_rate(self, var1, var2, lag, mean_days, rollup_func=None):
+    @staticmethod
+    def calc_lagged_rate(var1, var2, lag, mean_days, rollup_func=None):  # pylint: disable=unused-argument
         """WIP."""
 
         var1_lagged = frac_last_n_vals(var1, mean_days, axis=0, offset=lag)
@@ -177,8 +179,8 @@ class buckyModelCovid:
 
         # Reroll vaccine allocation
         if self.base_mc_instance.vacc_data.reroll:
-            self.base_mc_instance.vacc_data.reroll_distribution(self.params)
-            self.base_mc_instance.vacc_data.reroll_doses(self.params)
+            self.base_mc_instance.vacc_data.reroll_distribution()
+            self.base_mc_instance.vacc_data.reroll_doses()
             if SCENARIO_HUB:
                 self.params["vacc_eff_1"] = scen_params["eff_1"]
                 self.params["vacc_eff_2"] = scen_params["eff_2"]
@@ -357,8 +359,8 @@ class buckyModelCovid:
         self.y.validate_state()
         # Reroll vaccine calculations if were running those
         if self.base_mc_instance.vacc_data is not None and self.base_mc_instance.vacc_data.reroll:
-            self.base_mc_instance.vacc_data.reroll_distribution(self.params)
-            self.base_mc_instance.vacc_data.reroll_doses(self.params)
+            self.base_mc_instance.vacc_data.reroll_distribution()
+            self.base_mc_instance.vacc_data.reroll_doses()
             # if SCENARIO_HUB:
             #     self.params["vacc_eff_1"] = scen_params["eff_1"]
             #     self.params["vacc_eff_2"] = scen_params["eff_2"]
@@ -654,7 +656,8 @@ class buckyModelCovid:
             logging.info("Rejecting run b/c of negative values in output")
             raise SimulationException
 
-        self.writer.write_params(seed, self.params)
+        # TODO
+        # self.writer.write_params(seed, self.params)
 
         return mc_data
 
@@ -728,8 +731,7 @@ def main(args=None):
                     success += 1
                     pbar.update(1)
                 except SimulationException as e:
-                    # print(e)
-                    pass
+                    logging.debug(e)
 
         except (KeyboardInterrupt, SystemExit):
             logging.warning("Caught SIGINT, cleaning up")

@@ -316,10 +316,10 @@ def distribute_utah_data(df, csse_deaths_file):
         84070020: {"name": "Weber-Morgan, Utah, US", "FIPS": [49057, 49029]},
     }
 
-    for district_uid in local_districts.keys():
+    for district_uid, local_district in local_districts.items():
 
         # Get list of fips
-        fips_list = local_districts[district_uid]["FIPS"]
+        fips_list = local_district["FIPS"]
 
         # Deaths file has population data
         county_pop = get_county_population_data(csse_deaths_file, fips_list)
@@ -554,7 +554,7 @@ def process_csse_data():
 
     # Write to files
     hist_file = bucky_cfg["data_dir"] + "/cases/csse_hist_timeseries.csv"
-    logging.info("Saving CSSE historical data as %s" % hist_file)
+    logging.info(f"Saving CSSE historical data as {hist_file}")
     data.to_csv(hist_file)
 
 
@@ -572,7 +572,7 @@ def update_covid_tracking_data():
     # Download data
     context = ssl._create_unverified_context()  # pylint: disable=W0212  # nosec
     # Create filename
-    with urllib.request.urlopen(url, context=context) as testfile, open(filename, "w") as f:  # nosec
+    with urllib.request.urlopen(url, context=context) as testfile, open(filename, "w", encoding="utf-8") as f:  # nosec
         f.write(testfile.read().decode())
 
     # Read file
@@ -587,7 +587,7 @@ def update_covid_tracking_data():
 
     # Save
     covid_tracking_name = bucky_cfg["data_dir"] + "/cases/covid_tracking.csv"
-    logging.info("Saving COVID Tracking Data as %s" % covid_tracking_name)
+    logging.info(f"Saving COVID Tracking Data as {covid_tracking_name}")
     df.to_csv(covid_tracking_name, index=False)
 
 
@@ -694,7 +694,9 @@ def update_usafacts_data():
     for i, url in enumerate(urls):
 
         # Create filename
-        with urllib.request.urlopen(url, context=context) as testfile, open(filenames[i], "w") as f:  # nosec
+        with urllib.request.urlopen(url, context=context) as testfile, open(
+            filenames[i], "w", encoding="utf-8"
+        ) as f:  # nosec
             f.write(testfile.read().decode())
 
     # Merge datasets
@@ -720,7 +722,9 @@ def update_hhs_hosp_data():
     # Download case and death data
     context = ssl._create_unverified_context()  # pylint: disable=W0212  # nosec
     # Create filename
-    with urllib.request.urlopen(hosp_url, context=context) as testfile, open(filename, "w") as f:  # nosec
+    with urllib.request.urlopen(hosp_url, context=context) as testfile, open(
+        filename, "w", encoding="utf-8"
+    ) as f:  # nosec
         f.write(testfile.read().decode())
 
     # Map state abbreviation to ADM1
@@ -770,8 +774,8 @@ def git_pull(abs_path):
     git_command = "git pull --rebase origin master"
 
     # pull
-    process = subprocess.Popen(git_command.split(), stdout=subprocess.PIPE, cwd=abs_path)
-    output, error = process.communicate()
+    with subprocess.Popen(git_command.split(), stdout=subprocess.PIPE, cwd=abs_path) as p:
+        output, error = p.communicate()
 
     if error:
 

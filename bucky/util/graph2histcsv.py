@@ -1,4 +1,5 @@
 """Creates a CSSE formated case/death history file from the data on an input graph."""
+# pylint: disable=unsupported-assignment-operation
 import argparse
 import pickle
 

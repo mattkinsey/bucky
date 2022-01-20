@@ -240,6 +240,7 @@ def hosp_df(first_day: datetime.datetime, adm1_filter: xp.ndarray) -> pd.DataFra
 
 @sync_numerical_libs
 def test_opt(env):
+    # pylint: disable=import-outside-toplevel
     """Wrapper for calling the optimizer."""
 
     # First day of historical data
@@ -354,12 +355,12 @@ def test_opt(env):
     print("Best Opt:", best_opt)
     print("Best Params:", best_params)
 
-    with open(BEST_OPT_FILE, "w") as f:
+    with open(BEST_OPT_FILE, "w", encoding="utf-8") as f:
         best_params = [p.item() for p in best_params]
         new_params = rebuild_params(best_params, keys)
         yaml.safe_dump(new_params, f)
 
-    with open(VALUES_FILE, "a") as f:
-        f.write("{},{}\n".format(run_params.ID, best_opt))
+    with open(VALUES_FILE, "a", encoding="utf-8") as f:
+        f.write(f"{run_params.ID},{best_opt}\n")
 
     # embed()

@@ -4,7 +4,6 @@ import pickle
 
 import pandas as pd
 import us
-from cupyx.scipy import signal
 
 from ..numerical_libs import sync_numerical_libs, xp
 from ..util.distributions import truncnorm
@@ -109,7 +108,7 @@ class buckyVaccAlloc:
         mean_acip_demos = xp.mean(tmp[:, (tmp >= 0).all((0, 2)), :], axis=1)
 
         adm1_without_phase_data = xp.unique(
-            g_data.adm1_id[~xp.isin(g_data.adm1_id, xp.array([x for x in phase_demos.keys()]))]
+            g_data.adm1_id[~xp.isin(g_data.adm1_id, xp.array(list(phase_demos.keys())))]
         )
 
         for adm1 in adm1_without_phase_data:
@@ -165,7 +164,7 @@ class buckyVaccAlloc:
         self.hes_se_ij_adm1 = xp.zeros_like(self.g_data.adm1_Nij)
         if scen_params is not None:
             df["hes"] = df[scen_params["hes_col"]]
-        for col in age_map:
+        for col in age_map:  # pylint: disable=consider-using-dict-items
 
             adm1_age_grp_pop = xp.sum(self.g_data.adm1_Nij[slice(*(age_map[col]))], axis=0)
             hes_pop = xp.zeros_like(adm1_age_grp_pop)
@@ -255,7 +254,7 @@ class buckyVaccAlloc:
         self.active = consts.vacc_active
         self.reroll = consts.vacc_reroll
 
-    def reroll_distribution(self, params):
+    def reroll_distribution(self):
         """reroll the vaccine distributions to states after updating the params"""
         daily_vaccs_dist_adm1 = self.adm1_pop_frac * truncnorm(self.mean_vac_daily, self.std_vac_daily, a_min=0.0)
 
@@ -271,7 +270,7 @@ class buckyVaccAlloc:
         daily_dists[0] = self.vaccs_dist_adm1[self.dist_future_mask][0, :]
         self.vaccs_dist_adm1[self.dist_future_mask] = xp.cumsum(daily_dists, axis=0)
 
-    def reroll_doses(self, params):
+    def reroll_doses(self):
         """Reroll the number of vaccinated people with updated params (from the MC)"""
         self.dose1 = xp.zeros((self.end_t + 1,) + self.Nij.shape)
         self.dose2 = xp.zeros((self.end_t + 1,) + self.Nij.shape)

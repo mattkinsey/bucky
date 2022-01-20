@@ -174,9 +174,11 @@ def _cr(x, df, center=True):
 
     dm_dict, dict_x_knot_map, pen = _get_free_crs_dmatrix(x, all_knots)
     if center:
-        for n in dm_dict:
-            constraint = dm_dict[n].mean(axis=1).reshape((dm_dict[n].shape[0], 1, dm_dict[n].shape[2]))
-            dm_dict[n], pen_out = _absorb_constraints(dm_dict[n], constraint, pen)
+        for n, dm in dm_dict.items():
+            constraint = dm.mean(axis=1).reshape((dm.shape[0], 1, dm.shape[2]))
+            dm_dict[n], pen_out = _absorb_constraints(  # pylint: disable=unnecessary-dict-index-lookup
+                dm, constraint, pen
+            )
 
     return dm_dict, dict_x_knot_map, pen_out
 
@@ -277,18 +279,18 @@ def PIRLS(
     it = 0
     bar_format = "{desc}: {percentage:3.0f}% converged |{bar}| {n_fmt}/{total_fmt} [{elapsed}{postfix}]"
     pbar = tqdm.tqdm(desc=tqdm_label, total=y_all.shape[0], bar_format=bar_format, dynamic_ncols=True)
-    while True:
+    while True:  # pylint: disable=too-many-nested-blocks
         x = x_all[~complete]
         y = y_all[~complete]
         pen = pen_all[~complete]
         step_size = step_size_all[~complete]
         beta_k = beta_k_all[~complete]
-        var_beta_k = var_beta_k_all[~complete]
+        # var_beta_k = var_beta_k_all[~complete]
         mu_k = mu_k_all[~complete]
         alp_k = alp_k_all[~complete]
         lp_k = lp_k_all[~complete]
         it_since_step = it_since_step_all[~complete]
-        vg_k = vg_all[~complete]
+        # vg_k = vg_all[~complete]
         if ~xp.all(xp.isfinite(mu_k) & xp.isfinite(link.g_prime(mu_k))):
             div_mask = ~xp.all(xp.isfinite(mu_k) & xp.isfinite(link.g_prime(mu_k)), axis=1)
             mu_k[div_mask] = xp.clip(mu_k[div_mask], a_min=1.0e-12, a_max=1.0e12)
@@ -305,7 +307,7 @@ def PIRLS(
         z = link.g_prime(mu_k) * (y - mu_k) + lp_k
         y_tilde = xp.sqrt(w_k_diag) * z
         x_tilde = xp.sqrt(w_k_diag)[..., None] * x
-        eta_new, beta_new, var_beta_new, alp_new, vg_new = opt_lam(
+        _, beta_new, var_beta_new, alp_new, vg_new = opt_lam(
             x_tilde,
             y_tilde,
             alp=alp_k,
@@ -372,6 +374,7 @@ def PIRLS(
                 return mu_k_all, alp_k_all, beta_k_all, var_beta_k_all
             else:
                 if bootstrap:
+                    # pylint: disable=import-outside-toplevel
                     logging.warning("Testing GAM bootstrap, this is currently broken and unstable")
                     # var_beta_DP = make_DP(var_beta_k_all)
                     var_beta_DP = var_beta_k_all
@@ -397,11 +400,11 @@ def PIRLS(
                         for _ in range(20):
                             with warnings.catch_warnings():
                                 warnings.simplefilter(action="ignore", category=FutureWarning)
-                                beta_rand = xp.random.multivariate_normal(
+                                beta_rand = xp.random.multivariate_normal(  # pylint: disable=unexpected-keyword-arg
                                     beta, var_beta, method="svd"
-                                )  # , check_valid='warn')
+                                )
                             lp_rand = xp.einsum("ij,j->i", x[0], beta_rand)
-                            bs_mu, bs_lam, bs_beta, bs_var_beta = PIRLS(
+                            _, bs_lam, bs_beta, bs_var_beta = PIRLS(
                                 x=x_all[i][None, :],
                                 y=lp_rand[None, :],
                                 alp=alp,
@@ -414,7 +417,7 @@ def PIRLS(
                                 tqdm_label="BS",
                                 ret_beta=True,
                             )
-                            bs_mu, _, bs_beta, bs_var_beta = PIRLS(
+                            _, _, bs_beta, bs_var_beta = PIRLS(
                                 x=x_all[i][None, :],
                                 y=y_all[i][None, ...],
                                 alp=bs_lam,
@@ -440,9 +443,9 @@ def PIRLS(
                             j = xp.random.randint(20)
                             with warnings.catch_warnings():
                                 warnings.simplefilter(action="ignore", category=FutureWarning)
-                                beta_rand = xp.random.multivariate_normal(
+                                beta_rand = xp.random.multivariate_normal(  # pylint: disable=unexpected-keyword-arg
                                     bs_beta_k[int(j)], bs_var_beta_k[int(j)], method="svd"
-                                )  # , check_valid='warn')
+                                )
                             lp_rand = xp.einsum("ij,j->i", x[0], beta_rand)
                             lp_rands.append(lp_rand)
                         lp_rand = xp.stack(lp_rands)
@@ -472,7 +475,8 @@ def ridge(x, y, alp=0.0):
 
 
 @sync_numerical_libs
-def lin_reg(y, x=None, alp=0.0, quad=False, fit=True):
+def lin_reg(y, x=None, alp=0.0, quad=False, return_fit=True):
+    """Calculate exact soln for batched linear regression and return either weights or fitted values"""
     if x is None:
         x = xp.arange(y.shape[1], dtype=float)
         x = xp.tile(x, (y.shape[0], 1))
@@ -483,22 +487,23 @@ def lin_reg(y, x=None, alp=0.0, quad=False, fit=True):
 
     w = ridge(basis, y, alp)
 
-    if fit:
-        fit = xp.sum((w[:, None, :] * basis), axis=-1)
-        return fit
+    if return_fit:
+        ret = xp.sum((w[:, None, :] * basis), axis=-1)
+        return ret
     else:
         return w
 
 
 @sync_numerical_libs
 def logistic_fit(y, x_out, x=None, alp=0.6, t0_max=200, L=None):
+    """WIP Fit a logistic function to batched y"""
     # TODO this is WIP
     if x is None:
         x = xp.arange(y.shape[1], dtype=float)
         x = xp.tile(x, (y.shape[0], 1))
     slopes = xp.gradient(y, axis=1)
     ratio = slopes / y
-    w = lin_reg(ratio, xp.array(y), alp=0.6)
+    w = lin_reg(ratio, xp.array(y), alp=alp)
     k = w[:, 0]
     if L is None:
         L = -k / w[:, 1]
@@ -515,9 +520,7 @@ def logistic_fit(y, x_out, x=None, alp=0.6, t0_max=200, L=None):
 
 
 # @memory.cache
-def opt_lam(
-    x, y, alp=0.6, w=None, pen=None, min_lam=0.1, step_size=None, tol=1e-3, max_it=100, gamma=1.0, fixed_lam=False
-):
+def opt_lam(x, y, alp=0.6, pen=None, min_lam=0.1, step_size=None, tol=1e-3, max_it=100, gamma=1.0, fixed_lam=False):
     """Calculate the exact soln to the ridge regression of the weights for basis x that fit data y."""
 
     xtx_all = xp.einsum("ijk,ijl->ikl", x, x)
@@ -528,10 +531,11 @@ def opt_lam(
         lam_all = xp.full((x.shape[0],), alp)
 
     if pen is None:
-        d = xp.ones(x.shape[-1])
-        d[0] = 0.0
-        d[1] = 0.0
-        pen_mat_all = xp.tile(xp.diag(d), (xtx.shape[0], 1, 1))
+        raise NotImplementedError
+        # d = xp.ones(x.shape[-1])
+        # d[0] = 0.0
+        # d[1] = 0.0
+        # pen_mat_all = xp.tile(xp.diag(d), (xtx.shape[0], 1, 1))
     else:
         pen_mat_all = xp.pad(pen, ((0, 0), (2, 0), (2, 0)))
 
@@ -546,14 +550,13 @@ def opt_lam(
 
     complete = xp.full((y.shape[0],), False, dtype=bool)
     Vg_out = xp.empty((y.shape[0],))
-    y_out = xp.empty_like(y)
+    y_out = xp.empty(y.shape)
     beta_out = xp.empty((x.shape[0], x.shape[2]))
     var_beta_out = xp.empty((x.shape[0], x.shape[2], x.shape[2]))
     x_in = x.copy()
     y_in = y.copy()
 
     it = 0
-    min_chol_reg = -6
     while True:
         lam = lam_all[~complete]
         pen_mat = pen_mat_all[~complete]
@@ -566,8 +569,8 @@ def opt_lam(
         s = (min_lam + lam[..., None, None]) * pen_mat
         t1 = xp.linalg.inv(xtx + s)
 
-        t2 = xp.einsum("ijk,ij->ik", x, y)
-        w = xp.einsum("ijk,ij->ik", t1, t2)
+        # t2 = xp.einsum("ijk,ij->ik", x, y)
+        # w = xp.einsum("ijk,ij->ik", t1, t2)
 
         a = xp.einsum("ijk,ikl,iml->ijm", x, t1, x)
 
@@ -620,7 +623,7 @@ def opt_lam(
 
         n = x.shape[1]
 
-        dtrAdrho = -xp.einsum("b,bii->b", lam, k)
+        dtrAdrho = xp.einsum("b,bii->b", -lam, k)
         d2trAd2rho = 2.0 * xp.einsum("b,b,bii->b", lam, lam, m @ k) + dtrAdrho
         ddeltadrho = -gamma * dtrAdrho
         d2deltad2rho = -gamma * d2trAd2rho  # todo double check
@@ -695,7 +698,7 @@ def fit(
         if dist == "g":
             y_mean = xp.mean(y, axis=1, keepdims=True)
             y_var = xp.var(y, axis=1, keepdims=True)
-            y_range = xp.max(y, axis=1, keepdims=True) - xp.min(y, axis=1, keepdims=True)
+            # y_range = xp.max(y, axis=1, keepdims=True) - xp.min(y, axis=1, keepdims=True)
             y_in = (y - y_mean) / (y_var + 1e-10)
             # y_in = (y - y_mean) / (y_range + 1.e-6)
         elif dist == "p":
@@ -711,8 +714,7 @@ def fit(
 
     bs_dict, x_map, pen = _cr(x_in, df=df, center=True)
     y_fit = xp.empty(y_in.shape)
-    for n in bs_dict:
-        bs = bs_dict[n]
+    for n, bs in bs_dict.items():
         full_bs = xp.dstack([xp.ones((bs.shape[0], bs.shape[1], 1)), x_in[..., None], bs])
 
         with xp.optimize_kernels():

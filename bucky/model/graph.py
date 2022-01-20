@@ -1,5 +1,6 @@
 """Class to read and store all the data from the bucky input graph."""
 import datetime
+import logging
 import warnings
 from functools import partial
 
@@ -11,10 +12,10 @@ from numpy import RankWarning
 from ..numerical_libs import sync_numerical_libs, xp
 from ..util.cached_prop import cached_property
 from ..util.extrapolate import interp_extrap
-from ..util.power_transforms import BoxCox, YeoJohnson
+from ..util.power_transforms import YeoJohnson
 from ..util.read_config import bucky_cfg
 from ..util.rolling_mean import rolling_mean, rolling_window
-from ..util.spline_smooth import fit
+from ..util.spline_smooth import fit, lin_reg
 from .adjmat import buckyAij
 
 memory = Memory(bucky_cfg["cache_dir"], verbose=0, mmap_mode="r")
@@ -22,6 +23,7 @@ memory = Memory(bucky_cfg["cache_dir"], verbose=0, mmap_mode="r")
 
 @memory.cache
 def cached_scatter_add(a, slices, value):
+    """scatter_add() thats cached by joblib"""
     ret = a.copy()
     xp.scatter_add(ret, slices, value)
     return ret
@@ -30,10 +32,12 @@ def cached_scatter_add(a, slices, value):
 class buckyGraphData:
     """Contains and preprocesses all the data imported from an input graph file."""
 
+    # pylint: disable=too-many-public-methods
+
+    @staticmethod
     @sync_numerical_libs
-    def clean_historical_data(
-        self, cum_case_hist, cum_death_hist, inc_hosp, start_date, g_data, force_save_plots=False
-    ):
+    def clean_historical_data(cum_case_hist, cum_death_hist, inc_hosp, start_date, g_data, force_save_plots=False):
+        """Preprocess the historical data to smooth it and remove outliers"""
         n_hist = cum_case_hist.shape[1]
 
         adm1_case_hist = g_data.sum_adm1(cum_case_hist)
@@ -55,12 +59,10 @@ class buckyGraphData:
         valid_adm1_case_mask = valid_adm1_mask
         valid_adm1_death_mask = valid_adm1_mask
 
-        from ..util.spline_smooth import lin_reg
-
         for i in range(adm1_case_hist.shape[0]):
             data = adm1_case_hist[i]
             rw = rolling_window(data, 3, center=True)
-            mask = xp.around(xp.abs((data - xp.mean(lin_reg(rw, fit=True), axis=1)) / data), 2) < 0.1
+            mask = xp.around(xp.abs((data - xp.mean(lin_reg(rw, return_fit=True), axis=1)) / data), 2) < 0.1
             valid_adm1_case_mask[i] = valid_adm1_mask[i] & mask
 
         valid_case_mask = valid_adm1_case_mask[g_data.adm1_id]
@@ -94,10 +96,8 @@ class buckyGraphData:
                         order=2,
                     )
             except (TypeError, RankWarning, ValueError) as e:
-                print(e)
-                from IPython import embed
+                logging.error(e)
 
-                embed()
         # TODO remove massive outliers here, they lead to gibbs-like wiggling in the cumulative fitting
 
         new_cum_cases = xp.around(new_cum_cases, 6) + 0.0  # plus zero to convert -0 to 0.
@@ -228,6 +228,7 @@ class buckyGraphData:
         save_plots = (not all_cached) or force_save_plots
 
         if save_plots:
+            # pylint: disable=import-outside-toplevel
             import matplotlib
 
             matplotlib.use("agg")
@@ -237,8 +238,6 @@ class buckyGraphData:
             import numpy as np
             import tqdm
             import us
-
-            from ..util.read_config import bucky_cfg
 
             # TODO we should drop these in raw_output_dir and have postprocess put them in the run's dir
             # TODO we could also drop the data for viz.plot...
