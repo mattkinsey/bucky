@@ -16,7 +16,7 @@ from tqdm.contrib.logging import logging_redirect_tqdm
 from ..numerical_libs import enable_cupy, reimport_numerical_libs, xp, xp_ivp
 from ..util.distributions import approx_mPERT
 from ..util.fractional_slice import frac_last_n_vals
-from ..util.util import TqdmLoggingHandler, _banner, get_runid
+from ..util.util import _banner, get_runid
 from .arg_parser_model import parser
 from .estimation import estimate_cfr, estimate_chr, estimate_crr, estimate_Rt
 from .exceptions import SimulationException

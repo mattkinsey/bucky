@@ -141,7 +141,6 @@ disable=parameter-unpacking,
         comprehension-escape,
 	C0330, C0326, # for black
 	invalid-name,
-	#E0602, # b/c of the way we're handling global in model
         too-many-locals,
 	too-many-statements,
 	too-many-arguments,
@@ -151,7 +150,8 @@ disable=parameter-unpacking,
 	logging-not-lazy,
 	logging-fstring-interpolation,
 	anomalous-backslash-in-string,
-	no-else-return,
+	no-else-return, 
+	chained-comparison,
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option

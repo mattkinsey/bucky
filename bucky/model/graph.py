@@ -396,7 +396,7 @@ class buckyGraphData:
         self.max_adm2 = xp.to_cpu(xp.max(self.adm2_id))
         self.max_adm1 = xp.to_cpu(xp.max(self.adm1_id))
 
-        self.Aij = buckyAij(G, sparse=sparse, a_min=0.0, force_diag=force_diag_Aij)
+        self.Aij = buckyAij(G, sparse=sparse, edge_a_min=0.0, force_diag=force_diag_Aij)
 
         self.have_hosp = "hhs_data" in G.graph
         if self.have_hosp:

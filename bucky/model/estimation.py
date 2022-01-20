@@ -329,6 +329,7 @@ def estimate_doubling_time(
     case_reporting=None,
 ):
     """Calculate the recent doubling time of the historical case data."""
+    # pylint: disable=invalid-unary-operand-type
 
     if mean_time_window is not None:
         days_back = mean_time_window
@@ -341,16 +342,6 @@ def estimate_doubling_time(
 
     # adm0
     adm0_doubling_t = doubling_time_window / xp.log2(xp.nansum(cases, axis=1) / xp.nansum(cases_old, axis=1))
-
-    """
-    if self.debug:
-        logging.debug("Adm0 doubling time: " + str(adm0_doubling_t))
-    if xp.any(~xp.isfinite(adm0_doubling_t)):
-        if self.debug:
-            logging.debug(xp.nansum(cases, axis=1))
-            logging.debug(xp.nansum(cases_old, axis=1))
-        raise SimulationException
-    """
 
     doubling_t = xp.repeat(adm0_doubling_t[:, None], cases.shape[-1], axis=1)
 

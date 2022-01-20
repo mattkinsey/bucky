@@ -11,7 +11,7 @@ from ..util.async_thread import AsyncQueueThread
 
 
 @sync_numerical_libs
-def init_write_thread(**kwargs):
+def init_write_thread(**kwargs):  # pylint: disable=unused-argument
     """Init write thread w/ a nonblocking stream."""
     stream = xp.cuda.Stream(non_blocking=True) if xp.is_cupy else None
     pinned_mem = {}
@@ -35,30 +35,10 @@ def write_parquet_dataset(df_data, data_dir, stream, pinned_mem):
     pap.write_to_dataset(table, data_dir, partition_cols=["date"])
 
 
-'''
-@sync_numerical_libs
-def parquet_writer(write_queue):
-    """Write thread loop that pulls from an async queue and writes to parquet"""
-    # Call to_write.get() until it returns None
-    stream = xp.cuda.Stream(non_blocking=True) if xp.is_cupy else None
-    pinned_mem = {}
-    for base_fname, df_data in iter(write_queue.get, None):
-        for k, v in df_data.items():
-            if k not in pinned_mem:
-                pinned_mem[k] = xp.empty_like_pinned(v)
-
-            xp.to_cpu(v, stream=stream, out=pinned_mem[k])
-
-        if stream is not None:
-            stream.synchronize()
-
-        pa_data = {k: pa.array(v) for k, v in pinned_mem.items()}
-        table = pa.table(pa_data)
-        pap.write_to_dataset(table, base_fname, partition_cols=["date"])
-'''
-
-
 class BuckyOutputWriter:
+    """Class to manage the writing of raw output files and all the threading that comes with it"""
+
+    @sync_numerical_libs
     def __init__(self, output_base_dir, run_id, data_format="parquet"):
         """Init the writer globals."""
         self.output_dir = Path(output_base_dir) / str(run_id)
@@ -125,17 +105,17 @@ class BuckyOutputWriter:
 
         # from IPython import embed
         # embed()
-        pass
+        raise NotImplementedError
 
     def write_historical_data(self):
         """TODO Write historical data used."""
         # TODO
-        pass
+        raise NotImplementedError
 
     def write_par_files(self):
         """TODO Copy parameter specs."""
         # TODO
-        pass
+        raise NotImplementedError
 
     def close(self):
         """Cleanup and join write thread."""

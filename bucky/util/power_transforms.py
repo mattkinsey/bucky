@@ -1,4 +1,6 @@
 """Simple power transformation classes"""
+# pylint: disable=unused-variable
+
 from ..numerical_libs import sync_numerical_libs, xp
 
 # TODO this could be better organized...
@@ -103,16 +105,17 @@ def inv_boxcox(y, lam1, lam2):
 def norm_cdf(x, mu, sigma):
     """Normal distribution CDF, batched"""
     t = x - mu[:, None]
-    y = 0.5 * xp.special.erfc(-t / (sigma[:, None] * xp.sqrt(2.0)))
+    y = 0.5 * xp.special.erfc(-t / (sigma[:, None] * xp.sqrt(2.0)))  # pylint: disable=no-member
     y[y > 1.0] = 1.0
     return y
 
 
 @sync_numerical_libs
 def fit_lam(y, yj=False, lam_range=(-2, 2, 0.1)):
-    """Fit lambda of a power transform using grid search over a range, taking the the most normally distributed result."""
+    """Fit lambda of a power transform using grid search, taking the the most normally distributed result."""
 
-    # TODO currently this just minimizes the KS-stat, would might better to used shapiro-wilk or 'normaltest' but we'd need a batched version
+    # TODO currently this just minimizes the KS-stat,
+    # would might better to used shapiro-wilk or 'normaltest' but we'd need a batched version
     y_in = xp.atleast_2d(y)
     batch_size = y_in.shape[0]
 
@@ -144,7 +147,7 @@ class BoxCox:
 
     def fit(self, y):
         """Fit the batched 1d variables in y, store the lambdas for the inv transform."""
-        ks = fit_lam(y, self.yj)
+        ks = fit_lam(y, yj=False)
         ret, self.lam1, self.lam2 = boxcox(y, ks[1][:, None])
         return ret
 

@@ -160,7 +160,7 @@ class buckyParams:
             elif hasattr(xp.random, dist):
                 base_func = getattr(xp.random, dist)
             else:
-                logging.error("Distribution {} does not exist!".format(dist))
+                logging.error(f"Distribution {dist} does not exist!")
                 continue
 
             params = {k: xp.array(v) for k, v in params.items()}

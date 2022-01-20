@@ -1,3 +1,4 @@
+"""Utility to fractionally slice an xp array, keeping the fractional part between the int indices"""
 from ..numerical_libs import sync_numerical_libs, xp
 
 

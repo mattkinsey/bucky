@@ -27,37 +27,48 @@ import bucky
 
 from .util.read_config import bucky_cfg
 
+CUPY_FORCE_FP32 = False
 
-def to_cpu_noop(x, stream=None, order="C", out=None):
-    """NOOP function that accounts for possible args of to_cpu()."""
-    if out is not None:
-        out[:] = x
-    return x
-
-
+# Make the numpy namespace more consistent with cupy
 xp.is_cupy = False
 xp.scatter_add = xp.add.at
 xp.optimize_kernels = contextlib.nullcontext
-xp.to_cpu = to_cpu_noop  # lambda x, **kwargs: x  # noop
 xp.special = scipy.special
 xp.empty_pinned = xp.empty
 xp.empty_like_pinned = xp.empty_like
 xp.zeros_pinned = xp.zeros
 xp.zeros_like_pinned = xp.zeros_like
 
-# If numpy < 1.22.0 we need to patch QR decomp to be vectorized like cupy
-if [int(i) for i in xp.__version__.split(".")] < [1, 22, 0]:
-    xp.linalg._qr = xp.linalg.qr
-    _vec_qr = xp.vectorize(xp.linalg._qr, signature="(m,n)->(m,p),(p,n)", excluded=["mode"])
+# Add in to_cpu() that is just a noop
+def to_cpu_noop(x, stream=None, order="C", out=None):  # pylint: disable=unused-argument
+    """NOOP function that accounts for possible args of to_cpu()."""
+    if out is not None:
+        out[:] = x
+    return x
 
-    def batched_qr(*args, **kwargs):
-        """Use vectorized qr() if input dim == 3, otherwise just call qr()."""
-        if args[0].ndim == 3:
-            return _vec_qr(*args, **kwargs)
-        else:
-            return xp.linalg._qr(*args, **kwargs)
 
-    xp.linalg.qr = batched_qr
+xp.to_cpu = to_cpu_noop
+
+
+def ensure_batched_qr(np):
+    """Monkey patch older versions of numpy to provide vectorized qr decomp"""
+    # pylint: disable=protected-access
+    if [int(i) for i in np.__version__.split(".")] < [1, 22, 0]:
+        np.linalg._qr = np.linalg.qr
+        _vec_qr = np.vectorize(np.linalg._qr, signature="(m,n)->(m,p),(p,n)", excluded=["mode"])
+
+        def batched_qr(*args, **kwargs):
+            """Use vectorized qr() if input dim == 3, otherwise just call qr()."""
+            if args[0].ndim == 3:
+                return _vec_qr(*args, **kwargs)
+            else:
+                return np.linalg._qr(*args, **kwargs)
+
+        np.linalg.qr = batched_qr
+    return np
+
+
+xp = ensure_batched_qr(xp)
 
 # Stop some numpy warnings
 xp.seterr(divide="ignore", invalid="ignore")
@@ -80,8 +91,7 @@ reimport_cache = set()
 
 
 def reimport_numerical_libs(context=None):
-    """Reimport xp, xp_sparse, xp_ivp from the global context (in case they've been update to cupy)."""
-    global reimport_cache  # pylint: disable=global-statement
+    """Reimport xp, xp_sparse, xp_ivp from the global context (in case they've been updated to cupy)."""
     if context in reimport_cache:
         return
     caller_globals = dict(inspect.getmembers(inspect.stack()[1][0]))["f_globals"]
@@ -99,7 +109,6 @@ def sync_numerical_libs(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         """Wrapper checking if we've already overridden this functions imports."""
-        global reimport_cache  # pylint: disable=global-statement
         context = func.__qualname__
         if context in reimport_cache:
             return func(*args, **kwargs)
@@ -219,6 +228,7 @@ def enable_cupy(optimize=False):
         cp.optimize_kernels = contextlib.nullcontext
         cp.ExperimentalWarning = MockExperimentalWarning
 
+    # Provide function to automatically move device arrays to host
     def cp_to_cpu(x, stream=None, out=None):
         """Take a np/cupy array and always return it in host memory (as an np array)."""
         if "cupy" in type(x).__module__:
@@ -231,17 +241,18 @@ def enable_cupy(optimize=False):
 
     cp.to_cpu = cp_to_cpu
 
-    # Default xp.array to fp32
-    cp._oldarray = cp.array  # pylint: disable=protected-access
+    # Force default xp.array dtype to fp32
+    if CUPY_FORCE_FP32:
+        cp._oldarray = cp.array  # pylint: disable=protected-access
 
-    def array_f32(*args, **kwargs):
-        """Replacement cp.array to force all float64 allocs to be float32 instead."""
-        ret = cp._oldarray(*args, **kwargs)  # pylint: disable=protected-access
-        if ret.dtype == xp.float64:
-            ret = ret.astype("float32")
-        return ret
+        def array_f32(*args, **kwargs):
+            """Replacement cp.array to force all float64 allocs to be float32 instead."""
+            ret = cp._oldarray(*args, **kwargs)  # pylint: disable=protected-access
+            if ret.dtype == xp.float64:
+                ret = ret.astype("float32")
+            return ret
 
-    # cp.array = array_f32
+        cp.array = array_f32
 
     import cupyx.scipy.special  # pylint: disable=import-outside-toplevel
 

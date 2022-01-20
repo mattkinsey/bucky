@@ -13,7 +13,7 @@ class buckyAij:
     """Class that handles the adjacency matrix for the model, generalizes between dense/sparse."""
 
     @sync_numerical_libs
-    def __init__(self, G, sparse=True, a_min=0.0, force_diag=False):
+    def __init__(self, G, sparse=True, edge_a_min=0.0, force_diag=False):
         """Initialize the stored matrix off of the edges of a networkx graph."""
 
         self.sparse = sparse
@@ -24,7 +24,7 @@ class buckyAij:
             self._base_Aij = xp_sparse.identity(self._base_Aij.shape[0], format="csr")
             self._base_Aij_diag = xp.ones(self._base_Aij.shape[0])
         else:
-            self._base_Aij, self._base_Aij_diag = _read_edge_mat(G, sparse=sparse, a_min=a_min)
+            self._base_Aij, self._base_Aij_diag = _read_edge_mat(G, sparse=sparse, edge_a_min=edge_a_min)
 
         if self.sparse:
             self._indptr_sorted = _csr_is_ind_sorted(self._base_Aij)
@@ -79,10 +79,12 @@ class buckyAij:
         self._Aij, self._Aij_diag = self.normalize(self._Aij, self._Aij_diag, axis=0)
 
 
-def _read_edge_mat(G, weight_attr="weight", sparse=True, a_min=0.0):
+def _read_edge_mat(G, weight_attr="weight", sparse=True, edge_a_min=0.0):
     """Read the adj matrix of a networkx graph and convert it to the cupy/scipy format."""
+    # pylint: disable=unused-argument
     edges = xp.array(list(G.edges(data=weight_attr))).T
     # TODO fix: edges = edges.T[edges[2] <= a_min].T  # clip edges with weight < a_min
+    # could also do this clipping based of quantiles (i.e. remove 30% of weakest edges)
     A = xp_sparse.coo_matrix((edges[2], (edges[0].astype(int), edges[1].astype(int))))
     A = A.tocsr()  # just b/c it will do this for almost every op on the array anyway...
     if not sparse:

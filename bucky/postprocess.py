@@ -309,7 +309,7 @@ def main(args=None):
                 else:
                     typed_w = w.astype(np.float32)
 
-                tmp = pac.multiply_checked(table.column(i), typed_w)
+                tmp = pac.multiply_checked(table.column(i), typed_w)  # pylint: disable=no-member
                 table = table.set_column(i, col, tmp)
 
             for col in pop_weighted_cols:
@@ -317,7 +317,7 @@ def main(args=None):
                     typed_w = table["total_population"].to_numpy().astype(np.float64)
                 else:
                     typed_w = table["total_population"].to_numpy().astype(np.float32)
-                tmp = pac.multiply_checked(pop_weight_table[col], typed_w)
+                tmp = pac.multiply_checked(pop_weight_table[col], typed_w)  # pylint: disable=no-member
                 table = table.append_column(col, tmp)
 
             for level in args.levels:

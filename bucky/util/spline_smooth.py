@@ -119,8 +119,9 @@ def _get_free_crs_dmatrix(x, knots):
         # dmt = ajm * i[j, :].T + ajp * i[j1, :].T + cjm * f[j, :].T + cjp * f[j1, :].T
 
         eye = xp.identity(n, dtype=dtype)
-        if True:
+        if True:  # pylint: disable=using-constant-test
             # if we're using cupy we cant batch it b/c it will build an intermediate array in mem that is HUGE
+            # this if statement should eventually be a version check once it's fixed
             dm = xp.empty(x[knots_dict_map[n]].shape + (n,), dtype=dtype)
             for i in range(dm.shape[0]):
                 dm[i] = xp.einsum("j,jk->jk", ajm[i], eye[j[i], :])
@@ -183,15 +184,18 @@ def _cr(x, df, center=True):
 class log_link:
     """Class for log link functions."""
 
-    def g(self, mu):
+    @staticmethod
+    def g(mu):
         """Log link - $g$."""
         return xp.log(mu + 1.0e-12)
 
-    def mu(self, eta):
+    @staticmethod
+    def mu(eta):
         """Log link - $\mu$."""
         return xp.exp(eta) + 1.0e-12
 
-    def g_prime(self, mu):
+    @staticmethod
+    def g_prime(mu):
         """Log link - $g'$."""
         return 1.0 / (mu + 1.0e-12)
 
@@ -199,15 +203,18 @@ class log_link:
 class identity_link:
     """Class for idenity link functions"""
 
-    def g(self, mu):
+    @staticmethod
+    def g(mu):
         """Id link - $g$."""
         return mu
 
-    def mu(self, eta):
+    @staticmethod
+    def mu(eta):
         """Id link - $\mu$."""
         return eta
 
-    def g_prime(self, mu):
+    @staticmethod
+    def g_prime(mu):
         """Id link - $g'$."""
         return xp.ones_like(mu)
 
@@ -251,7 +258,7 @@ def PIRLS(
         link = identity_link()
         V_func = xp.ones_like
     elif dist == "p":
-        logging.warn("Poisson link functions are WIP")
+        logging.warning("Poisson link functions are WIP")
         link = log_link()
         V_func = lambda x: x
         y = xp.clip(y, a_min=1e-6, a_max=None)
@@ -365,7 +372,7 @@ def PIRLS(
                 return mu_k_all, alp_k_all, beta_k_all, var_beta_k_all
             else:
                 if bootstrap:
-                    logging.warn("Testing GAM bootstrap, this is currently broken and unstable")
+                    logging.warning("Testing GAM bootstrap, this is currently broken and unstable")
                     # var_beta_DP = make_DP(var_beta_k_all)
                     var_beta_DP = var_beta_k_all
                     for k in range(100):

@@ -459,7 +459,7 @@ if __name__ == "__main__":
     # Define some parameters
     last_date = args.date
     start = datetime.datetime.now()
-    pickle_id = str(start).replace(" ", "__").replace(":", "_").split(".")[0]
+    pickle_id = str(start).replace(" ", "__").replace(":", "_").split(".", maxsplit=1)[0]
     output_dir = args.output
     os.makedirs(output_dir, exist_ok=True)
     out_file = os.path.join(output_dir, "usa--" + pickle_id + ".p")
@@ -492,11 +492,12 @@ if __name__ == "__main__":
     # GEOID MAPPING
 
     # Create dict for statefips to name
-    state_map = csv.DictReader(open(state_mapping_file))
-    statefp_to_name = {}
+    with open(state_mapping_file, encoding="utf-8") as mapping_f:
+        state_map = csv.DictReader(mapping_f)
+        statefp_to_name = {}
 
-    for row in state_map:
-        statefp_to_name[int(row["statefips"])] = row["name"]
+        for row in state_map:
+            statefp_to_name[int(row["statefips"])] = row["name"]
 
     # AGE AND DEMO DATA
     # Read age-stratified data
@@ -546,18 +547,19 @@ if __name__ == "__main__":
 
     # Check that historical data is always increasing - print warning if not
     non_increasing_fips = []
-    for f in hist_per_fips:
+    for fips, fips_data in hist_per_fips.items():
 
-        confirmed_arr = hist_per_fips[f][0]
-        deaths_arr = hist_per_fips[f][1]
+        confirmed_arr = fips_data[0]
+        deaths_arr = fips_data[1]
 
         # Check if always increasing
         if not np.all(np.diff(confirmed_arr) >= 0) or not np.all(np.diff(confirmed_arr) >= 0):
-            non_increasing_fips.append(f)
+            non_increasing_fips.append(fips)
 
     if len(non_increasing_fips) > 0:
 
         logging.warning("Some adm2 have non-monotonically increasing historical data.")
+        logging.debug(non_increasing_fips)
 
     # Get historical data for start date of the simulation
     date_data = hist_data.set_index(["adm2", "date"]).xs(last_date, level=1)

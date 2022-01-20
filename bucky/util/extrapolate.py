@@ -6,6 +6,7 @@ from ..numerical_libs import sync_numerical_libs, xp
 @sync_numerical_libs
 def interp_extrap(x, x1, yp, order=2, n_pts=None):
     """Interp function with polynomial extrapolation."""
+    # pylint: disable=invalid-unary-operand-type
     if n_pts is None:
         n_pts = order + 1
     y = xp.interp(x, x1, yp)

@@ -42,18 +42,18 @@ class AsyncQueueThread:
 
 if __name__ == "__main__":
 
-    def func(x, asdf, y, **kwargs):
+    def func_(x, asdf, y, **kwargs):  # pylint: disable=unused-argument
         """Test target."""
         print(asdf)
         print(x + y)
 
-    def pre_func(**kwargs):
+    def pre_func_(**kwargs):  # pylint: disable=unused-argument
         """Test pre_func."""
         y = 2
         print(locals())
         return {"y": y}
 
-    test = AsyncQueueThread(func, pre_func=pre_func, asdf="asdf")
+    test = AsyncQueueThread(func_, pre_func=pre_func_, asdf="asdf")
     for i in range(10):
         test.put(i)
 
