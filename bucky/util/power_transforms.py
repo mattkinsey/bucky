@@ -1,4 +1,4 @@
-"""Simple power transformation classes"""
+"""Simple power transformation classes."""
 # pylint: disable=unused-variable
 
 from ..numerical_libs import sync_numerical_libs, xp
@@ -9,8 +9,6 @@ from ..numerical_libs import sync_numerical_libs, xp
 @sync_numerical_libs
 def yeojohnson(y, lam):
     """Yeo-Johnson tranform, batched in the first dimension."""
-    axis = y.ndim - 1
-
     y_in = y.astype(xp.float64)
 
     lam1 = xp.broadcast_to(lam, (y_in.shape[0], 1)).astype(xp.float64)
@@ -35,9 +33,6 @@ def yeojohnson(y, lam):
 @sync_numerical_libs
 def inv_yeojohnson(y, lam):
     """Inverse Yeo-Johnson tranform, batched in the first dimension."""
-
-    axis = y.ndim - 1
-
     y_in = y.astype(xp.float64)
 
     lam1 = xp.broadcast_to(lam, (y_in.shape[0], 1)).astype(xp.float64)
@@ -66,7 +61,6 @@ def boxcox(y, lam, lam2=None):
     # if axis is None:
     #    a = xp.ravel(a)
     #    axis = 0
-
     axis = y.ndim - 1
 
     y_in = y.astype(xp.float64)
@@ -89,8 +83,6 @@ def boxcox(y, lam, lam2=None):
 @sync_numerical_libs
 def inv_boxcox(y, lam1, lam2):
     """Inverse Box-Cox tranform, batched in the first dimension."""
-    axis = y.ndim - 1
-
     y_in = y.astype(xp.float64)
 
     ret = xp.empty(y.shape)
@@ -103,7 +95,7 @@ def inv_boxcox(y, lam1, lam2):
 
 
 def norm_cdf(x, mu, sigma):
-    """Normal distribution CDF, batched"""
+    """Normal distribution CDF, batched."""
     t = x - mu[:, None]
     y = 0.5 * xp.special.erfc(-t / (sigma[:, None] * xp.sqrt(2.0)))  # pylint: disable=no-member
     y[y > 1.0] = 1.0

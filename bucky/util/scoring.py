@@ -1,55 +1,51 @@
-""" Provides various scoring metrics for probabilistic forecasts.
-"""
+"""Provides various scoring metrics for probabilistic forecasts."""
 from ..numerical_libs import sync_numerical_libs, xp
 
 
 def logistic(x, x0=0.0, k=1.0, L=1.0):
-    """
+    """Logistic function.
 
     Parameters
     ----------
-    :
-        TODO
-    :
-        TODO
+    x:
+    x0:
+    k:
+    L:
     Returns
     -------
-    :
-        TODO
+    arr:
     """
     return L / (1.0 + xp.exp(-k * x - x0))
 
 
 def IS(x, lower, upper, alp):
-    """
+    """Interval score.
 
     Parameters
     ----------
-    :
-        TODO
-    :
-        TODO
+    x:
+    lower:
+    upper:
+    alp:
     Returns
     -------
-    :
-        TODO
+    arr:
     """
     return (upper - lower) + 2.0 / alp * (lower - x) * (x < lower) + 2.0 / alp * (x - upper) * (x > upper)
 
 
 def smooth_IS(x, lower, upper, alp):
-    """
+    """Approx Interval Score with smooth derivatives.
 
     Parameters
     ----------
-    :
-        TODO
-    :
-        TODO
+    x:
+    lower:
+    upper:
+    alp:
     Returns
     -------
-    :
-        TODO
+    arr:
     """
     width = upper - lower
     return (
@@ -61,18 +57,19 @@ def smooth_IS(x, lower, upper, alp):
 
 @sync_numerical_libs
 def WIS(x, q, x_q, norm=False, log=False, smooth=False):
-    """
+    """Weighted Interval Score.
 
     Parameters
     ----------
-    :
-        TODO
-    :
-        TODO
+    x:
+    q:
+    x_q:
+    norm: norm, optional
+    log: bool, optional
+    smooth: bool, optional
     Returns
     -------
-    :
-        TODO
+    arr:
     """
     # todo sort q and x_q based on q
     K = len(q) // 2

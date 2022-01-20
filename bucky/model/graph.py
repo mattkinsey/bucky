@@ -23,7 +23,7 @@ memory = Memory(bucky_cfg["cache_dir"], verbose=0, mmap_mode="r")
 
 @memory.cache
 def cached_scatter_add(a, slices, value):
-    """scatter_add() thats cached by joblib"""
+    """scatter_add() thats cached by joblib."""
     ret = a.copy()
     xp.scatter_add(ret, slices, value)
     return ret
@@ -37,7 +37,7 @@ class buckyGraphData:
     @staticmethod
     @sync_numerical_libs
     def clean_historical_data(cum_case_hist, cum_death_hist, inc_hosp, start_date, g_data, force_save_plots=False):
-        """Preprocess the historical data to smooth it and remove outliers"""
+        """Preprocess the historical data to smooth it and remove outliers."""
         n_hist = cum_case_hist.shape[1]
 
         adm1_case_hist = g_data.sum_adm1(cum_case_hist)
@@ -200,7 +200,7 @@ class buckyGraphData:
             **inc_fit_args,
             label="PIRLS Incident Hospitalizations",
         )
-        for i in range(5):
+        for _ in range(5):
             resid = spline_inc_cases - inc_cases
             stddev = xp.quantile(xp.abs(resid), axis=1, q=0.682)
             clean_resid = xp.clip(resid / (6.0 * stddev[:, None] + 1e-8), -1.0, 1.0)
@@ -460,7 +460,11 @@ class buckyGraphData:
             clean_inc_deaths,
             clean_inc_hosp,
         ) = self.clean_historical_data(
-            self.cum_case_hist.T, self.cum_death_hist.T, self.adm1_inc_hosp_hist.T, self.start_date, self
+            self.cum_case_hist.T,
+            self.cum_death_hist.T,
+            self.adm1_inc_hosp_hist.T,
+            self.start_date,
+            self,
         )
         self.cum_case_hist = clean_cum_cases.T
         self.cum_death_hist = clean_cum_deaths.T

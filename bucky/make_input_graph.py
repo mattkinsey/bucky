@@ -663,7 +663,8 @@ if __name__ == "__main__":
     for f in glob.glob(contact_mat_folder):
         with warnings.catch_warnings():
             warnings.filterwarnings(
-                action="ignore", message="Workbook contains no default style, apply openpyxl's default"
+                action="ignore",
+                message="Workbook contains no default style, apply openpyxl's default",
             )
             mat = pd.read_excel(f, sheet_name="United States of America", header=None, engine="openpyxl").to_numpy()
         mat_name = "_".join(f.split("/")[-1].split("_")[1:-1])

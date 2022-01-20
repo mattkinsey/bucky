@@ -1,7 +1,4 @@
-"""
-===========================================================
-Data Updating Utility (:mod:`bucky.util.update_data_repos`)
-===========================================================
+"""Data Updating Utility (:mod:`bucky.util.update_data_repos`).
 
 A utility for fetching updated data for mobility and case data from public repositories.
 
@@ -695,7 +692,9 @@ def update_usafacts_data():
 
         # Create filename
         with urllib.request.urlopen(url, context=context) as testfile, open(
-            filenames[i], "w", encoding="utf-8"
+            filenames[i],
+            "w",
+            encoding="utf-8",
         ) as f:  # nosec
             f.write(testfile.read().decode())
 
@@ -723,7 +722,9 @@ def update_hhs_hosp_data():
     context = ssl._create_unverified_context()  # pylint: disable=W0212  # nosec
     # Create filename
     with urllib.request.urlopen(hosp_url, context=context) as testfile, open(
-        filename, "w", encoding="utf-8"
+        filename,
+        "w",
+        encoding="utf-8",
     ) as f:  # nosec
         f.write(testfile.read().decode())
 

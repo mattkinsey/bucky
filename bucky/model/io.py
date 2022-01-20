@@ -36,7 +36,7 @@ def write_parquet_dataset(df_data, data_dir, stream, pinned_mem):
 
 
 class BuckyOutputWriter:
-    """Class to manage the writing of raw output files and all the threading that comes with it"""
+    """Class to manage the writing of raw output files and all the threading that comes with it."""
 
     @sync_numerical_libs
     def __init__(self, output_base_dir, run_id, data_format="parquet"):

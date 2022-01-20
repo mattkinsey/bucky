@@ -24,7 +24,10 @@ def approx_betaincinv(alp1, alp2, u):
 def approx_mPERT(mu, a=0.0, b=1.0, gamma=4.0):
     """Approximate sample from an mPERT distribution that uses a Kumaraswamy distrib in place of the incbeta.
 
-    Supports Cupy."""
+    Notes
+    -----
+    Supports Cupy.
+    """
     mu, a, b = xp.atleast_1d(mu, a, b)
     alp1 = 1.0 + gamma * ((mu - a) / (b - a))
     alp2 = 1.0 + gamma * ((b - mu) / (b - a))
@@ -79,11 +82,15 @@ def truncnorm(loc=0.0, scale=1.0, size=None, a_min=None, a_max=None):
 
     Parameters
     ----------
-
+    loc:
+    scale:
+    size:
+    a_min:
+    a_max:
 
     Returns
     -------
-
+    arr:
     """
 
     ret = xp.random.normal(loc, scale, size)

@@ -40,6 +40,8 @@ xp.zeros_pinned = xp.zeros
 xp.zeros_like_pinned = xp.zeros_like
 
 # Add in to_cpu() that is just a noop
+
+
 def to_cpu_noop(x, stream=None, order="C", out=None):  # pylint: disable=unused-argument
     """NOOP function that accounts for possible args of to_cpu()."""
     if out is not None:
@@ -51,7 +53,7 @@ xp.to_cpu = to_cpu_noop
 
 
 def ensure_batched_qr(np):
-    """Monkey patch older versions of numpy to provide vectorized qr decomp"""
+    """Monkey patch older versions of numpy to provide vectorized qr decomp."""
     # pylint: disable=protected-access
     if [int(i) for i in np.__version__.split(".")] < [1, 22, 0]:
         np.linalg._qr = np.linalg.qr
