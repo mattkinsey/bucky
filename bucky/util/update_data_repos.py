@@ -725,7 +725,7 @@ def update_hhs_hosp_data():
         filename,
         "w",
         encoding="utf-8",
-        ) as f:
+    ) as f:
         f.write(testfile.read().decode())
 
     # Map state abbreviation to ADM1

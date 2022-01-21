@@ -93,7 +93,7 @@ nitpicky = True
 # Ignores stuff we can't easily resolve on other project's sphinx manuals
 nitpick_ignore = []
 
-with open("nitpick-exceptions", encoding="utf-8") as np_f
+with open("nitpick-exceptions", encoding="utf-8") as np_f:
     for line in np_f:
         if line.strip() == "" or line.startswith("#"):
             continue
@@ -114,8 +114,10 @@ intersphinx_mapping = {
 
 # numpydoc_show_class_members=False
 
+
 def linkcode_resolve(domain, info):
     """Resolve function for the linkcode extension."""
+
     def find_source():
         # try to find the file and line number, based on code from numpy:
         # https://github.com/numpy/numpy/blob/master/doc/source/conf.py#L286
