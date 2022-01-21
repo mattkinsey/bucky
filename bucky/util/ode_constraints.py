@@ -1,5 +1,5 @@
 """Constrant decorators for the RHS funcs used in the ODE solvers."""
-
+# flake8: noqa: RST301
 from functools import wraps
 
 from ..numerical_libs import sync_numerical_libs, xp
@@ -15,12 +15,12 @@ def constrain_y_range(constraints):
     and with a small step size any problems should be minimal,
     but you may still have slightly out-of-range numbers in your solution.
 
-    Example:
-
+    Examples
+    --------
     @constrain([0, 1])
     def f(t, y)
         dy_dt = # your ODE
-        return dy/dt
+        return dy_dt
 
     solver = scipy.integrate.odeint(f, y0)  # use any solver you like!
     solution = solver.solve()
@@ -28,7 +28,9 @@ def constrain_y_range(constraints):
     If solution goes below 0 or above 1, the function f will ignore values of dy_dt which would make it more extreme,
     and treat the previous solution as if it were at 0 or 1.
 
-    :params constraints: Sequence of (low, high) constraints - use None for unconstrained.
+    Parameters
+    ----------
+    constraints: Sequence of (low, high) constraints - use None for unconstrained.
     """
     if all(constraint is not None for constraint in constraints):
         assert constraints[0] < constraints[1]

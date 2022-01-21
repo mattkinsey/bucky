@@ -1,5 +1,6 @@
 """WIP prior optimization."""
 import datetime
+import logging
 from pprint import pformat
 
 import numpy as np
@@ -122,7 +123,7 @@ def rebuild_params(values, keys):
                 if p1 == "mu":
                     mu = values[v_i]
                 d[p0][p1] = values[v_i]
-            v_i += 1
+            v_i += 1  # noqa: SIM113
         if r is not None and mu is not None:
             d[p0]["a"] = mu - r / 2
             d[p0]["b"] = mu + r / 2
@@ -135,9 +136,9 @@ def opt_func(params, args):
     env, hist_vals, fips_mask, keys = args
 
     # Convert param list to dictionary
-    print(params)
+    logging.info(params)
     new_params = rebuild_params(params, keys)
-    print(pformat(new_params))
+    logging.info(pformat(new_params))
 
     run_params = env.bucky_params.opt_params
     hist_data = dict(zip(COLUMNS, hist_vals))
@@ -181,8 +182,8 @@ def opt_func(params, args):
     # Sum over cases, deaths, hosp
     ret_wis = xp.sum(wis)  # ret_c + ret_d + ret_h
     ret_mse = xp.sum(mse)  # mse_c + mse_d + mse_h
-    print()
-    print(
+
+    logging.info(
         pformat(
             {
                 "wis": ret_wis,
@@ -194,7 +195,7 @@ def opt_func(params, args):
     )
     # Sum MSE + WIS
     ret = ret_mse + ret_wis
-    print(ret)
+    logging.info(ret)
 
     ret = xp.to_cpu(ret).item()
     # from IPython import embed
@@ -352,8 +353,8 @@ def test_opt(env):
         best_opt = result.fun
         best_params = np.array(result.x)
 
-    print("Best Opt:", best_opt)
-    print("Best Params:", best_params)
+    logging.info(f"Best Opt: {best_opt}")
+    logging.info(f"Best Params: {best_params}")
 
     with open(BEST_OPT_FILE, "w", encoding="utf-8") as f:
         best_params = [p.item() for p in best_params]

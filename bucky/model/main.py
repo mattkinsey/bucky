@@ -1,4 +1,4 @@
-"""The main module handling the simulation"""
+"""The main module handling the simulation."""
 import copy
 import datetime
 import logging
@@ -276,7 +276,7 @@ class buckyModelCovid:
         )
 
         self.params["CHR"] = estimate_chr(self.g_data, self.params, S_age_dist, days_back=7)
-        yy.I = (1.0 - self.params.CHR * self.params["CRR"]) * I_init / yy.Im
+        yy.I = (1.0 - self.params.CHR * self.params["CRR"]) * I_init / yy.Im  # noqa: E741
         yy.Ic = self.params.CHR * I_init / yy.Im * self.params["CRR"]
         # rh_fac = self.consts.rh_scaling
         yy.Rh = self.params.CHR * I_init / yy.Rhn * self.params["CRR"]
@@ -294,7 +294,9 @@ class buckyModelCovid:
             F_RR_fac = xp.broadcast_to(self.params.F_fac / H_fac, (adm1_hosp.size,)) * H_fac  # /scaling_H
             self.params["CFR"] = estimate_cfr(self.g_data, self.params, S_age_dist, days_back=7)
             self.params["CFR"] = xp.clip(
-                self.params["CFR"] * self.consts.F_scaling * F_RR_fac[self.g_data.adm1_id] * scaling_H, 0.0, 1.0
+                self.params["CFR"] * self.consts.F_scaling * F_RR_fac[self.g_data.adm1_id] * scaling_H,
+                0.0,
+                1.0,
             )
             self.params["CHR"] = xp.clip(self.params["CHR"] * scaling_H, self.params["CFR"], 1.0)
 
@@ -329,7 +331,7 @@ class buckyModelCovid:
             # ic_fac = xp.clip(ic_fac, a_min=0.2, a_max=5.0)  #####
 
             self.params["HFR"] = xp.clip(self.params["CFR"] / self.params["CHR"], 0.0, 1.0)
-            yy.I = (1.0 - self.params.CHR * self.params["CRR"]) * I_init / yy.Im  # * 0.8
+            yy.I = (1.0 - self.params.CHR * self.params["CRR"]) * I_init / yy.Im  # * 0.8  # noqa: E741
             yy.Ic *= ic_fac * 0.75  # * 0.9 * .9
             yy.Rh *= 1.0 * adm2_hosp_frac
 
@@ -450,7 +452,7 @@ class buckyModelCovid:
 
             except ValueError:
                 fail += 1
-                print("nan in rhs")
+                logging.warning("nan in rhs")
 
         pbar.close()
         return ret

@@ -26,7 +26,9 @@ class AsyncQueueThread:
         self._post_func = post_func
         self._queue = queue.Queue(queue_maxsize)
         self._thread = threading.Thread(
-            target=_thread_target, args=(self._queue, self._func, self._pre_func, self._post_func), kwargs=kwargs
+            target=_thread_target,
+            args=(self._queue, self._func, self._pre_func, self._post_func),
+            kwargs=kwargs,
         )
         self._thread.start()
 
@@ -40,6 +42,8 @@ class AsyncQueueThread:
         self._thread.join()
 
 
+# pylint: disable=pointless-string-statement
+'''
 if __name__ == "__main__":
 
     def func_(x, asdf, y, **kwargs):  # pylint: disable=unused-argument
@@ -58,3 +62,4 @@ if __name__ == "__main__":
         test.put(i)
 
     test.close()
+'''

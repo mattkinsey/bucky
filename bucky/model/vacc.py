@@ -1,4 +1,4 @@
-"""Vaccine related functions"""
+"""Vaccine related functions."""
 import datetime
 import pickle
 
@@ -10,11 +10,11 @@ from ..util.distributions import truncnorm
 
 
 class buckyVaccAlloc:
-    """Class managing all the vaccine rollout related estimates"""
+    """Class managing all the vaccine rollout related estimates."""
 
     @sync_numerical_libs
     def __init__(self, g_data, first_date, end_t, consts, scen_params=None):
-        """Initialize"""
+        """Initialize."""
         self.consts = consts
         if not consts.vacc_active:
             self.active = False
@@ -46,7 +46,7 @@ class buckyVaccAlloc:
 
         # init daily allocs
         adm0_hist_dist = xp.array(
-            vac_hist.groupby("Date").sum()["Doses_Distributed"].diff().rolling(7).mean().to_numpy()[-50:]
+            vac_hist.groupby("Date").sum()["Doses_Distributed"].diff().rolling(7).mean().to_numpy()[-50:],
         )
         self.mean_vac_daily = xp.mean(adm0_hist_dist[-14:])
         self.std_vac_daily = xp.std(adm0_hist_dist[-28:])
@@ -108,7 +108,7 @@ class buckyVaccAlloc:
         mean_acip_demos = xp.mean(tmp[:, (tmp >= 0).all((0, 2)), :], axis=1)
 
         adm1_without_phase_data = xp.unique(
-            g_data.adm1_id[~xp.isin(g_data.adm1_id, xp.array(list(phase_demos.keys())))]
+            g_data.adm1_id[~xp.isin(g_data.adm1_id, xp.array(list(phase_demos.keys())))],
         )
 
         for adm1 in adm1_without_phase_data:
@@ -207,7 +207,9 @@ class buckyVaccAlloc:
         # vacc_demos = consts.vacc_hesitancy * self.baseline_vacc_demos
 
         hes_adm1 = truncnorm(
-            (1.0 - self.hes_frac_ij_adm1), self.hes_se_ij_adm1, self.hes_frac_ij_adm1.shape
+            (1.0 - self.hes_frac_ij_adm1),
+            self.hes_se_ij_adm1,
+            self.hes_frac_ij_adm1.shape,
         )  # , a_min=0., a_max=1.)
         hes_adm1 = xp.clip(hes_adm1, a_min=0.0, a_max=1.0)
 
@@ -255,7 +257,7 @@ class buckyVaccAlloc:
         self.reroll = consts.vacc_reroll
 
     def reroll_distribution(self):
-        """reroll the vaccine distributions to states after updating the params"""
+        """Reroll the vaccine distributions to states after updating the params."""
         daily_vaccs_dist_adm1 = self.adm1_pop_frac * truncnorm(self.mean_vac_daily, self.std_vac_daily, a_min=0.0)
 
         self.adm1_vac_timeseries[self.dist_future_mask] = xp.tile(daily_vaccs_dist_adm1, (self.n_future_days, 1))
@@ -271,7 +273,7 @@ class buckyVaccAlloc:
         self.vaccs_dist_adm1[self.dist_future_mask] = xp.cumsum(daily_dists, axis=0)
 
     def reroll_doses(self):
-        """Reroll the number of vaccinated people with updated params (from the MC)"""
+        """Reroll the number of vaccinated people with updated params (from the MC)."""
         self.dose1 = xp.zeros((self.end_t + 1,) + self.Nij.shape)
         self.dose2 = xp.zeros((self.end_t + 1,) + self.Nij.shape)
 
@@ -323,11 +325,11 @@ class buckyVaccAlloc:
             self.dose2[:, 2] = self.dose2[:, 2] + 0.4 * self.cpct_dose2[:, self.g_data.adm1_id]
 
     def V_tot(self, params, t):
-        """Total number of effectively vaccinated people as a fraction of the pop"""
+        """Total number of effectively vaccinated people as a fraction of the pop."""
         return self.dose2[t] * params["vacc_eff_2"] + params["vacc_eff_1"] * (self.dose1[t] - self.dose2[t])
 
     def V_eff(self, y, params, t):
-        """Total number of people with immunity as a fraction of the pop"""
+        """Total number of people with immunity as a fraction of the pop."""
         R_asym = (1.0 - params.SYM_FRAC * params.CFR) * y.R
         eligable = y.S + R_asym
         V_tot = self.V_tot(params, t)
@@ -336,5 +338,5 @@ class buckyVaccAlloc:
         return V_eff
 
     def S_eff(self, y, params, t):
-        """Fraction of the population that is susceptible after removing those with immunity"""
+        """Fraction of the population that is susceptible after removing those with immunity."""
         return xp.clip(y.S - self.V_eff(y, params, t), a_min=0.0, a_max=1.0)

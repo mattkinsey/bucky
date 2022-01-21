@@ -16,9 +16,9 @@ import pandas as pd
 import tqdm
 import us
 
-from .util import TqdmLoggingHandler, estimate_IFR
 from .util.read_config import bucky_cfg
 from .util.update_data_repos import main as update_repos
+from .util.util import TqdmLoggingHandler, estimate_IFR
 
 # TODO all these paths should be combined properly rather than just with str cat
 

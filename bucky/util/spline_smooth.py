@@ -37,7 +37,11 @@ def _get_natural_f(knots):
     # fm = linalg.solve_banded((1, 1), banded_b, d)
 
     full_f = xp.hstack(
-        [xp.zeros((knots.shape[0], 1, knots.shape[1])), fm, xp.zeros((knots.shape[0], 1, knots.shape[1]))]
+        [
+            xp.zeros((knots.shape[0], 1, knots.shape[1])),
+            fm,
+            xp.zeros((knots.shape[0], 1, knots.shape[1])),
+        ],
     )
 
     s = xp.einsum("ikj,ikl->ijl", d, fm)
@@ -177,7 +181,9 @@ def _cr(x, df, center=True):
         for n, dm in dm_dict.items():
             constraint = dm.mean(axis=1).reshape((dm.shape[0], 1, dm.shape[2]))
             dm_dict[n], pen_out = _absorb_constraints(  # pylint: disable=unnecessary-dict-index-lookup
-                dm, constraint, pen
+                dm,
+                constraint,
+                pen,
             )
 
     return dm_dict, dict_x_knot_map, pen_out
@@ -193,7 +199,7 @@ class log_link:
 
     @staticmethod
     def mu(eta):
-        """Log link - $\mu$."""
+        r"""Log link - $\mu$."""
         return xp.exp(eta) + 1.0e-12
 
     @staticmethod
@@ -203,7 +209,7 @@ class log_link:
 
 
 class identity_link:
-    """Class for idenity link functions"""
+    """Class for idenity link functions."""
 
     @staticmethod
     def g(mu):
@@ -212,7 +218,7 @@ class identity_link:
 
     @staticmethod
     def mu(eta):
-        """Id link - $\mu$."""
+        r"""Id link - $\mu$."""
         return eta
 
     @staticmethod
@@ -262,7 +268,7 @@ def PIRLS(
     elif dist == "p":
         logging.warning("Poisson link functions are WIP")
         link = log_link()
-        V_func = lambda x: x
+        V_func = xp.copy  # lambda x: x
         y = xp.clip(y, a_min=1e-6, a_max=None)
     y_all = y
     x_all = x
@@ -362,7 +368,7 @@ def PIRLS(
             + ", med_err/tol="
             + str(xp.round(xp.median(diff) / tol, 2))
             + ", med_alp_err/tol="
-            + str(xp.round(xp.median(alp_diff) / tol, 2))
+            + str(xp.round(xp.median(alp_diff) / tol, 2)),
         )
         pbar.update(xp.to_cpu(xp.sum(complete)) - pbar.n)
         it = it + 1
@@ -401,7 +407,9 @@ def PIRLS(
                             with warnings.catch_warnings():
                                 warnings.simplefilter(action="ignore", category=FutureWarning)
                                 beta_rand = xp.random.multivariate_normal(  # pylint: disable=unexpected-keyword-arg
-                                    beta, var_beta, method="svd"
+                                    beta,
+                                    var_beta,
+                                    method="svd",
                                 )
                             lp_rand = xp.einsum("ij,j->i", x[0], beta_rand)
                             _, bs_lam, bs_beta, bs_var_beta = PIRLS(
@@ -444,7 +452,9 @@ def PIRLS(
                             with warnings.catch_warnings():
                                 warnings.simplefilter(action="ignore", category=FutureWarning)
                                 beta_rand = xp.random.multivariate_normal(  # pylint: disable=unexpected-keyword-arg
-                                    bs_beta_k[int(j)], bs_var_beta_k[int(j)], method="svd"
+                                    bs_beta_k[int(j)],
+                                    bs_var_beta_k[int(j)],
+                                    method="svd",
                                 )
                             lp_rand = xp.einsum("ij,j->i", x[0], beta_rand)
                             lp_rands.append(lp_rand)
@@ -476,7 +486,7 @@ def ridge(x, y, alp=0.0):
 
 @sync_numerical_libs
 def lin_reg(y, x=None, alp=0.0, quad=False, return_fit=True):
-    """Calculate exact soln for batched linear regression and return either weights or fitted values"""
+    """Calculate exact soln for batched linear regression and return either weights or fitted values."""
     if x is None:
         x = xp.arange(y.shape[1], dtype=float)
         x = xp.tile(x, (y.shape[0], 1))
@@ -496,7 +506,7 @@ def lin_reg(y, x=None, alp=0.0, quad=False, return_fit=True):
 
 @sync_numerical_libs
 def logistic_fit(y, x_out, x=None, alp=0.6, t0_max=200, L=None):
-    """WIP Fit a logistic function to batched y"""
+    """WIP Fit a logistic function to batched y."""
     # TODO this is WIP
     if x is None:
         x = xp.arange(y.shape[1], dtype=float)
@@ -578,7 +588,7 @@ def opt_lam(x, y, alp=0.6, pen=None, min_lam=0.1, step_size=None, tol=1e-3, max_
         b = xp.linalg.cholesky(s_DP)
 
         if xp.any(xp.isnan(b)):
-            print("batch cholsky hit nan")
+            logging.error("batch cholsky hit nan")
             raise ValueError
             # from IPython import embed
             # embed()
@@ -653,7 +663,10 @@ def opt_lam(x, y, alp=0.6, pen=None, min_lam=0.1, step_size=None, tol=1e-3, max_
         beta_out[~complete] = ((xp.swapaxes(vt, 1, 2) * invd_diag[:, None]) @ y1[..., None])[:, :, 0]
         Vg_out[~complete] = Vg
         var_beta_out[~complete] = xp.einsum(
-            "bij,bj,bjk->bik", xp.swapaxes(vt, 1, 2), invd_diag ** 2, vt
+            "bij,bj,bjk->bik",
+            xp.swapaxes(vt, 1, 2),
+            invd_diag ** 2,
+            vt,
         )  # TODO double check this
         if (it > 0) or fixed_lam:
             batch_complete = xp.abs(drho / rho) < tol

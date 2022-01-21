@@ -10,7 +10,7 @@ from .exceptions import StateValidationException
 
 @sync_numerical_libs
 def slice_to_cpu(s):
-    """Ensure the values of the slice aren't cupy arrays to prevent an unsupported implict conversion in xp.r_."""
+    """Ensure the values of the slice aren't cupy arrays to prevent an unsupported implict conversion in ``xp.r_``."""
     return xp.arange(xp.to_cpu(s.start), xp.to_cpu(s.stop), xp.to_cpu(s.step), dtype=xp.int32)
     # return slice(xp.to_cpu(s.start), xp.to_cpu(s.stop), xp.to_cpu(s.step))
 

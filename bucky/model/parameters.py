@@ -6,8 +6,9 @@ from os import listdir, path  # pylint: disable=no-name-in-module
 import yaml
 
 from ..numerical_libs import sync_numerical_libs, xp
-from ..util import distributions, dotdict
+from ..util import distributions
 from ..util.distributions import generic_distribution
+from ..util.util import dotdict
 
 
 def calc_Te(Tg, Ts, n, f):
