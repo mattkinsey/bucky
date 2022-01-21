@@ -506,14 +506,13 @@ class buckyGraphData:
     def Nj(self):
         r"""Total population per adm2.
 
-        Returns
-        -------
-        array_like
-
         Notes
         -----
         .. math:: N_j = \sum_i N_{ij}
 
+        Returns
+        -------
+        ndarray
         """
         return xp.sum(self.Nij, axis=0)
 

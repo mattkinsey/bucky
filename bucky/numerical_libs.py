@@ -70,14 +70,14 @@ def ensure_batched_qr(np):
     return np
 
 
-xp = ensure_batched_qr(xp)
+xp_qr = ensure_batched_qr(xp)
 
 # Stop some numpy warnings
 xp.seterr(divide="ignore", invalid="ignore")
 # warnings.filterwarnings(action="ignore", message="invalid value encountered in true_divide")
 warnings.filterwarnings(action="ignore", message="Mean of empty slice")
 
-bucky.xp = xp
+bucky.xp = xp_qr
 bucky.xp_sparse = xp_sparse
 bucky.xp_ivp = xp_ivp
 

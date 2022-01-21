@@ -20,9 +20,14 @@ BEST_OPT_FILE = "best_opt.yml"
 VALUES_FILE = "values.csv"
 
 
-def ravel_3d(a: xp.ndarray):
-    """Ravel each element of a, preserving first dimension."""
-    return a.reshape(a.shape[0], -1)
+def ravel_3d(arr):
+    """Ravel each element of arr, preserving first dimension.
+
+    Parameters
+    ----------
+    arr: ndarray
+    """
+    return arr.reshape(arr.shape[0], -1)
 
 
 def extract_values(base_params: dict, to_extract: list):
@@ -205,7 +210,7 @@ def opt_func(params, args):
     return ret  # xp.to_cpu(ret).item()
 
 
-def case_death_df(first_day: datetime.datetime, adm2_filter: xp.ndarray) -> pd.DataFrame:
+def case_death_df(first_day, adm2_filter):
     """Load historical case and death data and filter to correct dates/counties."""
     # Case and death data
     hist = pd.read_csv("data/cases/csse_hist_timeseries.csv")
@@ -224,7 +229,7 @@ def case_death_df(first_day: datetime.datetime, adm2_filter: xp.ndarray) -> pd.D
     return hist
 
 
-def hosp_df(first_day: datetime.datetime, adm1_filter: xp.ndarray) -> pd.DataFrame:
+def hosp_df(first_day, adm1_filter):
     """Load historical hospitalization data and filter to correct dates/states."""
     # Hosp data
     hist = pd.read_csv("data/cases/hhs_hosps.csv")

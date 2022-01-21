@@ -90,7 +90,7 @@ def truncnorm(loc=0.0, scale=1.0, size=None, a_min=None, a_max=None):
 
     Returns
     -------
-    arr:
+    ndarray:
     """
 
     ret = xp.random.normal(loc, scale, size)
@@ -115,8 +115,16 @@ def truncnorm_from_CI(CI, size=1, a_min=None, a_max=None):
     return truncnorm(mean, stddev, size, a_min, a_max)
 
 
-def generic_distribution(base_func, params: dict, interp: partial, clip: partial):
-    """Return value sampled from basic distribution, with additional interpolation and clipping."""
+def generic_distribution(base_func, params, interp, clip):
+    """Return value sampled from basic distribution, with additional interpolation and clipping.
+
+    Parameters
+    ----------
+    base_func:
+    params: dict
+    interp: functools.partialmethod
+    clip: functools.partialmethod
+    """
     val = base_func(**params)
     if clip is not None:
         val = clip(val)
