@@ -17,20 +17,23 @@ def constrain_y_range(constraints):
 
     Examples
     --------
-    @constrain([0, 1])
-    def f(t, y)
-        dy_dt = # your ODE
-        return dy_dt
+    .. code-block:: python
 
-    solver = scipy.integrate.odeint(f, y0)  # use any solver you like!
-    solution = solver.solve()
+        @constrain([0, 1])
+        def f(t, y):
+          dy_dt = # your ODE
+          return dy_dt
+
+        solver = scipy.integrate.odeint(f, y0)  # use any solver you like!
+        solution = solver.solve()
 
     If solution goes below 0 or above 1, the function f will ignore values of dy_dt which would make it more extreme,
     and treat the previous solution as if it were at 0 or 1.
 
     Parameters
     ----------
-    constraints: Sequence of (low, high) constraints - use None for unconstrained.
+    constraints: set
+        Sequence of (low, high) constraints - use None for unconstrained.
     """
     if all(constraint is not None for constraint in constraints):
         assert constraints[0] < constraints[1]

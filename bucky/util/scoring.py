@@ -13,7 +13,7 @@ def logistic(x, x0=0.0, k=1.0, L=1.0):
     L:
     Returns
     -------
-    arr:
+    ndarray
     """
     return L / (1.0 + xp.exp(-k * x - x0))
 
@@ -29,7 +29,7 @@ def IS(x, lower, upper, alp):
     alp:
     Returns
     -------
-    arr:
+    ndarray
     """
     return (upper - lower) + 2.0 / alp * (lower - x) * (x < lower) + 2.0 / alp * (x - upper) * (x > upper)
 
@@ -45,7 +45,7 @@ def smooth_IS(x, lower, upper, alp):
     alp:
     Returns
     -------
-    arr:
+    ndarray
     """
     width = upper - lower
     return (
@@ -64,12 +64,12 @@ def WIS(x, q, x_q, norm=False, log=False, smooth=False):
     x:
     q:
     x_q:
-    norm: norm, optional
+    norm: bool, optional
     log: bool, optional
     smooth: bool, optional
     Returns
     -------
-    arr:
+    ndarray
     """
     # todo sort q and x_q based on q
     K = len(q) // 2

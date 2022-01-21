@@ -24,7 +24,8 @@ import six
 
 # sys.path.insert(0, os.path.abspath('../../..'))
 sys.path.insert(0, os.path.abspath("../.."))
-
+sys.path.insert(0, os.path.abspath("sphinxext"))
+from github_link import make_linkcode_resolve  # isort:skip  # pylint: disable=wrong-import-position
 import bucky  # isort:skip  # pylint: disable=wrong-import-position
 
 repo_root_url = "http://gitlab.com/kinsemc/bucky/"
@@ -36,7 +37,7 @@ copyright = "2020, The Johns Hopkins University Applied Physics Laboratory LLC" 
 author = "Matt Kinsey, Kate Tallaksen, Freddy Obrecht"
 
 # The full version, including alpha/beta/rc tags
-release = ".1"
+release = "0.10"
 
 # change the name of index for RTD
 master_doc = "index"
@@ -55,6 +56,7 @@ extensions = [
     # "numpydoc",
     "sphinx.ext.intersphinx",
     "sphinx.ext.linkcode",
+    # "sphinx.ext.viewcode",
     "autoapi.extension",
 ]
 
@@ -102,7 +104,7 @@ with open("nitpick-exceptions", encoding="utf-8") as np_f:
         nitpick_ignore.append((dtype, six.u(target)))
 
 intersphinx_mapping = {
-    "python": ("https://docs.python.org/dev", None),
+    "python": ("https://docs.python.org/3", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
     "cupy": ("https://docs.cupy.dev/en/stable/", None),
     "scipy": ("https://docs.scipy.org/doc/scipy/reference", None),
@@ -114,31 +116,10 @@ intersphinx_mapping = {
 
 # numpydoc_show_class_members=False
 
-
-def linkcode_resolve(domain, info):
-    """Resolve function for the linkcode extension."""
-
-    def find_source():
-        # try to find the file and line number, based on code from numpy:
-        # https://github.com/numpy/numpy/blob/master/doc/source/conf.py#L286
-        obj = sys.modules[info["module"]]
-        for part in info["fullname"].split("."):
-            obj = getattr(obj, part)
-
-        fn = inspect.getsourcefile(obj)
-        fn = os.path.relpath(fn, start=os.path.dirname(bucky.__file__))
-        source, lineno = inspect.getsourcelines(obj)
-        return fn, lineno, lineno + len(source) - 1
-
-    if domain != "py" or not info["module"]:
-        return None
-    try:
-        filename = "bucky/%s#L%d-L%d" % find_source()  # pylint: disable=consider-using-f-string
-    except Exception:  # pylint: disable=broad-except
-        filename = info["module"].replace(".", "/") + ".py"
-    tag = "master" if "dev" in release else ("v" + release)
-    return "https://github.com/mattkinsey/bucky/blob/%s/%s" % (tag, filename)
-
+linkcode_resolve = make_linkcode_resolve(
+    "bucky",
+    "https://github.com/mattkinsey/bucky/blob/{revision}/{package}/{path}#L{lineno}",
+)
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]

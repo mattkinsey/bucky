@@ -504,7 +504,17 @@ class buckyGraphData:
     # Define and cache some of the reductions on Nij we might want
     @cached_property
     def Nj(self):
-        """Total population per adm2."""
+        r"""Total population per adm2.
+
+        Returns
+        -------
+        array_like
+
+        Notes
+        -----
+        .. math:: N_j = \sum_i N_{ij}
+
+        """
         return xp.sum(self.Nij, axis=0)
 
     @cached_property
