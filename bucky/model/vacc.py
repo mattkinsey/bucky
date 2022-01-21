@@ -94,7 +94,7 @@ class buckyVaccAlloc:
         self.vaccs_dist_adm1 = vaccs_dist_adm1
 
         with open("data/vac/county-acip-demos/adm2_phased_age_dists.p", "rb") as f:
-            phase_demos = pickle.load(f)
+            phase_demos = pickle.load(f)  # nosec
 
         # fill in missing state plans w/ mean of demos from acip states
         tmp = -xp.ones(g_data.Nij.shape).T

@@ -691,11 +691,11 @@ def update_usafacts_data():
     for i, url in enumerate(urls):
 
         # Create filename
-        with urllib.request.urlopen(url, context=context) as testfile, open(
+        with urllib.request.urlopen(url, context=context) as testfile, open(  # nosec
             filenames[i],
             "w",
             encoding="utf-8",
-        ) as f:  # nosec
+        ) as f:
             f.write(testfile.read().decode())
 
     # Merge datasets
@@ -721,11 +721,11 @@ def update_hhs_hosp_data():
     # Download case and death data
     context = ssl._create_unverified_context()  # pylint: disable=W0212  # nosec
     # Create filename
-    with urllib.request.urlopen(hosp_url, context=context) as testfile, open(
+    with urllib.request.urlopen(hosp_url, context=context) as testfile, open(  # nosec
         filename,
         "w",
         encoding="utf-8",
-    ) as f:  # nosec
+        ) as f:
         f.write(testfile.read().decode())
 
     # Map state abbreviation to ADM1

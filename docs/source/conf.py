@@ -1,4 +1,4 @@
-# Configuration file for the Sphinx documentation builder.
+"""Configuration file for the Sphinx documentation builder."""
 #
 # This file only contains a selection of the most common options. For a full
 # list see the documentation:
@@ -25,7 +25,7 @@ import six
 # sys.path.insert(0, os.path.abspath('../../..'))
 sys.path.insert(0, os.path.abspath("../.."))
 
-import bucky  # isort:skip
+import bucky  # isort:skip  # pylint: disable=wrong-import-position
 
 repo_root_url = "http://gitlab.com/kinsemc/bucky/"
 
@@ -93,12 +93,13 @@ nitpicky = True
 # Ignores stuff we can't easily resolve on other project's sphinx manuals
 nitpick_ignore = []
 
-for line in open("nitpick-exceptions"):
-    if line.strip() == "" or line.startswith("#"):
-        continue
-    dtype, target = line.split(None, 1)
-    target = target.strip()
-    nitpick_ignore.append((dtype, six.u(target)))
+with open("nitpick-exceptions", encoding="utf-8") as np_f
+    for line in np_f:
+        if line.strip() == "" or line.startswith("#"):
+            continue
+        dtype, target = line.split(None, 1)
+        target = target.strip()
+        nitpick_ignore.append((dtype, six.u(target)))
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/dev", None),
@@ -113,8 +114,8 @@ intersphinx_mapping = {
 
 # numpydoc_show_class_members=False
 
-# Resolve function for the linkcode extension.
 def linkcode_resolve(domain, info):
+    """Resolve function for the linkcode extension."""
     def find_source():
         # try to find the file and line number, based on code from numpy:
         # https://github.com/numpy/numpy/blob/master/doc/source/conf.py#L286
@@ -130,8 +131,8 @@ def linkcode_resolve(domain, info):
     if domain != "py" or not info["module"]:
         return None
     try:
-        filename = "bucky/%s#L%d-L%d" % find_source()
-    except Exception:
+        filename = "bucky/%s#L%d-L%d" % find_source()  # pylint: disable=consider-using-f-string
+    except Exception:  # pylint: disable=broad-except
         filename = info["module"].replace(".", "/") + ".py"
     tag = "master" if "dev" in release else ("v" + release)
     return "https://github.com/mattkinsey/bucky/blob/%s/%s" % (tag, filename)
