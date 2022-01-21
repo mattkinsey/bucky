@@ -153,7 +153,7 @@ disable=parameter-unpacking,
 	no-else-return,
 	no-else-raise,
 	chained-comparison,
-	import-wrong-order,
+	wrong-import-order,
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
