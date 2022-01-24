@@ -28,60 +28,57 @@ class NestedDict(MutableMapping):
 
     def __setitem__(self, key, value):
         """Setitem, doing it recusively if a flattened key is used."""
-        if isinstance(key, str):
-            if self.sep in key:
-                keys = key.split(self.sep)
-                last_key = keys.pop()
-                try:
-                    tmp = self._data
-                    for k in keys:
-                        if k in tmp:
-                            tmp = tmp[k]
-                        else:
-                            tmp[k] = self.__class__()
-                            tmp = tmp[k]
-                    tmp[last_key] = value
-                except KeyError as err:
-                    raise KeyError(key) from err
-            else:
-                self._data[key] = value
-        else:
+        if not isinstance(key, str):
             raise NotImplementedError(f"{self.__class__} only supports str-typed keys; for now")
+
+        if self.sep in key:
+            keys = key.split(self.sep)
+            last_key = keys.pop()
+            try:
+                tmp = self._data
+                for k in keys:
+                    if k in tmp:
+                        tmp = tmp[k]
+                    else:
+                        tmp[k] = self.__class__()
+                        tmp = tmp[k]
+                tmp[last_key] = value
+            except KeyError as err:
+                raise KeyError(key) from err
+        else:
+            self._data[key] = value
 
     def __getitem__(self, key):
         """Getitem, supports flattened keys."""
-        if isinstance(key, str):
-            if self.sep in key:
-                keys = key.split(self.sep)
-                try:
-                    tmp = self._data
-                    for k in keys:
-                        if k in tmp:
-                            tmp = tmp[k]
-                except KeyError as err:
-                    raise KeyError(key) from err
-                return tmp
-            else:
-                return self._data[key]
-        else:
+        if not isinstance(key, str):
             raise NotImplementedError(f"{self.__class__} only supports str-typed keys; for now")
 
+        if self.sep in key:
+            keys = key.split(self.sep)
+            try:
+                tmp = self._data
+                for k in keys:
+                    if k in tmp:
+                        tmp = tmp[k]
+            except KeyError as err:
+                raise KeyError(key) from err
+            return tmp
+        else:
+            return self._data[key]
+
     def __delitem__(self, key):
-        """WIP"""
-        # TODO pretty sure this doesnt work
-        raise NotImplementedError
+        """WIP."""
+        # TODO this doesnt work for flattened keys
         del self._data[key]
 
     def __iter__(self):
-        """WIP"""
-        # TODO flatten and iter?
-        raise NotImplementedError
+        """WIP."""
+        # provide a flatiter too?
         return iter(self._data)
 
     def __len__(self):
-        """WIP"""
+        """WIP."""
         # TODO
-        raise NotImplementedError
         return len(self._data)
 
     def __repr__(self):
@@ -175,6 +172,7 @@ class NestedDict(MutableMapping):
 
 
 if __name__ == "__main__":
+    # noqa: T001
     test_dict = {"a": "a", "b": {"c": "c", "d": "d"}}
     print(test_dict)
 
