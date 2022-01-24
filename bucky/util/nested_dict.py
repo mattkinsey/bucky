@@ -1,5 +1,5 @@
 """Provide a nested version of dict() along with convenient API additions (apply, update, etc)."""
-from collections.abc import MutableMapping
+from collections.abc import Iterable, Mapping, MutableMapping
 from copy import deepcopy
 
 import yaml  # TODO replace pyyaml with ruamel.yaml everywhere?
@@ -136,15 +136,28 @@ class NestedDict(MutableMapping):
         """Return YAML represenation of self."""
         return yaml.dump(self.to_dict(), *args, **kwargs)
 
-    def update(self, mapping):
+    def update(self, other=(), **kwargs):  # pylint: disable=arguments-differ
         """Update (like dict().update), but accept dict_of_dicts as input."""
-        if not _is_dict_type(mapping):
-            raise TypeError
-        for k, v in mapping.items():
+        if other and isinstance(other, Mapping):
+            for k, v in other.items():
+                if _is_dict_type(v):
+                    self[k] = self.get(k, self.__class__()).update(v)
+                else:
+                    self[k] = v
+
+        elif other and isinstance(other, Iterable):
+            for (k, v) in other:
+                if _is_dict_type(v):
+                    self[k] = self.get(k, self.__class__()).update(v)
+                else:
+                    self[k] = v
+
+        for k, v in kwargs.items():
             if _is_dict_type(v):
                 self[k] = self.get(k, self.__class__()).update(v)
             else:
                 self[k] = v
+
         return self
 
     def apply(self, func, copy=False, key_filter=None, contains_filter=None):
