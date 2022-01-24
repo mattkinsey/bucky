@@ -1,7 +1,5 @@
 """Provide probability distributions used by the model that aren't in numpy/cupy."""
 
-from functools import partial
-
 import numpy as np
 import scipy.special as sc
 
@@ -94,6 +92,7 @@ def truncnorm(loc=0.0, scale=1.0, size=None, a_min=None, a_max=None):
     """
 
     ret = xp.random.normal(loc, scale, size)
+    ret = xp.atleast_1d(ret)
     if a_min is None:
         a_min = xp.array(-xp.inf)
     if a_max is None:
@@ -101,9 +100,9 @@ def truncnorm(loc=0.0, scale=1.0, size=None, a_min=None, a_max=None):
 
     while True:
         valid = (ret > a_min) & (ret < a_max)
-        if valid.all():
+        if xp.atleast_1d(valid).all():
             return ret
-        ret[~valid] = xp.random.normal(loc, scale, size)[~valid]
+        ret[~valid] = xp.atleast_1d(xp.random.normal(loc, scale, size))[~valid]
 
 
 def truncnorm_from_CI(CI, size=1, a_min=None, a_max=None):
