@@ -69,8 +69,8 @@ class buckyGraphData:
         valid_death_mask = valid_adm1_death_mask[g_data.adm1_id]
         enough_data = adm1_enough_data[g_data.adm1_id]
 
-        new_cum_cases = xp.empty_like(cum_case_hist)
-        new_cum_deaths = xp.empty_like(cum_case_hist)
+        new_cum_cases = xp.empty(cum_case_hist.shape)
+        new_cum_deaths = xp.empty(cum_case_hist.shape)
 
         x = xp.arange(0, new_cum_cases.shape[1])
         for i in range(new_cum_cases.shape[0]):
@@ -108,12 +108,12 @@ class buckyGraphData:
 
         alp = 1.5
         tol = 1.0e-5  # 6
-        gam_inc = 8.0  # 2.4  # 8.
-        gam_cum = 8.0  # 2.4  # 8.
+        gam_inc = 2.4  # 8.
+        gam_cum = 2.4  # 8.
 
         # df2 = int(10 * n_hist ** (2.0 / 9.0)) + 1  # from gam book section 4.1.7
-        gam_inc = 2.4  # 2.4
-        gam_cum = 2.4  # 2.4
+        gam_inc = 8.0  # 2.4  # 2.4
+        gam_cum = 8.0  # 2.4  # 2.4
         # tol = 1e-3
 
         spline_cum_cases = xp.clip(
