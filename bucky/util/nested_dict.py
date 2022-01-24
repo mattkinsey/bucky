@@ -1,5 +1,5 @@
 """Provide a nested version of dict() along with convenient API additions (apply, update, etc)."""
-from collections.abc import Iterable, Mapping, MutableMapping
+from collections.abc import Iterable, Mapping, MutableMapping  # pylint: disable=no-name-in-module
 from copy import deepcopy
 
 import yaml  # TODO replace pyyaml with ruamel.yaml everywhere?

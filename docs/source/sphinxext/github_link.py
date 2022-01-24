@@ -19,6 +19,7 @@ def _get_git_revision():
     return revision.decode("utf-8")
 
 
+# pylint: disable=inconsistent-return-statements,broad-except
 def _linkcode_resolve(domain, info, package, url_fmt, revision):
     """Determine a link to online source for a class/method/function.
 

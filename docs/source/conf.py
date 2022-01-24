@@ -6,8 +6,6 @@
 
 # -- Path setup --------------------------------------------------------------
 
-import inspect
-
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -26,7 +24,8 @@ import six
 sys.path.insert(0, os.path.abspath("../.."))
 sys.path.insert(0, os.path.abspath("sphinxext"))
 from github_link import make_linkcode_resolve  # isort:skip  # pylint: disable=wrong-import-position
-import bucky  # isort:skip  # pylint: disable=wrong-import-position
+
+# import bucky  # isort:skip  # pylint: disable=wrong-import-position
 
 repo_root_url = "http://gitlab.com/kinsemc/bucky/"
 
