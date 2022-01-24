@@ -109,7 +109,7 @@ intersphinx_mapping = {
     "scipy": ("https://docs.scipy.org/doc/scipy/reference", None),
     "pandas": ("https://pandas.pydata.org/pandas-docs/stable", None),
     "matplotlib": ("https://matplotlib.org", None),
-    "geopandas": ("https://geopandas.org", None),
+    "geopandas": ("https://geopandas.org/en/stable/", None),
     "pyarrow": ("https://arrow.apache.org/docs/", None),
 }
 
