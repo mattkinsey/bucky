@@ -9,6 +9,8 @@ def interp_extrap(x, x1, yp, order=2, n_pts=None):
     # pylint: disable=invalid-unary-operand-type
     if n_pts is None:
         n_pts = order + 1
+        if len(yp) < n_pts:
+            raise ValueError(f"Not enough data points ({len(yp)}) for requested polyfit size ({n_pts})")
     y = xp.interp(x, x1, yp)
     if xp.any(x > x1[-1]):
         p = xp.poly1d(xp.polyfit(x1[-n_pts:], yp[-n_pts:], order))
