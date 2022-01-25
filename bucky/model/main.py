@@ -93,10 +93,9 @@ class buckyModelCovid:
 
         # Load data from input graph
         # TODO we should go through an replace lots of math using self.g_data.* with function IN buckyGraphData
-        # TODO toggle spline smoothing
         g_data = buckyGraphData(G, force_diag_Aij=self.consts.diag_Aij)
 
-        # Make contact mats sym and normalized
+        # Make contact mats sym and normalized (move to g_data)
         self.contact_mats = G.graph["contact_mats"]
         if self.debug:
             logging.debug(f"graph contact mats: {G.graph['contact_mats'].keys()}")
@@ -150,15 +149,19 @@ class buckyModelCovid:
 
         return ret
 
-    def reset(self, seed=None, params=None):
-        """Reset the state of the model and generate new inital data from a new random seed."""
-        # TODO we should refactor reset of the compartments to be real pop numbers then /Nij at the end
-
-        # Set random seeds
+    @staticmethod
+    def set_seed(seed=None):
+        """Seed all the relevent PRNGS."""
+        # move to util?
         if seed is not None:
             random.seed(int(seed))
             np.random.seed(seed)
-            xp.random.seed(seed)
+            if xp.is_cupy:
+                xp.random.seed(seed)
+
+    def reset(self, params=None):
+        """Reset the state of the model and generate new inital data from a new random seed."""
+        # TODO we should refactor reset of the compartments to be real pop numbers then /Nij at the end
 
         # reroll model params
         # self.g_data.Aij.perturb(self.consts.reroll_variance)
@@ -376,7 +379,8 @@ class buckyModelCovid:
 
         # reset everything
         logging.debug("Resetting state")
-        self.reset(seed=seed)
+        self.set_seed(seed)
+        self.reset()
         logging.debug("Done reset")
 
         self.base_mc_instance.epi_params = self.params
