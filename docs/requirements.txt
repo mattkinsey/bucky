@@ -3,7 +3,7 @@ sphinx-argparse==0.2.5
 sphinx-autoapi==1.5.1
 sphinx-rtd-theme==0.4.3
 sphinxcontrib-applehelp==1.0.2
-sphinxcontrib-bibtex==1.0.0
+sphinxcontrib-bibtex==2.4.1
 sphinxcontrib-devhelp==1.0.2
 sphinxcontrib-htmlhelp==1.0.3
 sphinxcontrib-jsmath==1.0.1
