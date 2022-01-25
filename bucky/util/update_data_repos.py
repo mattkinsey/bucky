@@ -422,7 +422,7 @@ def distribute_territory_data(df, add_american_samoa):
             "cumulative_deaths": [np.nan for d in date_col],
         },
     ).set_index(["FIPS", "date"])
-    df = df.append(tframe)
+    df = pd.concat([df, tframe])
 
     # CSSE has state-level data for Guam, CNMI, USVI
     state_level_fips = [66, 69, 78]
@@ -444,7 +444,7 @@ def distribute_territory_data(df, add_american_samoa):
                 "cumulative_deaths": [0.0 for d in dates],
             },
         ).set_index(["FIPS", "date"])
-        df = df.append(as_frame)
+        df = pd.concat([df, as_frame])
 
     return df
 
