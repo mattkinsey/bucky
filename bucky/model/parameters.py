@@ -186,19 +186,17 @@ class buckyParams:
 
     def calc_derived_params(self, params):
         """Add the derived params that are calculated from the rerolled ones."""
-        En = self.consts.En
-        Im = self.consts.Im
         params["Te"] = calc_Te(
             params["Tg"],
             params["Ts"],
-            En,
+            self.consts.E_gamma_k,
             params["frac_trans_before_sym"],
         )
-        params["Ti"] = calc_Ti(params["Te"], params["Tg"], En)
+        params["Ti"] = calc_Ti(params["Te"], params["Tg"], self.consts.E_gamma_k)
         r = xp.log(2.0) / params["D"]
         params["R0"] = calc_Reff(
-            Im,
-            En,
+            self.consts.I_gamma_k,
+            self.consts.E_gamma_k,
             params["Tg"],
             params["Te"],
             r,

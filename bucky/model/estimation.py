@@ -105,7 +105,7 @@ def estimate_chr(
     mean = params["I_TO_H_TIME"]
 
     adm2_mean = xp.sum(S_age_dist * mean[..., None], axis=0)
-    k = params.consts["Rhn"]
+    k = params.consts["Rh_gamma_k"]
 
     rolling_case_hist = g_data.rolling_inc_cases
     rolling_hosp_hist = g_data.adm1_inc_hosp_hist
@@ -173,7 +173,7 @@ def estimate_cfr(
 
     mean = params["CASE_TO_DEATH_TIME"]  # params["H_TIME"] + params["I_TO_H_TIME"] #+ params["D_REPORT_TIME"]
     adm2_mean = xp.sum(S_age_dist * mean[..., None], axis=0)
-    k = params.consts["Rhn"]
+    k = params.consts["Rh_gamma_k"]
 
     rolling_case_hist = g_data.rolling_inc_cases
     rolling_death_hist = g_data.rolling_inc_deaths
@@ -250,7 +250,7 @@ def estimate_Rt(
     tot_case_hist = (g_data.Aij.A.T @ rolling_case_hist.T).T + 1.0  # to avoid weirdness with small numbers
 
     t_max = rolling_case_hist.shape[0]
-    k = params.consts["En"]
+    k = params.consts["E_gamma_k"]
 
     mean = params["Tg"]
     theta = mean / k

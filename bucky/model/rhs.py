@@ -35,10 +35,10 @@ def RHS_func(t, y_flat, mc_inst):
 
     HFR = par["HFR"]
     CHR = par["CHR"]
-    THETA = y.Rhn * par["THETA"]
-    GAMMA = y.Im * par["GAMMA"]
-    GAMMA_H = y.Im * par["GAMMA_H"]
-    SIGMA = y.En * par["SIGMA"]
+    THETA = y.Rh_gamma_k * par["THETA"]
+    GAMMA = y.I_gamma_k * par["GAMMA"]
+    GAMMA_H = y.I_gamma_k * par["GAMMA_H"]
+    SIGMA = y.E_gamma_k * par["SIGMA"]
     SYM_FRAC = par["SYM_FRAC"]
     CRR = par["CRR"]
 

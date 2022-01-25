@@ -22,9 +22,9 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
     def __init__(self, consts, Nij, state=None):
         """Initialize the compartment indices and the state vector using the calling modules numerical libs."""
 
-        self.En = consts["En"]  # TODO rename these to like gamma shape or something
-        self.Im = consts["Im"]
-        self.Rhn = consts["Rhn"]
+        self.E_gamma_k = consts["E_gamma_k"]
+        self.I_gamma_k = consts["I_gamma_k"]
+        self.Rh_gamma_k = consts["Rh_gamma_k"]
         self.consts = consts
 
         # Build a dict of bin counts per evolved compartment
@@ -32,9 +32,9 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
         for name in ("S", "R", "D", "incH", "incC"):
             bin_counts[name] = 1
         for name in ("I", "Ic", "Ia"):
-            bin_counts[name] = self.Im
-        bin_counts["E"] = self.En
-        bin_counts["Rh"] = self.Rhn
+            bin_counts[name] = self.I_gamma_k
+        bin_counts["E"] = self.E_gamma_k
+        bin_counts["Rh"] = self.Rh_gamma_k
 
         # calculate slices for each compartment
         indices = {}

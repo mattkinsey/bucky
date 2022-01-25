@@ -33,6 +33,7 @@ from .vacc import buckyVaccAlloc
 SCENARIO_HUB = False  # True
 scen_params = {}
 
+# TODO move to bucky module level?
 logging.basicConfig(
     stream=sys.stdout,
     format="%(asctime)s - %(levelname)s - %(filename)s:%(funcName)s:%(lineno)d - %(message)s",
@@ -65,7 +66,7 @@ class buckyModelCovid:
         self.disable_npi = disable_npi
         self.reject_runs = reject_runs
 
-        self.output_dates = None
+        self.output_dates = None  # TODO make a property and lru_cache(1)
 
         # COVID/model params from par file
         self.bucky_params = buckyParams(par_file)
@@ -273,10 +274,10 @@ class buckyModelCovid:
         )
 
         self.params["CHR"] = estimate_chr(self.g_data, self.params, S_age_dist, days_back=7)
-        yy.I = (1.0 - self.params.CHR * self.params["CRR"]) * I_init / yy.Im  # noqa: E741
-        yy.Ic = self.params.CHR * I_init / yy.Im * self.params["CRR"]
+        yy.I = (1.0 - self.params.CHR * self.params["CRR"]) * I_init / yy.I_gamma_k  # noqa: E741
+        yy.Ic = self.params.CHR * I_init / yy.I_gamma_k * self.params["CRR"]
         # rh_fac = self.consts.rh_scaling
-        yy.Rh = self.params.CHR * I_init / yy.Rhn * self.params["CRR"]
+        yy.Rh = self.params.CHR * I_init / yy.Rh_gamma_k * self.params["CRR"]
 
         if self.consts.rescale_chr:
             adm1_hosp = xp.zeros((self.g_data.max_adm1 + 1,), dtype=float)
@@ -319,7 +320,7 @@ class buckyModelCovid:
             adm2_chr = xp.sum(self.params["CHR"] * S_age_dist, axis=0)
 
             tmp = (
-                xp.sum(self.params.CHR * I_init / yy.Im * self.g_data.Nij, axis=0) / self.params["CRR"]
+                xp.sum(self.params.CHR * I_init / yy.I_gamma_k * self.g_data.Nij, axis=0) / self.params["CRR"]
             ) * self.params.GAMMA_H  # * self.params.SIGMA #** 2
             tmp2 = inc_case_h_delay * adm2_chr
 
@@ -328,14 +329,14 @@ class buckyModelCovid:
             # ic_fac = xp.clip(ic_fac, a_min=0.2, a_max=5.0)  #####
 
             self.params["HFR"] = xp.clip(self.params["CFR"] / self.params["CHR"], 0.0, 1.0)
-            yy.I = (1.0 - self.params.CHR * self.params["CRR"]) * I_init / yy.Im  # * 0.8  # noqa: E741
+            yy.I = (1.0 - self.params.CHR * self.params["CRR"]) * I_init / yy.I_gamma_k  # * 0.8  # noqa: E741
             yy.Ic *= ic_fac * 0.75  # * 0.9 * .9
             yy.Rh *= 1.0 * adm2_hosp_frac
 
         R_init -= xp.sum(yy.Rh, axis=0)
 
-        yy.Ia = self.params.ASYM_FRAC / self.params.SYM_FRAC * I_init / yy.Im
-        yy.E = exp_frac[None, :] * I_init / yy.En  # this should be calcable from Rt and the time before symp
+        yy.Ia = self.params.ASYM_FRAC / self.params.SYM_FRAC * I_init / yy.I_gamma_k
+        yy.E = exp_frac[None, :] * I_init / yy.E_gamma_k  # this should be calcable from Rt and the time before symp
         yy.R = xp.clip(R_init, a_min=0.0, a_max=None)
         yy.D = D_init
 
@@ -402,8 +403,8 @@ class buckyModelCovid:
         S_dist = S_eff / (xp.sum(S_eff, axis=0) + 1e-10)
 
         new_E = xp.tile(
-            (S_dist * adm2_new_E_tot / self.g_data.Nij * self.g_data.Nj / self.params.consts["En"])[None, ...],
-            (xp.to_cpu(self.params.consts["En"]), 1, 1),
+            (S_dist * adm2_new_E_tot / self.g_data.Nij * self.g_data.Nj / self.params.consts["E_gamma_k"])[None, ...],
+            (xp.to_cpu(self.params.consts["E_gamma_k"]), 1, 1),
         )
         new_S = self.y.S - xp.sum(new_E - self.y.E, axis=0)
 
