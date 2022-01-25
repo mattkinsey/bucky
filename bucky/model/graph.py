@@ -367,7 +367,7 @@ class buckyGraphData:
         return spline_cum_cases, spline_cum_deaths, spline_inc_cases, spline_inc_deaths, spline_inc_hosp
 
     @sync_numerical_libs
-    def __init__(self, G, sparse=True, spline_smooth=True, force_diag_Aij=False):
+    def __init__(self, G, spline_smooth=True, force_diag_Aij=False):
         """Initialize the input data into cupy/numpy, reading it from a networkx graph."""
 
         # make sure G is sorted by adm2 id
@@ -395,7 +395,7 @@ class buckyGraphData:
         self.max_adm2 = xp.to_cpu(xp.max(self.adm2_id))
         self.max_adm1 = xp.to_cpu(xp.max(self.adm1_id))
 
-        self.Aij = buckyAij(G, sparse=sparse, edge_a_min=0.0, force_diag=force_diag_Aij)
+        self.Aij = buckyAij(G, edge_a_min=0.0, force_diag=force_diag_Aij)
 
         self.have_hosp = "hhs_data" in G.graph
         if self.have_hosp:

@@ -45,7 +45,6 @@ class buckyModelCovid:
     def __init__(
         self,
         debug=False,
-        sparse_aij=False,
         t_max=None,
         graph_file=None,
         par_file=None,
@@ -56,8 +55,6 @@ class buckyModelCovid:
     ):
         """Initialize the class, do some bookkeeping and read in the input graph."""
         self.debug = debug
-        self.sparse = sparse_aij  # we can default to none and autodetect
-        # w/ override (maybe when #adm2 > 5k and some sparsity critera?)
 
         # Integrator params
         self.t_max = t_max
@@ -96,7 +93,7 @@ class buckyModelCovid:
         # Load data from input graph
         # TODO we should go through an replace lots of math using self.g_data.* with function IN buckyGraphData
         # TODO toggle spline smoothing
-        g_data = buckyGraphData(G, self.sparse, self.consts.diag_Aij)
+        g_data = buckyGraphData(G, force_diag_Aij=self.consts.diag_Aij)
 
         # Make contact mats sym and normalized
         self.contact_mats = G.graph["contact_mats"]
@@ -693,7 +690,6 @@ def main(args=None):
         logging.info(f"command line args: {args}")
         env = buckyModelCovid(
             debug=debug_mode,
-            sparse_aij=(not args.dense),
             t_max=args.days,
             graph_file=args.graph_file,
             par_file=args.par_file,

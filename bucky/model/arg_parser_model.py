@@ -82,14 +82,6 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "-den",
-    "--dense",
-    action="store_true",
-    help="Don't store the adj matrix as a sparse matrix. \
-    This will be faster with a small number of regions or a very dense adj matrix.",
-)
-
-parser.add_argument(
     "-opt",
     "--optimize",
     action="store_true",

@@ -21,6 +21,6 @@ dependencies:
   - descartes
   - pip
   - pip:
-    - cupy==10.0.0b3
+    - cupy>=10.0.0
     - pyarrow
     - us
