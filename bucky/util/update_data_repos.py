@@ -333,52 +333,6 @@ def distribute_utah_data(df, csse_deaths_file):
     return df
 
 
-def distribute_nyc_data(df):
-    """Distributes NYC case data across the six NYC counties.
-
-    TODO add deprecation warning b/c csse has fixed this
-
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        DataFrame containing historical data indexed by FIPS and date
-
-    Returns
-    -------
-    df : pandas.DataFrame
-        Modified DataFrame containing corrected NYC historical data
-        indexed by FIPS and date
-
-    """
-    # Get population for counties
-    # nyc_counties = [36005, 36081, 36047, 36085, 36061]
-
-    # CSSE has incorrect population data
-    county_populations = {
-        36005: 1432132,
-        36081: 2278906,
-        36047: 2582830,
-        36085: 476179,
-        36061: 1628701,
-    }
-
-    total_nyc_pop = np.sum(list(county_populations.values()))
-    population_df = pd.DataFrame(
-        data=county_populations.values(),
-        columns=["Population"],
-        index=county_populations.keys(),
-    )
-    population_df = population_df.assign(pop_fraction=population_df["Population"] / total_nyc_pop)
-    population_df = population_df.drop(columns=["Population"])
-    population_df.index = population_df.index.set_names(["FIPS"])
-
-    # All data is in FIPS 36061
-    nyc_data = df.xs(36061, level=0)
-
-    df = distribute_data_by_population(df, population_df, nyc_data, True)
-    return df
-
-
 def distribute_mdoc(df, csse_deaths_file):
     """Distributes Michigan Department of Corrections data across Michigan counties by population.
 
@@ -555,165 +509,10 @@ def process_csse_data():
     data.to_csv(hist_file)
 
 
-def update_covid_tracking_data():
-    """Downloads and processes data from the COVID Tracking project to match the format of other preprocessed data.
-
-    The COVID Tracking project contains data at a state-level. Each state
-    is given a random FIPS selected from all FIPS in that state. This is
-    done to make aggregation easier for plotting later. Processed data is
-    written to a CSV.
-
-    """
-    url = "https://api.covidtracking.com/v1/states/daily.csv"
-    filename = bucky_cfg["data_dir"] + "/cases/covid_tracking_raw.csv"
-    # Download data
-    context = ssl._create_unverified_context()  # pylint: disable=W0212  # nosec
-    # Create filename
-    with urllib.request.urlopen(url, context=context) as testfile, open(filename, "w", encoding="utf-8") as f:  # nosec
-        f.write(testfile.read().decode())
-
-    # Read file
-    data_file = bucky_cfg["data_dir"] + "/cases/covid_tracking_raw.csv"
-    df = pd.read_csv(data_file)
-
-    # Fix date
-    df["date"] = pd.to_datetime(df["date"], format="%Y%m%d")
-
-    # Rename FIPS
-    df = df.rename(columns={"fips": "adm1"})
-
-    # Save
-    covid_tracking_name = bucky_cfg["data_dir"] + "/cases/covid_tracking.csv"
-    logging.info(f"Saving COVID Tracking Data as {covid_tracking_name}")
-    df.to_csv(covid_tracking_name, index=False)
-
-
-def process_usafacts(case_file, deaths_file):
-    """Performs preprocessing on USA Facts data.
-
-    USAFacts contains unallocated cases and deaths for each state. These
-    are allocated across states based on case distribution in the state.
-
-    Parameters
-    ----------
-    case_file : str
-        Location of USAFacts case file
-    deaths_file : str
-        Location of USAFacts death file
-
-    Returns
-    -------
-    combined_df : pandas.DataFrame
-        USAFacts data containing cases and deaths indexed by FIPS and
-        date.
-
-    """
-    # Read case file, will be used to scale unallocated cases & deaths
-    case_df = pd.read_csv(case_file)
-    case_df = case_df.drop(columns=["County Name", "State", "stateFIPS"])
-
-    files = [case_file, deaths_file]
-    cols = ["Confirmed", "Deaths"]
-    processed_frames = []
-    for i, file in enumerate(files):
-
-        df = pd.read_csv(file)
-        df = df.drop(columns=["County Name", "State"])
-
-        # Get time series versions
-        ts = get_timeseries_data(cols[i], file, "countyFIPS", False)
-
-        ts = ts.loc[~ts["FIPS"].isin([0, 1])]
-        ts = ts.set_index(["FIPS", "date"])
-
-        for state_code, state_df in tqdm.tqdm(
-            df.groupby("stateFIPS"),
-            desc="Processing USAFacts " + cols[i],
-            dynamic_ncols=True,
-        ):
-
-            # DC has no unallocated row
-            if state_df.loc[state_df["countyFIPS"] == 0].empty:
-                continue
-
-            state_df = state_df.set_index("countyFIPS")
-            state_df = state_df.drop(columns=["stateFIPS"])
-
-            # Get unallocated cases
-            state_unallocated = state_df.xs(0)
-            state_df = state_df.drop(index=0)
-
-            if state_code == 36:
-
-                # NYC includes "probable" deaths - these are currently being dropped
-                state_df = state_df.drop(index=1)
-
-            if state_unallocated.sum() > 0:
-
-                # Distribute by cases
-                state_cases = case_df.loc[case_df["countyFIPS"] // 1000 == state_code]
-                state_cases = state_cases.set_index("countyFIPS")
-                frac_df = state_cases / state_cases.sum()
-                frac_df = frac_df.replace(np.nan, 0)
-
-                # Multiply with unallocated to distribute
-                dist_unallocated = frac_df.mul(state_unallocated, axis="columns").T
-                state_df = state_df.T + dist_unallocated
-                state_df = state_df.T.stack().reset_index()
-
-                # Replace column names
-                state_df = state_df.rename(columns={"countyFIPS": "FIPS", "level_1": "date", 0: cols[i]})
-                state_df = state_df.set_index(["FIPS", "date"])
-                ts.loc[state_df.index] = state_df.values
-
-        processed_frames.append(ts)
-
-    # Combine
-    combined_df = processed_frames[0].merge(processed_frames[1], on=["FIPS", "date"], how="left").fillna(0)
-    return combined_df
-
-
-def update_usafacts_data():
-    """Retrieves updated historical data from USA Facts, preprocesses it, and writes to CSV."""
-
-    logging.info("Downloading USA Facts data")
-    case_url = "https://usafactsstatic.blob.core.windows.net/public/data/covid-19/covid_confirmed_usafacts.csv"
-    deaths_url = "https://usafactsstatic.blob.core.windows.net/public/data/covid-19/covid_deaths_usafacts.csv"
-    urls = [case_url, deaths_url]
-
-    filenames = [
-        bucky_cfg["data_dir"] + "/cases/covid_confirmed_usafacts.csv",
-        bucky_cfg["data_dir"] + "/cases/covid_deaths_usafacts.csv",
-    ]
-
-    # Download case and death data
-    context = ssl._create_unverified_context()  # pylint: disable=W0212  # nosec
-    for i, url in enumerate(urls):
-
-        # Create filename
-        with urllib.request.urlopen(url, context=context) as testfile, open(  # nosec
-            filenames[i],
-            "w",
-            encoding="utf-8",
-        ) as f:
-            f.write(testfile.read().decode())
-
-    # Merge datasets
-    data = process_usafacts(filenames[0], filenames[1])
-    data = data.reset_index()
-
-    # Sort by date
-    data["date"] = pd.to_datetime(data["date"])
-    data = data.sort_values(by="date")
-    data = data.rename(columns={"FIPS": "adm2"})
-    data.to_csv(bucky_cfg["data_dir"] + "/cases/usafacts_hist.csv")
-
-
 def update_hhs_hosp_data():
     """Retrieves updated historical data from healthdata.gov and writes to CSV."""
 
     logging.info("Downloading HHS Hospitalization data")
-    # hosp_url = "https://healthdata.gov/node/3565481/download"
     hosp_url = "https://healthdata.gov/api/views/g62h-syeh/rows.csv?accessType=DOWNLOAD"
 
     filename = bucky_cfg["data_dir"] + "/cases/hhs_hosps.csv"
@@ -753,12 +552,6 @@ def main():
 
     # Process CSSE data
     process_csse_data()
-
-    # Process COVID Tracking Data
-    # update_covid_tracking_data()
-
-    # Process USA Facts
-    # update_usafacts_data()
 
     # Get HHS hospitalization data
     update_hhs_hosp_data()
