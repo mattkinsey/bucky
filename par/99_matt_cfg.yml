@@ -7,6 +7,10 @@ flags: # currently using the values in const
   diag_Aij: True
 
 consts:
+  waning: False #True
+  mean_wane_time: 365 #184
+  boosters: False #True
+  booster_max_uptake: .7
   diag_Aij: True
 
   E_gamma_k: 3
@@ -19,18 +23,14 @@ consts:
   doubling_t_N_historical_days: 3
   case_reporting_min_deaths: 100.
   case_reporting_N_historical_days: 7
-  F_scaling: 1. #.95 #0.44999998807907104
-  rh_scaling: 1. #.75
+  F_scaling: 1.
+  rh_scaling: 1.
   CI_init_scale: 1.
   CI_scaling: 0.
   CI_scaling_acc: 0.
 
-  #vacc_eff_1: .5
-  #vacc_eff_2: .95
-  vacc_dose1_t: 14 #0
-  vacc_dose2_t: 35 #21 #25
-  #vacc_per_mo: 25000000
-  #vacc_hesitancy: .7
+  vacc_dose1_t: 14
+  vacc_dose2_t: 35
   vacc_active: True
   vacc_reroll: True
 
@@ -38,41 +38,40 @@ consts:
   spline_smooth_hist: True
 
   Te_min: 1.
-  Ti_min: 3.
+  Ti_min: 2.
 
-  F_RR_var: 0. #.3  #1388167142868042
-  #H_RR_var: 0.
+  F_RR_var: 0
 
 Rt_fac:
   dist: "approx_mPERT"
-  mu: .95 #.9 #0.6176510928178319
-  a: .65 #.7 #-0.12010041112837577
-  b: 1.25 #1.1 #1.3554025967640397
-  gamma: 4. #7170855214091134
+  mu: 1.1
+  a: .7
+  b: 1.5
+  gamma: 3.
 R_fac:
   dist: "approx_mPERT"
-  mu: 1. #0.7347269625913967
-  a: .8 #0.17027650258376748
-  b: 1.2 #1.2991774225990258
-  gamma: 2. #0.2154469659684755
+  mu: .5
+  a: .3
+  b: .7
+  gamma: 2.
 E_fac:
   dist: "approx_mPERT"
-  mu: .68 #.67 #1.425323533285269
-  a: .38 #.37 #.5 #1.1005507267680303
-  b: .98 #.97 #1.7500963398025076
-  gamma: 8. #3.121055960897806
+  mu: .69
+  a: .39
+  b: .99
+  gamma: 8.
 H_fac:
   dist: "approx_mPERT"
-  mu: .58 #.6 #.8 #.82 #.85 #1.6356815487997305
-  a: .38 #.4 #.6 #.67 #.65 #1.4039050447984203
-  b: .78 #.8 #1. #.87 #1.15 #1.8674580528010407
-  gamma: 3.134454608053486
+  mu: .6
+  a: .4
+  b: .8
+  gamma: 2.134454608053486
 F_fac:
   dist: "approx_mPERT"
-  mu: 1.2 #67 #1.425323533285269
-  a: .9 #.37 #.5 #1.1005507267680303
-  b: 1.5 #.97 #1.7500963398025076
-  gamma: 2. #3.121055960897806
+  mu: .8
+  a: .6
+  b: 1.
+  gamma: 4.
 
 Tg:
   # Mean generation interval
@@ -180,7 +179,6 @@ CASE_TO_DEATH_TIME:
 
 D:
   # NB: This isn't used anymore
-  # Doubling time (this is now calced from data but the way parameters.py works means it needs an initial value. it will be refactored out)
   dist: "truncnorm_from_CI"
   CI: [130.5, 170.5]
   a_min: 0.

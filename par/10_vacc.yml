@@ -15,11 +15,11 @@ vacc_hesitancy:
   a_max: 1.
 vacc_eff_1:
   dist: "truncnorm"
-  loc: .35 #.35
+  loc: .15
   a_min: 0.
   a_max: 1.
 vacc_eff_2:
   dist: "truncnorm"
-  loc: .9 #.75 #.95
+  loc: .55
   a_min: 0.
   a_max: 1.
