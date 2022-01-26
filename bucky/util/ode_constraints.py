@@ -10,11 +10,6 @@ def constrain_y_range(constraints):
     """
     Decorator wrapping a function to be passed to an ODE solver which constrains the solution space.
 
-    Note that this constrains the dependent variable from going *any further* past the constraints.
-    The ODE will still treat it as if it were at the value of the constraint,
-    and with a small step size any problems should be minimal,
-    but you may still have slightly out-of-range numbers in your solution.
-
     Examples
     --------
     .. code-block:: python
@@ -34,6 +29,16 @@ def constrain_y_range(constraints):
     ----------
     constraints: set
         Sequence of (low, high) constraints - use None for unconstrained.
+
+    Returns
+    -------
+
+    Notes
+    -----
+    This constrains the dependent variable from going *any further* past the constraints.
+    The ODE will still treat it as if it were at the value of the constraint,
+    and with a small step size any problems should be minimal,
+    but you may still have slightly out-of-range numbers in your solution.
     """
     if all(constraint is not None for constraint in constraints):
         assert constraints[0] < constraints[1]
