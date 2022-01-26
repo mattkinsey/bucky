@@ -11,7 +11,7 @@ sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-tikz==0.4.15
 sphinx-copybutton==0.3.0
-pydata_sphinx_theme==0.4.1
+pydata_sphinx_theme==0.8.0
 numpy==1.21.0
 pandas==1.4.0
 geopandas==0.10.2
