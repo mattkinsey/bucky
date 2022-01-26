@@ -678,20 +678,25 @@ def main(args=None):
 
     reimport_numerical_libs("model.main.main")
 
-    warnings.simplefilter(action="ignore", category=xp.ExperimentalWarning)
-
+    # Make sure output data folder exists
     if not os.path.exists(args.output_dir):
         os.mkdir(args.output_dir)
 
+    # Set logging verbosity
     loglevel = 30 - 10 * min(args.verbosity, 2)
 
     logging.getLogger().setLevel(loglevel)
     debug_mode = loglevel < 20
 
     # TODO we should output the logs to output_dir too...
+
+    # Display banner
     _banner()
 
     with logging_redirect_tqdm():
+
+        # Init main model class
+        # TODO this should happen in the ctrl+c catching below but it can leave the write thread zombied
         logging.info(f"command line args: {args}")
         env = buckyModelCovid(
             debug=debug_mode,
@@ -710,15 +715,16 @@ def main(args=None):
                 return
                 # TODO Should exit() here
 
+            # Monte Carlo loop
             seed_seq = np.random.SeedSequence(args.seed)
-
             pbar = tqdm.tqdm(total=args.n_mc, desc="Performing Monte Carlos", dynamic_ncols=True)
             total_start = datetime.datetime.now()
             success = 0
             n_runs = 0
 
             while success < args.n_mc:
-                mc_seed = seed_seq.spawn(1)[0].generate_state(1)[0]  # inc spawn key then grab next seed
+                # inc spawn key then grab next seed
+                mc_seed = seed_seq.spawn(1)[0].generate_state(1)[0]
                 pbar.set_postfix_str(
                     "seed=" + str(mc_seed),
                     # + ", rej%="  # TODO disable rej% if not -r
