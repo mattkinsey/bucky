@@ -21,6 +21,6 @@ scipy==1.7.3
 networkx==2.6.3
 xlrd==1.2.0
 PyYAML==6.0
-numpydoc==1.1.0
+numpydoc==1.2
 pyarrow==6.0.1
 us==2.0.2
