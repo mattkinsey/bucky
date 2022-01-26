@@ -210,7 +210,7 @@ def read_descartes_data(end_date):
     dl_data_nat = dl_data[dl_data.admin_level == 0]
 
     # Compute national move fraction (net fraction of people that moved)
-    nat_frac_move = dl_data_nat.mean()[0] / 100.0
+    nat_frac_move = dl_data_nat[0].mean() / 100.0
 
     # Compute for fips
     dl_data = dl_data.groupby("adm2").mean().rename(columns={0: "frac_move"})
@@ -518,7 +518,7 @@ if __name__ == "__main__":
 
         territory_df = pd.concat([territory_df, ifr_df], axis=1, keys=["N", "IFR"])
 
-    age_data = age_data.append(territory_df)
+    age_data = pd.concat([age_data, territory_df])
 
     # Create a dict (for node attribute)
     # TODO this is be a to_dict or something rather than this loop and loc[]...
