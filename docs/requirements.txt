@@ -20,7 +20,7 @@ tqdm==4.44.1
 scipy==1.4.1
 networkx==2.6.3
 xlrd==1.2.0
-PyYAML==5.4
+PyYAML==6.0
 numpydoc==1.1.0
 pyarrow==6.0.1
 us==2.0.2
