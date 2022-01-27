@@ -7,7 +7,7 @@ Non-pharmaceutical interventions (NPIs) are mitigations, apart from getting vacc
 For each country an initial list of NPIs was obtained from the ACAPS `COVID-19 Government Measures Dataset <https://data.humdata.org/dataset/acaps-covid19-government-measures-dataset>`_ . This dataset is complemented with additional qualitative information from in-country stakeholders. The estimated compliance level are tailored to specific countries.
 
 Implementation
--------------------------------------------------
+--------------
     
 NPIs are categorized and implemented in Bucky based on their classification into three categories:
 

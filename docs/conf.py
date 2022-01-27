@@ -20,23 +20,17 @@ import six
 # ones.
 # import sphinx_rtd_theme
 
-# sys.path.insert(0, os.path.abspath('../../..'))
 sys.path.insert(0, os.path.abspath(".."))
 sys.path.insert(0, os.path.abspath("sphinxext"))
 from github_link import make_linkcode_resolve  # isort:skip  # pylint: disable=wrong-import-position
 
 # import bucky  # isort:skip  # pylint: disable=wrong-import-position
 
-repo_root_url = "http://gitlab.com/kinsemc/bucky/"
-
 # -- Project information -----------------------------------------------------
 
 project = "Bucky"
 copyright = "2020, The Johns Hopkins University Applied Physics Laboratory LLC"  # pylint: disable=redefined-builtin
 author = "Matt Kinsey <matt@mkinsey.com>"
-
-# The full version, including alpha/beta/rc tags
-version = "0.10.0"
 
 # change the name of index for RTD
 master_doc = "index"
