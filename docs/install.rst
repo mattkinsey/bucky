@@ -74,4 +74,3 @@ The following datasets will be automatically downloaded:
 * USAFacts Coronavirus Stats and Data
     * County-level coronavirus cases and deaths
     * `USAFacts Website <https://usafacts.org/issues/coronavirus/>`_
-

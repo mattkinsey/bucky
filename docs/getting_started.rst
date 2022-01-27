@@ -81,4 +81,3 @@ This will create a new directory with the prefix *DMV_* in the default output di
 .. code-block:: bash
 
   ./bmodel model viz.plot --lookup DMV.lookup
-

@@ -49,4 +49,3 @@ Model Flow
     \draw[arrow] (quant) -- (valid) [dashed] node[midway, above] {};
     \draw[arrow] (quant) -- (ensb) [dashed] node[midway, above] {};
     \draw[arrow] (valid) -- (priors) [dashed] node[midway, above] {};
-

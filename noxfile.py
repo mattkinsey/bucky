@@ -6,7 +6,9 @@ from typing import Any
 import nox
 from nox.sessions import Session
 
-nox.options.sessions = ["tests",] # "mypy"]
+nox.options.sessions = [
+    "tests",
+]  # "mypy"]
 python_versions = ["3.7", "3.8", "3.9", "3.10"]
 
 
@@ -42,9 +44,7 @@ def install_with_constraints(session: Session, *args: str, **kwargs: Any) -> Non
 def tests(session: Session) -> None:
     """Run the test suite."""
     session.install(".")
-    install_with_constraints(
-        session, "invoke", "pytest", "xdoctest", "coverage[toml]", "pytest-cov"
-    )
+    install_with_constraints(session, "invoke", "pytest", "xdoctest", "coverage[toml]", "pytest-cov")
     try:
         session.run(
             "inv",

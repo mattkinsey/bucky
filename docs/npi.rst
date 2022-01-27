@@ -53,4 +53,3 @@ Contact-based: School closure  Reduce contact between school aged groups and inc
 Mobility-based                 Reduction in mobility between regions                                                        60% (10)                                          :cite:`Cowling2020` :cite:`Wells7504`
 Reproduction number-based      60-8% reduction in overall community transmission                                            72.5% (6.25)                                      :cite:`jarvis2020quantifying` :cite:`joseph2020assessing`
 =============================  ===========================================================================================  ================================================  =============== 
-
