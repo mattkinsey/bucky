@@ -21,7 +21,7 @@ import six
 # import sphinx_rtd_theme
 
 # sys.path.insert(0, os.path.abspath('../../..'))
-sys.path.insert(0, os.path.abspath("../.."))
+sys.path.insert(0, os.path.abspath(".."))
 sys.path.insert(0, os.path.abspath("sphinxext"))
 from github_link import make_linkcode_resolve  # isort:skip  # pylint: disable=wrong-import-position
 
@@ -33,10 +33,10 @@ repo_root_url = "http://gitlab.com/kinsemc/bucky/"
 
 project = "Bucky"
 copyright = "2020, The Johns Hopkins University Applied Physics Laboratory LLC"  # pylint: disable=redefined-builtin
-author = "Matt Kinsey, Kate Tallaksen, Freddy Obrecht"
+author = "Matt Kinsey <matt@mkinsey.com>"
 
 # The full version, including alpha/beta/rc tags
-release = "0.10"
+version = "0.10.0"
 
 # change the name of index for RTD
 master_doc = "index"
@@ -59,7 +59,7 @@ extensions = [
     "autoapi.extension",
 ]
 
-autoapi_dirs = ["../../bucky"]
+autoapi_dirs = ["../bucky"]
 autoapi_add_toctree_entry = False
 autoapi_member_order = "groupwise"
 autoapi_options = [
@@ -147,7 +147,7 @@ bibtex_bibfiles = ["refs.bib"]
 # html_theme = "sphinx_rtd_theme"
 # html_theme = 'alabaster'
 html_theme = "pydata_sphinx_theme"
-html_logo = "../../logo.png"
+html_logo = "../logo.png"
 html_theme_options = {
     "show_toc_level": 4,
     "github_url": "https://github.com/mattkinsey/bucky",

@@ -1,4 +1,0 @@
-# repoint these when we're building the docs b/c we arent in the root dir
-data_dir: ../../data
-raw_output_dir: ../../raw_output
-output_dir: ../../output
