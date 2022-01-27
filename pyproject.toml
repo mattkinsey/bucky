@@ -108,6 +108,49 @@ exclude = '''
 [tool.isort]
 profile = "black"
 line_length = 120
+known_third_party = ["invoke", "nox"]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.paths]
+source = ["src", "*/site-packages"]
+
+[tool.coverage.report]
+fail_under = 100
+exclude_lines = [
+  "pragma: no cover",
+  "def __repr__",
+  "if self.debug",
+  "if settings.DEBUG:",
+  "raise AssertionError",
+  "raise NotImplementedError",
+  "if 0:",
+  "if __name__ == __main__:"
+]
+show_missing = true
+
+[tool.coverage.run]
+branch = true
+source = ["bucky"]
+
+[tool.flakehell]
+format = "grouped"
+max_line_length = 120
+show_source = true
+docstring-convention = "numpy"
+
+[tool.flakehell.exceptions."tests/"]
+flake8-bandit = ["-S101"]
+
+[tool.flakehell.plugins]
+pyflakes = ["+*"]
+pycodestyle = ["+*"]
+mccabe = ["+*"]
+"flake8-*" = ["+*"]
+darglint = ["+*"]
+flake8-darglint = ["-*"]  #disable for now
+flake8-annotations = ["-*"]  #disable for now
 
 [tool.pylint.messages_control]
 #disable = "C0330, C0326, C0103, E0602, W0511"
