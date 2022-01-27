@@ -1,6 +1,6 @@
 
 [tool.poetry]
-name = "bucky"
+name = "bucky-covid"
 version = "0.10.0"
 description = "The Bucky model is a spatial SEIR model for simulating COVID-19 at the county level."
 authors = ["Matt Kinsey <matt@mkinsey.com>"]
@@ -20,7 +20,9 @@ classifiers=[
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
 ]
-
+packages = [
+    { include = "bucky", from="." }
+]
 
 
 [tool.poetry.scripts]
