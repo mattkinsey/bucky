@@ -1,3 +1,67 @@
+
+[tool.poetry]
+name = "bucky"
+version = "0.10.0"
+description = "The Bucky model is a spatial SEIR model for simulating COVID-19 at the county level."
+authors = ["Matt Kinsey <matt@mkinsey.com>"]
+
+readme = "README.md"
+homepage = "https://buckymodel.com"
+repository = "https://github.com/mattkinsey/bucky"
+keywords = ["bucky", "covid", "covid19", "model", "epi"] #TODO add more
+classifiers=[
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License", 
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+]
+
+
+
+[tool.poetry.scripts]
+#bucky = 'bucky.cli:main'
+
+
+[tool.poetry.dependencies]
+python = "<3.11,>=3.8"
+numpy = "^1.22.1"
+pandas = "^1.4.0"
+geopandas = "^0.10.2"
+matplotlib = "^3.5.1"
+tqdm = "^4.62.3"
+scipy = "^1.7.3"
+networkx = "^2.6.3"
+PyYAML = "^6.0"
+us = "^2.0.2"
+joblib = "^1.1.0"
+pyarrow = "^6.0.1"
+
+
+[tool.poetry.dev-dependencies]
+invoke = "^1.6.0"
+pre-commit = "^2.17.0"
+flake8 = "^4.0.1"
+darglint = "^1.8.1"
+isort = "^5.10.1"
+black = "^21.12b0"
+Sphinx = "^4.4.0"
+bump2version = "^1.0.1"
+pytest = "^6.2.5"
+sphinx-argparse = "^0.3.1"
+sphinx-autoapi = "^1.8.4"
+pydata-sphinx-theme = "^0.8.0"
+sphinxcontrib-bibtex = "^2.4.1"
+sphinxcontrib-jsmath = "^1.0.1"
+sphinxcontrib-tikz = "^0.4.15"
+sphinx-copybutton = "^0.4.0"
+
+
+
 [tool.black]
 line-length = 120
 target-version = ['py38']
@@ -26,3 +90,7 @@ max-line-length = "120"
 verbose = 2
 fail-under = 80
 #generate-badge = "docs/source/_static"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
