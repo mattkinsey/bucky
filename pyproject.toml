@@ -119,7 +119,7 @@ max-line-length = "120"
 [tool.interrogate]
 verbose = 2
 fail-under = 80
-#generate-badge = "docs/source/_static"
+generate-badge = "docs/_static"
 
 [build-system]
 requires = ["poetry>=0.12"]
