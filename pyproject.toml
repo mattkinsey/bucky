@@ -49,9 +49,10 @@ us = "^2.0.2"
 joblib = "^1.1.0"
 pyarrow = "^6.0.1"
 cupy = { version = "^10.1.0", optional = true }
+optuna = { version = "^2.10.0", optional = true }
 
 [tool.poetry.extras]
-gpu = ["cupy"]
+gpu = ["cupy", "optuna"]
 
 
 [tool.poetry.dev-dependencies]
