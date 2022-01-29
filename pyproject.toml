@@ -153,6 +153,9 @@ mccabe = ["+*"]
 darglint = ["+*"]
 flake8-darglint = ["-*"]  #disable for now
 flake8-annotations = ["-*"]  #disable for now
+flake8-pylint-plugin = ["-W503"]
+flake8-logging-format = ["-G004"]
+pylint = ["-W503"] # TODO why is this a thing seperate from the plugin?
 
 [tool.pylint.messages_control]
 #disable = "C0330, C0326, C0103, E0602, W0511"
