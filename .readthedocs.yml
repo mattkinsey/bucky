@@ -13,7 +13,7 @@ build:
     python: "3.10"
   apt_packages:
     - gdal-bin
-    - libgdal1-dev
+    - libgdal-dev
 
 python:
   install:
