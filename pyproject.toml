@@ -170,5 +170,5 @@ fail-under = 80
 generate-badge = "docs/_static"
 
 [build-system]
-requires = ["poetry>=0.12"]
+requires = ["poetry>=1.1.12"]
 build-backend = "poetry.masonry.api"
