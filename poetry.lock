@@ -1893,8 +1893,8 @@ gpu = ["cupy", "optuna", "scikit-optimize"]
 
 [metadata]
 lock-version = "1.1"
-python-versions = "<3.11,>=3.7"
-content-hash = "ae6d98fdbe5172d5862d651aff0b0c2e51d95b898362b32af7c366291a53525a"
+python-versions = "<3.11,>=3.7.1"
+content-hash = "e59504fb0d85624b0078a12b168b0315c39de42c4cd3f6d5f562dfb3906ccf4f"
 
 [metadata.files]
 alabaster = [
