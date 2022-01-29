@@ -15,6 +15,8 @@ import sys
 
 import six
 
+import bucky
+
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
@@ -29,9 +31,10 @@ from github_link import make_linkcode_resolve  # isort:skip  # pylint: disable=w
 # -- Project information -----------------------------------------------------
 
 project = "Bucky"
-copyright = "2020, The Johns Hopkins University Applied Physics Laboratory LLC"  # pylint: disable=redefined-builtin
+project_copyright = "2020, The Johns Hopkins University Applied Physics Laboratory LLC"
 author = "Matt Kinsey <matt@mkinsey.com>"
-
+version = ".".join(bucky.__version__.split(".", maxsplit=2)[:2])
+release = bucky.__version__
 # change the name of index for RTD
 master_doc = "index"
 
