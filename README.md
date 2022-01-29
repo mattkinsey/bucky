@@ -2,7 +2,7 @@
 [![Documentation Status](https://readthedocs.org/projects/docs/badge/?version=latest)](https://bucky.readthedocs.io/en/latest/)
 ![black-flake8-isort-hooks](https://github.com/mattkinsey/bucky/workflows/black-flake8-isort-hooks/badge.svg)
 [![CodeFactor](https://www.codefactor.io/repository/github/mattkinsey/bucky/badge/master)](https://www.codefactor.io/repository/github/mattkinsey/bucky/overview/master)
-![Interrogate](docs/source/_static/interrogate_badge.svg)
+![Interrogate](docs/_static/interrogate_badge.svg)
 
 **[Documentation](https://bucky.readthedocs.io/en/latest/)** 
 
