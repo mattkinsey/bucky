@@ -1,7 +1,7 @@
 """Creates a CSSE formated case/death history file from the data on an input graph."""
 # pylint: disable=unsupported-assignment-operation
 import argparse
-import pickle
+import pickle  # noqa: S403
 
 import networkx as nx
 import pandas as pd
@@ -17,7 +17,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     with open(args.graph, "rb") as f:
-        g = pickle.load(f)  # nosec
+        g = pickle.load(f)  # noqa: S301
 
     adm2 = nx.get_node_attributes(g, "adm2")
     cases = nx.get_node_attributes(g, "case_hist")

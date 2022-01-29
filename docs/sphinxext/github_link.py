@@ -2,7 +2,7 @@
 import inspect
 import logging
 import os
-import subprocess
+import subprocess  # noqa: S404
 import sys
 from functools import partial
 from operator import attrgetter
@@ -12,7 +12,7 @@ REVISION_CMD = "git rev-parse --short HEAD"
 
 def _get_git_revision():
     try:
-        revision = subprocess.check_output(REVISION_CMD.split()).strip()
+        revision = subprocess.check_output(REVISION_CMD.split()).strip()  # noqa: S603
     except (subprocess.CalledProcessError, OSError):
         logging.warn("Failed to execute git to get revision")
         return None
@@ -46,7 +46,7 @@ def _linkcode_resolve(domain, info, package, url_fmt, revision):
     module = __import__(info["module"], fromlist=[class_name])
     try:
         obj = attrgetter(info["fullname"])(module)
-    except Exception:
+    except Exception:  # noqa: E902
         return None
 
     # Unwrap the object to get the correct source
@@ -55,12 +55,12 @@ def _linkcode_resolve(domain, info, package, url_fmt, revision):
 
     try:
         fn = inspect.getsourcefile(obj)
-    except Exception:
+    except Exception:  # noqa: E902
         fn = None
     if not fn:
         try:
             fn = inspect.getsourcefile(sys.modules[obj.__module__])
-        except Exception:
+        except Exception:  # noqa: E902
             fn = None
     if not fn:
         return
@@ -68,7 +68,7 @@ def _linkcode_resolve(domain, info, package, url_fmt, revision):
     fn = os.path.relpath(fn, start=os.path.dirname(__import__(package).__file__))
     try:
         lineno = inspect.getsourcelines(obj)[1]
-    except Exception:
+    except Exception:  # noqa: E902
         lineno = ""
     return url_fmt.format(revision=revision, package=package, path=fn, lineno=lineno)
 

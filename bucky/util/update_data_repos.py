@@ -10,7 +10,7 @@ distributed as necessary.
 import logging
 import os
 import ssl
-import subprocess
+import subprocess  # noqa: S404
 import urllib.request
 
 import numpy as np
@@ -518,9 +518,9 @@ def update_hhs_hosp_data():
     filename = bucky_cfg["data_dir"] + "/cases/hhs_hosps.csv"
 
     # Download case and death data
-    context = ssl._create_unverified_context()  # pylint: disable=W0212  # nosec
+    context = ssl._create_unverified_context()  # noqa: S323, PLW0212
     # Create filename
-    with urllib.request.urlopen(hosp_url, context=context) as testfile, open(  # nosec
+    with urllib.request.urlopen(hosp_url, context=context) as testfile, open(  # noqa: S310
         filename,
         "w",
         encoding="utf-8",
@@ -568,7 +568,7 @@ def git_pull(abs_path):
     git_command = "git pull --rebase origin master"
 
     # pull
-    with subprocess.Popen(git_command.split(), stdout=subprocess.PIPE, cwd=abs_path) as p:
+    with subprocess.Popen(git_command.split(), stdout=subprocess.PIPE, cwd=abs_path) as p:  # noqa: S603
         output, error = p.communicate()
 
     if error:

@@ -387,9 +387,6 @@ def PIRLS(
                     for k in range(100):
                         if link == "g":
                             continue
-                        from IPython import embed
-
-                        # embed()
                         i = 50 + k
                         var_beta = var_beta_DP[i]
                         beta = beta_k_all[i]
@@ -468,7 +465,6 @@ def PIRLS(
                         plt.plot(xp.to_cpu(b.T), color="red")
                         plt.plot(xp.to_cpu(lp_k_all[i]), linewidth=3, color="black")
                         plt.show()
-                        embed()
 
                 return mu_k_all
 

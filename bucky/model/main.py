@@ -3,10 +3,9 @@ import copy
 import datetime
 import logging
 import os
-import pickle
+import pickle  # noqa: S403
 import random
 import sys
-import warnings
 from pprint import pformat  # TODO set some defaults for width/etc with partial?
 
 import numpy as np
@@ -89,7 +88,7 @@ class buckyModelCovid:
 
         logging.info("loading graph")
         with open(graph_file, "rb") as f:
-            G = pickle.load(f)  # nosec
+            G = pickle.load(f)  # noqa: S301
 
         # Load data from input graph
         # TODO we should go through an replace lots of math using self.g_data.* with function IN buckyGraphData
@@ -369,7 +368,7 @@ class buckyModelCovid:
             #     self.params["vacc_eff_2"] = scen_params["eff_2"]
 
         if self.debug:
-            logging.debug("done model reset with seed " + str(seed))
+            logging.debug("done model reset")
 
         # return y
 

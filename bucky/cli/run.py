@@ -14,5 +14,5 @@ def checkout():
 
 @app.command("postprocess")
 def update():
-    """`bucky run postprocess`, aggregate monte carlo outputs from raw_output_dir to make quantile outputs in output_dir."""
+    """`bucky run postprocess`, aggregate outputs from raw_output_dir to make quantile outputs in output_dir."""
     typer.echo("postprocess")

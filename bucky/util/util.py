@@ -19,7 +19,7 @@ class TqdmLoggingHandler(logging.Handler):
     https://stackoverflow.com/questions/38543506/change-logging-print-function-to-tqdm-write-so-logging-doesnt-interfere-wit
     """
 
-    def __init__(self, level=logging.NOTSET):  # pylint: disable=useless-super-delegation
+    def __init__(self, level=logging.NOTSET):
         """Init handler."""
         super().__init__(level)
 
@@ -30,9 +30,9 @@ class TqdmLoggingHandler(logging.Handler):
             msg = self.format(record)
             tqdm.tqdm.write(msg)
             self.flush()
-        except (KeyboardInterrupt, SystemExit):  # pylint: disable=try-except-raise
+        except (KeyboardInterrupt, SystemExit):
             raise
-        except Exception:  # pylint: disable=broad-except
+        except Exception:  # noqa: E902
             self.handleError(record)
 
 

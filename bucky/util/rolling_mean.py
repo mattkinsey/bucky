@@ -24,7 +24,9 @@ def rolling_window(a, window_size, center=True, axis=0, pad=True, pad_mode="refl
         pad_before = xp.zeros(len(a.shape), dtype=xp.int32)
         pad_after = xp.zeros(len(a.shape), dtype=xp.int32)
         if center:
-            assert window_size % 2  # only allow odd sized centered windows
+            # only allow odd sized centered windows
+            if not (window_size % 2):
+                raise ValueError
             pad_size = window_size // 2
             pad_before[axis] = pad_size
             pad_after[axis] = pad_size

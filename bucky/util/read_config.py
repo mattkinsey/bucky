@@ -14,7 +14,7 @@ if "sphinx" in sys.modules:
 else:
     # TODO warn if cwd doesnt have the config...
     with (pathlib.Path.cwd() / "config.yml").open(mode="r") as f:
-        bucky_cfg = yaml.load(f, yaml.SafeLoader)  # nosec
+        bucky_cfg = yaml.safe_load(f)
 
     bucky_cfg["base_dir"] = str(pathlib.Path.cwd())
 

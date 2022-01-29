@@ -2,7 +2,7 @@
 import glob
 import logging
 import os
-import pickle
+import pickle  # noqa: S403
 
 import networkx as nx
 import numpy as np
@@ -39,7 +39,7 @@ def read_geoid_from_graph(graph_file=None):
     logging.info(f"Using {graph_file} for admin level mappings.")
 
     with open(graph_file, "rb") as f:
-        G = pickle.load(f)  # nosec
+        G = pickle.load(f)  # noqa: S301
 
     # Get admin0 name
     admin0_name = G.graph["adm0_name"]

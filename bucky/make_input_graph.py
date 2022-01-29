@@ -5,7 +5,7 @@ import datetime
 import glob
 import logging
 import os
-import pickle
+import pickle  # noqa: S403
 import warnings
 from datetime import timedelta
 

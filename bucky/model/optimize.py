@@ -313,9 +313,9 @@ def test_opt(env):
     from functools import partial
 
     from scipy.optimize import minimize
-    from skopt import gp_minimize
-    from skopt.sampler import Lhs
-    from skopt.space import Real
+    from skopt import gp_minimize  # noqa: PLE0401
+    from skopt.sampler import Lhs  # noqa: PLE0401
+    from skopt.space import Real  # noqa: PLE0401
 
     # Opt function params
     opt_params, keys = extract_values(env.bucky_params.base_params, env.bucky_params.opt_params.to_opt)

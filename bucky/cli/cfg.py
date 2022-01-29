@@ -1,9 +1,9 @@
 """`bucky cfg` CLI."""
 import typer
 
-app = typer.Typer()
-
 from ..config import cfg
+
+app = typer.Typer()
 
 
 @app.command("print")

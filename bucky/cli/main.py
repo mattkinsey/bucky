@@ -30,7 +30,7 @@ main.add_typer(viz_app, name="viz")
 @main.command("init")
 def init():
     """."""
-    typer.echo(f"init")
+    typer.echo("init")
 
 
 if __name__ == "__main__":

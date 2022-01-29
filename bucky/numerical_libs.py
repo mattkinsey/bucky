@@ -175,7 +175,7 @@ def enable_cupy(optimize=False):
         new_source = modification_func(source)
         module = importlib.util.module_from_spec(spec)
         codeobj = compile(new_source, module.__spec__.origin, "exec")
-        exec(codeobj, module.__dict__)  # pylint: disable=exec-used
+        exec(codeobj, module.__dict__)  # noqa: S102, PLW0122
         sys.modules[module_name] = module
         return module
 
