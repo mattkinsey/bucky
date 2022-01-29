@@ -5,7 +5,7 @@ from joblib import Memory
 from ..numerical_libs import sync_numerical_libs, xp
 from ..util.read_config import bucky_cfg
 
-memory = Memory(bucky_cfg["cache_dir"], verbose=0, mmap_mode="r")
+memory = Memory(bucky_cfg["cache_dir"], verbose=0)
 
 
 @memory.cache
