@@ -1,15 +1,15 @@
 """`bucky viz data` CLI."""
 
 import typer
+from loguru import logger
 
 app = typer.Typer()
 
-# from ..config import cfg
-
 
 @app.command("checkout")
-def checkout():
+def checkout(ctx: typer.Context):
     """`bucky data checkout`, perform initial checkout of datasets into data_dir."""
+    logger.info(ctx.obj)
     typer.echo("checkout")
 
 
