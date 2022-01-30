@@ -1,13 +1,13 @@
 from typer.testing import CliRunner
 
-from bucky.cli.main import app
+from bucky.cli.main import main
 
 runner = CliRunner()
 
 
 def test_app():
     result = runner.invoke(
-        app,
+        main,
         [
             "init",
         ],
