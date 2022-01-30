@@ -1,5 +1,6 @@
 """Global configuration handler for Bucky, also include prior parameters"""
-# import logging
+import logging
+from importlib import resources
 from pathlib import Path
 
 import yaml
@@ -12,8 +13,37 @@ from .util.nested_dict import NestedDict
 # import bucky
 
 
+def locate_base_config():
+    """Locate the base_config package that shipped with bucky (it's likely in site-packages)."""
+    with resources.path("bucky", "base_config") as cfg_path:
+        return Path(cfg_path)
+
+
+def locate_current_config():
+    """Find the config file/directory to use."""
+    potential_locations = [
+        Path.cwd(),
+        Path.home(),
+    ]
+
+    for p in potential_locations:
+        cfg_dir = p / "bucky.conf.d"
+        if cfg_dir.exists() and cfg_dir.is_dir():
+            logging.info(f"Using bucky config directory at {str(cfg_dir)}")
+            return cfg_dir
+
+        cfg_one_file = p / "bucky.yaml"
+        if cfg_one_file.exists():
+            logging.info(f"Using bucky config file at {str(cfg_one_file)}")
+            return cfg_one_file
+
+        base_cfg = locate_base_config()
+        logging.warning(f"Local Bucky config not found, using defaults at {str(base_cfg)}")
+        return base_cfg
+
+
 class BuckyConfig(NestedDict):
-    """Bucky configuration"""
+    """Bucky configuration."""
 
     def load_cfg(self, par_path):
         """Read in the YAML cfg file(s)."""

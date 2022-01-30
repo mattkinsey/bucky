@@ -20,7 +20,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
 ]
 packages = [
-    { include = "bucky", from="." }
+    { include = "bucky" },
 ]
 
 
@@ -166,8 +166,8 @@ max-line-length = "120"
 
 [tool.interrogate]
 verbose = 2
-fail-under = 80
-generate-badge = "docs/_static"
+fail-under = 0
+#generate-badge = "docs/_static" # this generates PER COMMIT badges
 
 [build-system]
 requires = ["poetry>=1.1.12"]
