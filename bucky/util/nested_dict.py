@@ -1,10 +1,9 @@
 """Provide a nested version of dict() along with convenient API additions (apply, update, etc)."""
+from collections import OrderedDict
 from collections.abc import Iterable, Mapping, MutableMapping  # pylint: disable=no-name-in-module
 from copy import deepcopy
 
 import yaml  # TODO replace pyyaml with ruamel.yaml everywhere?
-
-# from pprint import pformat
 
 
 def _is_dict_type(x):
@@ -15,24 +14,25 @@ def _is_dict_type(x):
 class NestedDict(MutableMapping):
     """A nested version of dict."""
 
-    def __init__(self, dict_of_dicts=None, seperator="."):
+    def __init__(self, dict_of_dicts=None, seperator=".", ordered=True):
         """Init an empty dict or convert a dict of dicts into a NestedDict."""
         # TODO detect flattened dicts too?
-        self.sep = seperator
+        self.seperator = seperator  # TODO double check this is being inforced EVERYWHERE...
+        self.ordered = ordered
         if dict_of_dicts is not None:
             if not _is_dict_type(dict_of_dicts):
                 raise TypeError
             self._data = self.from_dict(dict_of_dicts)
         else:
-            self._data = {}
+            self._data = OrderedDict() if self.ordered else {}
 
     def __setitem__(self, key, value):
         """Setitem, doing it recusively if a flattened key is used."""
         if not isinstance(key, str):
             raise NotImplementedError(f"{self.__class__} only supports str-typed keys; for now")
 
-        if self.sep in key:
-            keys = key.split(self.sep)
+        if self.seperator in key:
+            keys = key.split(self.seperator)
             last_key = keys.pop()
             try:
                 tmp = self._data
@@ -40,7 +40,7 @@ class NestedDict(MutableMapping):
                     if k in tmp:
                         tmp = tmp[k]
                     else:
-                        tmp[k] = self.__class__()
+                        tmp[k] = self.__class__(seperator=self.seperator, ordered=self.ordered)
                         tmp = tmp[k]
                 tmp[last_key] = value
             except KeyError as err:
@@ -53,8 +53,8 @@ class NestedDict(MutableMapping):
         if not isinstance(key, str):
             raise NotImplementedError(f"{self.__class__} only supports str-typed keys; for now")
 
-        if self.sep in key:
-            keys = key.split(self.sep)
+        if self.seperator in key:
+            keys = key.split(self.seperator)
             try:
                 tmp = self._data
                 for k in keys:
@@ -95,7 +95,7 @@ class NestedDict(MutableMapping):
         """Flatten to a normal dict where the heirarcy exists in the key names."""
         ret = []
         for k, v in self.items():
-            base_key = parent + self.sep + k if parent else k
+            base_key = parent + self.seperator + k if parent else k
             if _is_dict_type(v):  # isinstance(v, type(self)):
                 ret.extend(v.flatten(parent=base_key).items())
             else:
@@ -112,7 +112,7 @@ class NestedDict(MutableMapping):
 
     def from_dict(self, dict_of_dicts):
         """Create a NestedDict from a dict of dicts."""
-        ret = self.__class__()  # NestedDict()
+        ret = self.__class__(seperator=self.seperator, ordered=self.ordered)
         for k, v in dict_of_dicts.items():
             if _is_dict_type(v):
                 ret[k] = self.from_dict(v)
@@ -141,20 +141,20 @@ class NestedDict(MutableMapping):
         if other and isinstance(other, Mapping):
             for k, v in other.items():
                 if _is_dict_type(v):
-                    self[k] = self.get(k, self.__class__()).update(v)
+                    self[k] = self.get(k, self.__class__(seperator=self.seperator, ordered=self.ordered)).update(v)
                 else:
                     self[k] = v
 
         elif other and isinstance(other, Iterable):
             for (k, v) in other:
                 if _is_dict_type(v):
-                    self[k] = self.get(k, self.__class__()).update(v)
+                    self[k] = self.get(k, self.__class__(seperator=self.seperator, ordered=self.ordered)).update(v)
                 else:
                     self[k] = v
 
         for k, v in kwargs.items():
             if _is_dict_type(v):
-                self[k] = self.get(k, self.__class__()).update(v)
+                self[k] = self.get(k, self.__class__(seperator=self.seperator, ordered=self.ordered)).update(v)
             else:
                 self[k] = v
 
