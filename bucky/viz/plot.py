@@ -726,6 +726,7 @@ def main(args=None):
         min_hist,
         args.adm1_name,
         hist_start_date,
+        num_proc,
     )
 
 
