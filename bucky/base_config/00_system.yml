@@ -2,15 +2,19 @@
 ---
 system:
   # Storage for downloaded raw data sources.
-  data_dir: ./data
+  data_dir:
+    path: ./data
 
   # Storage for raw monte carlo output, will be hammered with IO. Prefer high speed scratch is available.
-  raw_output_dir: ./raw_output
+  raw_output_dir:
+    path: ./raw_output
 
   # Results directory for aggregated Monte Carlo output.
-  output_dir: ./output
+  output_dir:
+    path: ./output
 
   # Cache for optuna/joblib to prevent redoing expensive calculations.
-  cache_dir: ./.cache
+  cache_dir:
+    path: ./.cache
 
   # TODO add env vars and gpu conf
