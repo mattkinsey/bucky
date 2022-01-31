@@ -94,6 +94,7 @@ sphinxcontrib-jsmath = "^1.0.1"
 sphinxcontrib-tikz = "^0.4.15"
 xdoctest = "^0.15.10"
 pylint = "^2.12.2"
+ipython = "^7.0.0"
 
 
 [tool.black]
