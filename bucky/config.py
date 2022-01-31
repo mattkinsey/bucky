@@ -59,8 +59,19 @@ class BuckyConfig(NestedDict):
             logger.exception("Config not found!")
 
         self._to_arrays()
+        self._convert_paths()
 
         return self
+
+    def _convert_paths(self):
+        def _cast_to_path(v):
+            ret = Path(v["path"])
+            if not ret.exists():  # currently being created by old config.yml
+                logger.warning("Path in cfg not found: {}", v["path"])
+            return ret
+
+        ret = self.apply(_cast_to_path, contains_filter="path")
+        return ret
 
     @sync_numerical_libs
     def _to_arrays(self, copy=False):
