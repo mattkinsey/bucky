@@ -2,11 +2,14 @@
 import argparse
 import glob
 import logging
+import multiprocessing
 import os
 import sys
 
 import matplotlib
 import matplotlib.pyplot as plt
+
+matplotlib.use("Agg")
 import pandas as pd
 import tqdm
 
@@ -145,6 +148,47 @@ parser.add_argument(
     help="Size of window (in days) to apply to historical data",
 )
 
+# Number of multiprocessing threads
+parser.add_argument("-p", "--processes", default=16, type=int, help="Number of processes for multiprocessing")
+
+
+def get_all_plot_titles(l_table, adm_key, adm_values):
+    """Determine plot titles based on a list of adm codes and lookup table.
+
+    For ADM0 and ADM1 plots, uses names. For ADM2 plots, the ADM1 name is
+    included in addition to the ADM2 name.
+
+    Parameters
+    ----------
+    l_table : pandas.DataFrame
+        Dataframe containing information relating different geographic
+        areas
+    adm_key : str
+        Admin level key
+    adm_value : int
+        Admin code value for area
+
+    Returns
+    -------
+    all_plot_titles : list
+        List of formatted string to use for plot titles
+    """
+
+    all_plot_titles = []
+
+    for val in adm_values:
+        plot_title = l_table.loc[l_table[adm_key] == val][adm_key + "_name"].values[0]
+
+        # If admin2-level, get admin1-level as well
+        if adm_key == "adm2":
+
+            admin1_name = l_table.loc[l_table[adm_key] == val]["adm1_name"].values[0]
+            plot_title = admin1_name + " : " + plot_title
+
+        all_plot_titles.append(plot_title)
+
+    return all_plot_titles
+
 
 def get_plot_title(l_table, adm_key, adm_value):
     """Determine plot title for a given area based on adm code and lookup table.
@@ -243,6 +287,35 @@ def add_col_data_to_plot(axis, col, sim_data, quantiles_list):
     return axis
 
 
+def get_group_historical_data(historical_data, adm_key, adm_values):
+    """Attempts to get historical data for each adm value in a list, in order.
+
+    Parameters
+    ----------
+    historical_data : pandas.DataFrame
+        Dataframe of historical data
+    adm_key : str
+        Admin key to use to relate simulation data and geographic areas
+    adm_values : list
+        List of Admin code values for which to fetch data
+
+    Returns
+    -------
+    grouped_historical_data : list of pandas.DataFrames
+        List of historical data in same order as input list of admin values
+    """
+
+    grouped_historical_data = []
+
+    for val in adm_values:
+
+        # Find historical data for this location and add to list
+        data = historical_data.loc[historical_data[adm_key] == val]
+        grouped_historical_data.append(data)
+
+    return grouped_historical_data
+
+
 def add_hist_data_to_plot(axis, historical_data, adm_key, adm_value, col, sim_max_date):
     """Add historical data for requested column and area to initialized matplotlib axis object.
 
@@ -329,15 +402,61 @@ def preprocess_historical_dates(historical_data, hist_start_date, plot_start, pl
     return historical_data
 
 
-def plot(
-    out_dir,
-    lookup_df,
-    key,
-    sim_data,
-    hist_data,
-    plot_columns,
-    quantiles,
-):
+def pool_plot(args):
+    """Function to create plots given a tuple of input data.
+
+    This input data should include a pandas DataFrameGroupBy object, the plot
+    name, historical data in the same order as the keys in the GroupBy object,
+    the columns and quantiles to plot, the admin key, and the directory to
+    save plots and CSVs.
+
+    Parameters
+    ----------
+    args : tuple
+        Zipped input data
+    """
+    (area_code, area_data), name, hist_data, plot_columns, quantiles, adm_key, out_dir = args
+
+    # Set date
+    area_data = area_data.assign(date=pd.to_datetime(area_data["date"]))
+
+    # Initialize figure
+    fig, axs = plt.subplots(
+        2,
+        sharex=True,
+        gridspec_kw={"hspace": 0.1, "height_ratios": [2, 1]},
+        figsize=(15, 7),
+    )
+    fig.suptitle(name.upper())
+
+    # Loop over requested columns
+    for i, p_col in enumerate(plot_columns):
+
+        axs[i] = add_col_data_to_plot(axs[i], p_col, area_data, quantiles)
+
+        # Plot historical data which is already at the correct level
+        if hist_data is not None and i <= (len(plot_columns) - 1):
+            max_date = area_data["date"].max()
+            axs[i] = add_hist_data_to_plot(axs[i], hist_data, adm_key, area_code, p_col, max_date)
+
+        # Axis styling
+        axs[i].grid(True)
+        axs[i].legend()
+        axs[i].set_ylabel("Count")
+        # axs[i].yaxis.set_major_formatter(StrMethodFormatter('{x:,.0f}'))
+
+    plot_filename = os.path.join(out_dir, readable_col_names[plot_columns[0]] + "_" + name + ".png")
+    plot_filename = plot_filename.replace(" : ", "_")
+    plot_filename = plot_filename.replace(" ", "")
+    plt.savefig(plot_filename)
+    plt.close()
+
+    # Save CSV
+    csv_filename = os.path.join(out_dir, name + ".csv")
+    area_data.to_csv(csv_filename)
+
+
+def plot(out_dir, lookup_df, key, sim_data, hist_data, plot_columns, quantiles, num_proc):
     """Given a dataframe and a key, creates plots with requested columns.
 
     For example, a pandas.DataFrame with state-level data would create a plot for
@@ -365,6 +484,8 @@ def plot(
     quantiles : list of float, or None
         List of quantiles to plot. If None, will plot all available
         quantiles in data.
+    num_proc : int
+        Number of processes for multiprocessing
     """
     # If quantiles were not specified, get all quantiles present in data
     if quantiles is None:
@@ -388,50 +509,32 @@ def plot(
     else:
         unique_areas = unique_lookup_areas
 
-    # Loop over unique areas at requested admin level
-    for area_code in tqdm.tqdm(unique_areas, total=len(unique_areas), desc="Plotting " + key, dynamic_ncols=True):
+    # Get data in a format we can map for pool
+    area_groups = sim_data.groupby(key)
+    area_keys = area_groups.groups.keys()
 
-        # Get name
-        name = get_plot_title(lookup_df, key, area_code)
+    # Get all names for plots
+    all_names = get_all_plot_titles(lookup_df, key, area_keys)
 
-        # Get data for this area
-        area_data = sim_data.loc[sim_data[key] == area_code]
-        area_data = area_data.assign(date=pd.to_datetime(area_data["date"]))
+    # Get corresponding historical data
+    if hist_data is not None:
+        group_hist_data = get_group_historical_data(hist_data, key, area_keys)
+    else:
+        group_hist_data = [None for _ in range(len(area_keys))]
 
-        # Initialize figure
-        fig, axs = plt.subplots(
-            2,
-            sharex=True,
-            gridspec_kw={"hspace": 0.1, "height_ratios": [2, 1]},
-            figsize=(15, 7),
-        )
-        fig.suptitle(name.upper())
+    # Also pass in adm key, plot columns
+    pool_input = zip(
+        area_groups,
+        all_names,
+        group_hist_data,
+        [plot_columns for _ in range(len(area_keys))],
+        [quantiles for _ in range(len(area_keys))],
+        [key for _ in range(len(area_keys))],
+        [out_dir for _ in range(len(area_keys))],
+    )
 
-        # Loop over requested columns
-        for i, p_col in enumerate(plot_columns):
-
-            axs[i] = add_col_data_to_plot(axs[i], p_col, area_data, quantiles)
-
-            # Plot historical data which is already at the correct level
-            if hist_data is not None and i <= (len(plot_columns) - 1):
-                max_date = area_data["date"].max()
-                axs[i] = add_hist_data_to_plot(axs[i], hist_data, key, area_code, p_col, max_date)
-
-            # Axis styling
-            axs[i].grid(True)
-            axs[i].legend()
-            axs[i].set_ylabel("Count")
-            # axs[i].yaxis.set_major_formatter(StrMethodFormatter('{x:,.0f}'))
-
-        plot_filename = os.path.join(out_dir, readable_col_names[plot_columns[0]] + "_" + name + ".png")
-        plot_filename = plot_filename.replace(" : ", "_")
-        plot_filename = plot_filename.replace(" ", "")
-        plt.savefig(plot_filename)
-        plt.close()
-
-        # Save CSV
-        csv_filename = os.path.join(out_dir, name + ".csv")
-        area_data.to_csv(csv_filename)
+    pool = multiprocessing.Pool(num_proc)
+    pool.map(pool_plot, pool_input)
 
 
 def make_plots(
@@ -448,6 +551,7 @@ def make_plots(
     min_hist_points,
     admin1=None,
     hist_start=None,
+    num_proc=16,
 ):
     """Wrapper function around plot. Creates plots, aggregating data if necessary.
 
@@ -485,6 +589,8 @@ def make_plots(
     hist_start : str, or None
         Plot historical data from this point (formatted as YYYY-MM-DD).
         If None, aligns with simulation start date.
+    num_proc : int
+        Number of processes for multiprocessing
     """
     # Loop over requested levels
     for level in adm_levels:
@@ -542,6 +648,7 @@ def make_plots(
             hist_data=hist_data,
             plot_columns=plot_columns,
             quantiles=quantiles,
+            num_proc=num_proc,
         )
 
 
@@ -596,6 +703,9 @@ def main(args=None):
     list_quantiles = args.quantiles
     hist_data_file = args.hist_file
     min_hist = args.min_hist
+
+    # Number of processes for pool
+    num_proc = args.processes
 
     # If a historical file was passed in, make sure hist is also true
     if hist_data_file is not None:
