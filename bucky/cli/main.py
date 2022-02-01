@@ -26,10 +26,10 @@ from .data import app as data_app
 from .run import app as run_app
 from .viz import app as viz_app
 
-log_fmt = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+log_fmt = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <magenta>{process.name}:{thread.name}</magenta> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
 
 
-main = typer.Typer(add_completion=False)
+main = typer.Typer(name="bucky", add_completion=False)
 
 main.add_typer(cfg_app, name="cfg")
 main.add_typer(data_app, name="data")
@@ -59,10 +59,10 @@ def common(
     elif verbose:
         log_level = "INFO"
     else:
-        log_level = "WARN"
+        log_level = "WARNING"
 
     logger.remove(0)
-    logger.add(sys.stderr, colorize=color, level=log_level, format=log_fmt)
+    logger.add(sys.stderr, colorize=color, level=log_level, format=log_fmt, enqueue=True)
     logger.info("Log level set to {}", log_level)
 
     # Grab bucky cfg
