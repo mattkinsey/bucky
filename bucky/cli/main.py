@@ -70,6 +70,8 @@ def common(
         cfg_path = locate_current_config()
     cfg = BuckyConfig().load_cfg(cfg_path)
 
+    # Need some kind of validation cfg here, make sure paths exists etc
+
     # add runtime flags to cfg
     cfg["runtime.verbose"] = verbose
     cfg["runtime.debug"] = debug
@@ -77,14 +79,8 @@ def common(
 
     # put cfg in typer context for downstream commands
     ctx.obj = cfg
+    logger.debug(cfg)
 
-
-'''
-@main.command("init")
-def init():
-    """."""
-    typer.echo("init")
-'''
 
 if __name__ == "__main__":
     # with logger.catch(reraise=False, onerror=lambda _: sys.exit(1)):
