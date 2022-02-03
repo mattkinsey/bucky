@@ -11,7 +11,7 @@ class buckyAij:
     """Class that handles the adjacency matrix for the model, generalizes between dense/sparse."""
 
     @sync_numerical_libs
-    def __init__(self, G, weight_attr="weight", edge_a_min=0.0, force_diag=False, sparse_format="csr"):
+    def __init__(self, G, weight_attr="weight", edge_a_min=0.0, force_diag=False, sparse_format="csr", n_nodes=None):
         """Initialize the stored matrix off of the edges of a networkx graph."""
 
         # init the array as sparse so memory doesnt blow up (just in case)
@@ -21,7 +21,11 @@ class buckyAij:
         if force_diag:
             # cupy is still missing a bunch of dia format functionality :(
             # self.sparse_format = "dia"
-            self._base_Aij = xp_sparse.identity(G.number_of_nodes(), format=sparse_format)
+            if G is not None:
+                size = G.number_of_nodes()
+            else:
+                size = n_nodes
+            self._base_Aij = xp_sparse.identity(size, format=sparse_format)
         else:
             self._base_Aij = self._read_nx_edge_mat(G, weight_attr=weight_attr, edge_a_min=edge_a_min)
 
