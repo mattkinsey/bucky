@@ -3,17 +3,14 @@
 import typer
 from loguru import logger
 
+from ..util.data_sync import process_datasources
+
 app = typer.Typer()
 
 
-@app.command("checkout")
-def checkout(ctx: typer.Context):
-    """`bucky data checkout`, perform initial checkout of datasets into data_dir."""
-    logger.info(ctx.obj)
-    typer.echo("checkout")
-
-
-@app.command("update")
-def update():
-    """`bucky data update`, update input datasets."""
-    typer.echo("update")
+@app.command("sync")
+def sync(ctx: typer.Context):
+    """`bucky data checkout`, sync datasources into data_dir."""
+    cfg = ctx.obj
+    process_datasources(cfg["data_sources"], cfg["system.data_dir"])
+    typer.echo("sync complete")  # TODO log
