@@ -17,6 +17,18 @@ wget https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetr
 python install-poetry.py
 ```
 
+#### Mac Requirements
+If installing Bucky on a Mac, the following dependencies must also be installed. *Note*: This assumes you have brew installed.
+
+- OpenBLAS
+`brew install openblas`
+
+- GDAL
+`brew install gdal`
+
+- PyProj
+`brew install proj`
+
 ### Create your own fork
 To submit pull requests to the [main repository](https://github.com/mattkinsey/bucky) you'll need to setup your own fork of the repo:
 
@@ -43,6 +55,15 @@ If you want to run the full test suite against multiple versions of python (3.7,
 * Install [pyenv](https://nox.thea.codes/).
 
   See [this guide](https://amaral.northwestern.edu/resources/guides/pyenv-tutorial) for details.
+
+    * If installing Bucky on a Mac, use brew to install.
+          * `brew install pyenv`
+          * After installing pyenv, add to your path by adding the following to your .zshrc (or bashrc) file:
+
+```
+eval "$(pyenv init --path)"
+eval "$(pyenv init -)"
+```
 
 * Install compatible python versions in pyenv (this will take awhile to build each one).
   ```bash
@@ -79,6 +100,12 @@ poetry run inv install-hooks
 NB: you can install the GPU extras version on compatiable systems using ``poetry install -E gpu`` instead.
 
 Everything should be good to go now, you can execute commands in the bucky venv using ``poetry run <cmd>``
+
+**For Mac users:** Because some dependencies were installed via brew, their locations must be specified when running poetry install. Use the following command:
+
+`OPENBLAS="$(brew --prefix openblas)" DYLD_FALLBACK_LIBRARY_PATH="$(HOME)/lib:/usr/local/lib:/lib:/usr/lib" poetry install`
+
+Other poetry commands can be run as normal.
 
 ## Usage
 TODO need more info here
