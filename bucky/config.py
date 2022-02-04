@@ -58,9 +58,20 @@ class BuckyConfig(NestedDict):
         except FileNotFoundError:
             logger.exception("Config not found!")
 
-        self._to_arrays()
+        self._convert_paths()
+        # self._to_arrays()
 
         return self
+
+    def _convert_paths(self):
+        def _cast_to_path(v):
+            ret = Path(v["path"])
+            if not ret.exists():  # currently being created by old config.yml
+                logger.warning("Path in cfg not found: {}", v["path"])
+            return ret
+
+        ret = self.apply(_cast_to_path, contains_filter="path")
+        return ret
 
     @sync_numerical_libs
     def _to_arrays(self, copy=False):
@@ -144,7 +155,7 @@ class BuckyConfig(NestedDict):
             d["value"] = base_func(**dist)
             return d
 
-        self._to_arrays()
+        # self._to_arrays()
         ret = self._set_default_variances(copy=True)
         # ret = ret._interp_age_bins()
         ret = ret.apply(_sample_distribution, contains_filter="distribution")

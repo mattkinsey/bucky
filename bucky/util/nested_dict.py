@@ -1,6 +1,6 @@
 """Provide a nested version of dict() along with convenient API additions (apply, update, etc)."""
 from collections import OrderedDict
-from collections.abc import Iterable, Mapping, MutableMapping  # pylint: disable=no-name-in-module
+from collections.abc import Collection, Iterable, Mapping, MutableMapping  # pylint: disable=no-name-in-module
 from copy import deepcopy
 
 import yaml  # TODO replace pyyaml with ruamel.yaml everywhere?
@@ -9,6 +9,11 @@ import yaml  # TODO replace pyyaml with ruamel.yaml everywhere?
 def _is_dict_type(x):
     """Check is a variable has a dict-like interface."""
     return isinstance(x, MutableMapping)
+
+
+def _is_list_type(x):
+    """Check is a variable has a list-like interface."""
+    return isinstance(x, Collection) and not isinstance(x, str)
 
 
 class NestedDict(MutableMapping):
@@ -28,7 +33,9 @@ class NestedDict(MutableMapping):
 
     def __setitem__(self, key, value):
         """Setitem, doing it recusively if a flattened key is used."""
-        if not isinstance(key, str):
+        if isinstance(key, int):
+            key = str(key)
+        elif not isinstance(key, str):
             raise NotImplementedError(f"{self.__class__} only supports str-typed keys; for now")
 
         if self.seperator in key:
@@ -50,7 +57,9 @@ class NestedDict(MutableMapping):
 
     def __getitem__(self, key):
         """Getitem, supports flattened keys."""
-        if not isinstance(key, str):
+        if isinstance(key, int):
+            key = str(key)
+        elif not isinstance(key, str):
             raise NotImplementedError(f"{self.__class__} only supports str-typed keys; for now")
 
         if self.seperator in key:
@@ -128,8 +137,13 @@ class NestedDict(MutableMapping):
         for k, v in self.items():
             if _is_dict_type(v):  # isinstance(v, type(self)):
                 ret[k] = v.to_dict()
+            elif _is_list_type(v):
+                ret[k] = self.__class__(seperator=self.seperator, ordered=self.ordered).from_dict(dict(enumerate(v)))
+                ret[k] = ret[k].to_dict()
+                ret[k] = list(ret[k].values())
             else:
                 ret[k] = v
+
         return ret
 
     def to_yaml(self, *args, **kwargs):
@@ -138,14 +152,22 @@ class NestedDict(MutableMapping):
 
     def update(self, other=(), **kwargs):  # pylint: disable=arguments-differ
         """Update (like dict().update), but accept dict_of_dicts as input."""
+
         if other and isinstance(other, Mapping):
             for k, v in other.items():
                 if _is_dict_type(v):
                     self[k] = self.get(k, self.__class__(seperator=self.seperator, ordered=self.ordered)).update(v)
+                elif _is_list_type(v):
+                    self[k] = self.__class__(seperator=self.seperator, ordered=self.ordered).from_dict(
+                        dict(enumerate(v)),
+                    )
+                    self[k].update(dict(enumerate(v)))
+                    self[k] = list(self[k].values())
                 else:
                     self[k] = v
 
-        elif other and isinstance(other, Iterable):
+        elif other and isinstance(other, Collection):
+            raise NotImplementedError
             for (k, v) in other:
                 if _is_dict_type(v):
                     self[k] = self.get(k, self.__class__(seperator=self.seperator, ordered=self.ordered)).update(v)
@@ -153,6 +175,7 @@ class NestedDict(MutableMapping):
                     self[k] = v
 
         for k, v in kwargs.items():
+            raise NotImplementedError
             if _is_dict_type(v):
                 self[k] = self.get(k, self.__class__(seperator=self.seperator, ordered=self.ordered)).update(v)
             else:
@@ -172,6 +195,16 @@ class NestedDict(MutableMapping):
                         ret[k] = func(v)
                         continue
                 ret[k] = v.apply(func, copy=copy, key_filter=key_filter, contains_filter=contains_filter)
+            elif _is_list_type(v):
+                ret[k] = self.__class__(seperator=self.seperator, ordered=self.ordered).from_dict(dict(enumerate(v)))
+                if contains_filter is not None:
+                    key_set = set((contains_filter,) if isinstance(contains_filter, str) else contains_filter)
+                    if key_set.issubset(dict(enumerate(v)).keys()):
+                        ret[k] = func(v)
+                        ret[k] = list(ret[k].values())
+                        continue
+                ret[k] = ret[k].apply(func, copy=copy, key_filter=key_filter, contains_filter=contains_filter)
+                ret[k] = list(ret[k].values())
             else:
                 if key_filter is not None:
                     if k == key_filter:

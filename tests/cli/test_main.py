@@ -9,9 +9,8 @@ def test_app():
     result = runner.invoke(
         main,
         [
-            "init",
+            "--help",
         ],
     )
     assert result.exit_code == 0
-    # assert "Hello Camila" in result.stdout
-    # assert "Let's have a coffee in Berlin" in result.stdout
+    assert "Usage: bucky [OPTIONS] COMMAND [ARGS]" in result.stdout
