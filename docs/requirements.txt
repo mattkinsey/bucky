@@ -21,6 +21,6 @@ scipy==1.7.3
 networkx==2.6.3
 PyYAML==6.0
 numpydoc==1.2
-pyarrow==6.0.1
+pyarrow==7.0.0
 us==2.0.2
 joblib==1.1.0
