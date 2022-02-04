@@ -88,6 +88,8 @@ You should now be able to execute the bucky cli using the editable install in th
 poetry run bucky
 ```
 
+### Writing tests
+
 ### Invoke tasks
 There are some predefined devel tasks that can be run using [Invoke](https://www.pyinvoke.org/) (which is already installed as a dev dep).
 
