@@ -36,9 +36,9 @@ def locate_current_config():
             logger.info("Using bucky config file at {}", str(cfg_one_file))
             return cfg_one_file
 
-        base_cfg = locate_base_config()
-        logger.warning("Local Bucky config not found, using defaults at {}", str(base_cfg))
-        return base_cfg
+    base_cfg = locate_base_config()
+    logger.warning("Local Bucky config not found, using defaults at {}", str(base_cfg))
+    return base_cfg
 
 
 class BuckyConfig(NestedDict):
