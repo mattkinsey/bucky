@@ -13,7 +13,7 @@ sphinxcontrib-tikz==0.4.15
 sphinx-copybutton==0.4.0
 pydata_sphinx_theme==0.8.0
 numpy==1.22.2
-pandas==1.4.0
+pandas==1.4.1
 geopandas==0.10.2
 matplotlib==3.5.1
 tqdm==4.62.3
