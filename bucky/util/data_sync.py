@@ -46,10 +46,15 @@ def _exec_shell_cmd(cmd, cwd=None):
     # with subprocess.Popen(cmd.split(), capture_output=True, test=True, cwd=cwd)
     try:
         result = subprocess.run(cmd.split(), capture_output=True, text=True, check=True, cwd=cwd)  # noqa: S603
-    except subprocess.CalledProcessError:
-        logger.exception("Error executing shell cmd '{}':\nstdout:\n{}stderr:\n{}", cmd, result.stdout, result.stderr)
-
-    logger.debug("Successfully executed shell cmd '{}':\nstdout:\n{}stderr:\n{}", cmd, result.stdout, result.stderr)
+        logger.debug("Successfully executed shell cmd '{}':\nstdout:\n{}stderr:\n{}", cmd, result.stdout, result.stderr)
+    except subprocess.CalledProcessError as ex:
+        logger.exception(
+            "Error executing shell cmd '{}':\nreturn code:\n{}\nstdout:\n{}stderr:\n{}",
+            ex.cmd,
+            ex.returncode,
+            ex.stdout,
+            ex.stderr,
+        )
 
 
 def _git_clone(url, local_name, abs_path, bare=False, depth=1, tag=None):
