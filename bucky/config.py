@@ -140,7 +140,7 @@ class BuckyConfig(NestedDict):
         def _set_reroll_var(d):
             if d["distribution.func"] == "truncnorm" and "scale" not in d["distribution"]:
                 d["distribution.scale"] = xp.abs(
-                    self["model.monte_carlo.reroll_variance"] * xp.array(d["distribution.loc"]),
+                    xp.array(self["model.monte_carlo.reroll_variance"]) * xp.array(d["distribution.loc"]),
                 )
             return d
 
@@ -154,7 +154,7 @@ class BuckyConfig(NestedDict):
 
         # TODO add something like 'register_distribtions' so we dont have to iterate the tree to find them?
         def _sample_distribution(d):
-            dist = d.pop("distribution")
+            dist = d.pop("distribution")._to_arrays()
             func = dist.pop("func")
 
             if hasattr(distributions, func):
