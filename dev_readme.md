@@ -70,7 +70,31 @@ cd bucky
 nox
 ```
 
-### Install Dev requirements
+### Install GDAL
+Some dependencies (geopandas, fiona) require GDAL to be installed at the system level. How to do this depends on your OS. The following are untested (except arch):
+
+#### Arch
+```bash
+sudo pacman -Sy gdal
+```
+
+#### Ubuntu
+```bash
+sudo add-apt-repository ppa:ubuntugis/ppa
+sudo apt-get update
+sudo apt-get install gdal-bin libgdal-dev
+```
+
+#### OS X
+```bash
+brew install gdal
+```
+
+#### Windows
+TODO You will need to manually install the gdal/fiona wheels under windows.
+
+
+### Install Python Dev requirements
 In your local checkout of your bucky fork (you should be in the top level bucky folder that contains ``pyproject.toml``), install the local development requirements inside a virtual environment using poetry:
 ```bash
 poetry install
