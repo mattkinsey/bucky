@@ -1,9 +1,29 @@
 """Global configuration handler for Bucky, also include prior parameters"""
 
+import sys
 from importlib import resources
-from pathlib import Path
+from pathlib import Path, PosixPath
 
-import yaml
+from ruamel.yaml import YAML
+from ruamel.yaml.compat import StringIO
+
+yaml = YAML()
+
+
+class YamlPath(PosixPath):
+    yaml_tag = "!path"
+
+    @classmethod
+    def to_yaml(cls, representer, node):
+        # print(f"{''.join(node.parts)}")
+        return representer.represent_scalar(cls.yaml_tag, f"{'/'.join(node.parts)}")
+
+    @classmethod
+    def from_yaml(cls, constructor, node):
+        return cls(node.value)
+
+
+yaml.register_class(YamlPath)
 from loguru import logger
 
 from .numerical_libs import sync_numerical_libs, xp
@@ -52,26 +72,15 @@ class BuckyConfig(NestedDict):
         try:
             if par.is_dir():
                 for f in sorted(par.iterdir()):
-                    self.update(yaml.safe_load(f.read_text(encoding="utf-8")))  # nosec
+                    self.update(yaml.load(f.read_text(encoding="utf-8")))  # nosec
             else:
-                self.update(yaml.safe_load(par.read_text(encoding="utf-8")))  # nosec
+                self.update(yaml.load(par.read_text(encoding="utf-8")))  # nosec
         except FileNotFoundError:
             logger.exception("Config not found!")
 
-        self._convert_paths()
         # self._to_arrays()
 
         return self
-
-    def _convert_paths(self):
-        def _cast_to_path(v):
-            ret = Path(v["path"])
-            if not ret.exists():  # currently being created by old config.yml
-                logger.warning("Path in cfg not found: {}", v["path"])
-            return ret
-
-        ret = self.apply(_cast_to_path, contains_filter="path")
-        return ret
 
     @sync_numerical_libs
     def _to_arrays(self, copy=False):
@@ -92,7 +101,10 @@ class BuckyConfig(NestedDict):
         return ret
 
     def to_yaml(self, *args, **kwargs):
-        return yaml.dump(self._to_lists(copy=True).to_dict(), *args, **kwargs)
+        stream = StringIO()
+
+        yaml.dump(self._to_lists(copy=True).to_dict(), stream, *args, **kwargs)
+        return stream.getvalue()
 
     @staticmethod
     def _age_interp(x_bins_new, x_bins, y):
