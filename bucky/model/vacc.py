@@ -13,10 +13,13 @@ class buckyVaccAlloc:
     """Class managing all the vaccine rollout related estimates."""
 
     @sync_numerical_libs
-    def __init__(self, g_data, first_date, end_t, consts, scen_params=None):
+    def __init__(self, g_data, cfg, scen_params=None):
         """Initialize."""
-        self.consts = consts
-        if not consts.vacc_active:
+        first_date = g_data.start_date
+        end_t = cfg["runtime.t_max"]
+        self.flags = cfg["model.flags"]
+
+        if not self.flags["vaccines"]:
             self.active = False
             self.reroll = False
             return
@@ -26,7 +29,7 @@ class buckyVaccAlloc:
 
         state_abbr_map = us.states.mapping("abbr", "fips")
 
-        self.end_t = end_t
+        self.end_t = end_t  # + 1
         self.g_data = g_data
         # alloc the arrays for doses indexed by time, age_grp, adm2
         self.dose1 = xp.zeros((end_t + 1,) + self.Nij.shape)
@@ -34,14 +37,16 @@ class buckyVaccAlloc:
 
         self.scen_params = scen_params
 
-        vac_hist = pd.read_csv("data/vac/covid19-vaccine-timeseries/vacc-timeseries.csv")
+        vac_hist = pd.read_csv("data/raw/vaccine_timeseries/vacc-timeseries.csv")
         vac_hist["adm1"] = vac_hist.Location.map(state_abbr_map)
         vac_hist = vac_hist.loc[~vac_hist.adm1.isna()]
         vac_hist["adm1"] = vac_hist["adm1"].astype(int)
         vac_hist["Date"] = pd.to_datetime(vac_hist.Date)
         vac_hist["Doses_Distributed_rolling_daily"] = vac_hist["Doses_Distributed"].diff().rolling(7).mean()
 
-        hist_t = consts.vacc_dose2_t.item()  # + 1
+        self.dose1_t = cfg["model.vaccine.dose1_t"]
+        self.dose2_t = cfg["model.vaccine.dose2_t"]
+        hist_t = cfg["model.vaccine.dose2_t"] + 1  # consts.vacc_dose2_t.item()  # + 1
         self.hist_t = hist_t
 
         # init daily allocs
@@ -93,7 +98,7 @@ class buckyVaccAlloc:
         vaccs_dist_adm1 = xp.clip(vaccs_dist_adm1, a_min=0.0, a_max=2.0 * self.g_data.adm1_Nj)
         self.vaccs_dist_adm1 = vaccs_dist_adm1
 
-        with open("data/vac/county-acip-demos/adm2_phased_age_dists.p", "rb") as f:
+        with open("data/raw/county_acip_demos/adm2_phased_age_dists.p", "rb") as f:
             phase_demos = pickle.load(f)  # noqa: S301
 
         # fill in missing state plans w/ mean of demos from acip states
@@ -120,6 +125,7 @@ class buckyVaccAlloc:
         # rescale all phase demos to be pop frac and add in a 'general population' phase at the end
         for adm1 in phase_demos:
             phases_frac = xp.array(phase_demos[adm1]) / g_data.Nij[:, g_data.adm1_id == adm1].T[None, ...]
+
             phases_frac = xp.clip(phases_frac, a_min=0.0, a_max=1.0)
             gen_pop = 1.0 - xp.clip(xp.sum(phases_frac, axis=0), a_min=0.0, a_max=1.0)
             phase_demos[adm1] = xp.vstack([phases_frac, gen_pop[None, ...]])
@@ -140,13 +146,13 @@ class buckyVaccAlloc:
         self.baseline_vacc_demos = vacc_demos
 
         # Read in hes data
-        df = pd.read_csv("data/vaccine_hesitancy/vaccine_hesitancy_all_cols.csv")
+        df = pd.read_csv("data/raw/included_data/vaccine_hesitancy/vaccine_hesitancy_all_cols.csv")
         last_wk = xp.sort(df.wk.unique())[-1]
         df = df.loc[df.wk == last_wk]
         df = df.drop(columns=["wk"])
         df["adm1"] = df.state.map(state_abbr_map).astype(int)
         # df = df.set_index(['age_grp', 'adm1']).Total.unstack(0)
-        df_se = pd.read_csv("data/vaccine_hesitancy/vaccine_hesitancy_all_cols_se.csv")
+        df_se = pd.read_csv("data/raw/included_data/vaccine_hesitancy/vaccine_hesitancy_all_cols_se.csv")
         df_se = df_se.loc[df_se.wk == last_wk]
         df_se = df_se.drop(columns=["wk"])
         df_se["adm1"] = df_se.state.map(state_abbr_map).astype(int)
@@ -228,8 +234,8 @@ class buckyVaccAlloc:
 
         # TODO we can do this faster without the loops
         for t in range(0, end_t + 1 + hist_t):
-            dose1_t = t + consts.vacc_dose1_t - hist_t
-            dose2_t = t + consts.vacc_dose2_t - hist_t
+            dose1_t = t + self.dose1_t - hist_t
+            dose2_t = t + self.dose2_t - hist_t
             for p in range(max_phases):
                 previous_phases_pop = xp.zeros_like(self.pop_per_phase_adm1[0])
                 if p > 0:
@@ -253,8 +259,8 @@ class buckyVaccAlloc:
                     self.dose2[dose2_t] += frac_dist_adm2 * vacc_demos[p]
 
         self.phase_hist = phase_hist_adm1[:, self.g_data.adm1_id]
-        self.active = consts.vacc_active
-        self.reroll = consts.vacc_reroll
+        self.active = self.flags["vaccines"]
+        self.reroll = self.flags["vaccine_monte_carlo"]
 
     def reroll_distribution(self):
         """Reroll the vaccine distributions to states after updating the params."""
@@ -297,8 +303,8 @@ class buckyVaccAlloc:
         # TODO we can do this faster without the loops
         hist_t = self.hist_t
         for t in range(0, self.end_t + 1 + hist_t):
-            dose1_t = t + xp.to_cpu(self.consts.vacc_dose1_t) - hist_t
-            dose2_t = t + xp.to_cpu(self.consts.vacc_dose2_t) - hist_t
+            dose1_t = t + xp.to_cpu(self.dose1_t) - hist_t
+            dose2_t = t + xp.to_cpu(self.dose2_t) - hist_t
             for p in xp.arange(self.max_phases, dtype=int):
                 previous_phases_pop = xp.zeros_like(self.pop_per_phase_adm1[0])
                 if p > 0:
@@ -330,7 +336,7 @@ class buckyVaccAlloc:
 
     def V_eff(self, y, params, t):
         """Total number of people with immunity as a fraction of the pop."""
-        R_asym = (1.0 - params.SYM_FRAC * params.CFR) * y.R
+        R_asym = (1.0 - params["SYM_FRAC"] * params["CFR"]) * y.R
         eligable = y.S + R_asym
         V_tot = self.V_tot(params, t)
         S_frac = y.S / (eligable + 1.0e-10)
