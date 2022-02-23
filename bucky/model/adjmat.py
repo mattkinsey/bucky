@@ -20,7 +20,7 @@ class buckyAij:
         self.sparse = True
         self.sparse_format = sparse_format
 
-        if ~force_diag:
+        if not force_diag:
             raise NotImplementedError
         else:
             # cupy is still missing a bunch of dia format functionality :(

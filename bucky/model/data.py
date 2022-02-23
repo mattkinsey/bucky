@@ -4,17 +4,16 @@ import logging
 import warnings
 from functools import partial
 
-import networkx as nx
 import pandas as pd
 from joblib import Memory
 from numpy import RankWarning
 
 from ..numerical_libs import sync_numerical_libs, xp
+from ..util.array_utils import rolling_window
 from ..util.cached_prop import cached_property
 from ..util.extrapolate import interp_extrap
 from ..util.power_transforms import YeoJohnson
 from ..util.read_config import bucky_cfg
-from ..util.rolling_mean import rolling_mean, rolling_window
 from ..util.spline_smooth import fit, lin_reg
 from .adjmat import buckyAij
 
@@ -29,7 +28,7 @@ def cached_scatter_add(a, slices, value):
     return ret
 
 
-class buckyGraphData:
+class buckyData:
     """Contains and preprocesses all the data imported from an input graph file."""
 
     # pylint: disable=too-many-public-methods
@@ -367,91 +366,81 @@ class buckyGraphData:
         return spline_cum_cases, spline_cum_deaths, spline_inc_cases, spline_inc_deaths, spline_inc_hosp
 
     @sync_numerical_libs
-    def __init__(self, G, spline_smooth=True, force_diag_Aij=False):
+    def __init__(self, data_dir=None, spline_smooth=True, force_diag_Aij=False):
         """Initialize the input data into cupy/numpy, reading it from a networkx graph."""
 
-        # make sure G is sorted by adm2 id
-        adm2_ids = _read_node_attr(G, G.graph["adm2_key"], dtype=int)[0]
-        if ~(xp.diff(adm2_ids) >= 0).all():  # this is pretty much std::is_sorted without the errorchecking
-            H = nx.DiGraph()
-            H.add_nodes_from(sorted(G.nodes(data=True), key=lambda node: node[1][G.graph["adm2_key"]]))
-            H.add_edges_from(G.edges(data=True))
-            H.graph = G.graph
-            G = H.copy()
+        # population data
+        census_df = pd.read_csv(
+            data_dir / "binned_census_age_groups.csv",
+            index_col="adm2",
+            engine="pyarrow",
+        ).sort_index()
+        self.Nij = xp.clip(xp.array(census_df.values).astype(float), a_min=1.0, a_max=None).T
 
-        G = nx.convert_node_labels_to_integers(G)
-        self.start_date = datetime.date.fromisoformat(G.graph["start_date"])
-        self.cum_case_hist, self.inc_case_hist = _read_node_attr(G, "case_hist", diff=True, a_min=0.0)
-        self.cum_death_hist, self.inc_death_hist = _read_node_attr(G, "death_hist", diff=True, a_min=0.0)
-        self.n_hist = self.cum_case_hist.shape[0]
-        self.Nij = _read_node_attr(G, "N_age_init", a_min=1.0)
+        # adm-level mappings
+        self.adm2_id = xp.array(census_df.index)
+        self.adm1_id = self.adm2_id // 1000
+        self.adm0_name = "US"
 
-        # TODO add adm0 to support multiple countries
-        self.adm2_id = _read_node_attr(G, G.graph["adm2_key"], dtype=int)[0]
-        self.adm1_id = _read_node_attr(G, G.graph["adm1_key"], dtype=int)[0]
-        self.adm0_name = G.graph["adm0_name"]
-
-        # in case we want to alloc something indexed by adm1/2
         self.max_adm2 = xp.to_cpu(xp.max(self.adm2_id))
         self.max_adm1 = xp.to_cpu(xp.max(self.adm1_id))
 
-        self.Aij = buckyAij(G, edge_a_min=0.0, force_diag=force_diag_Aij)
+        # make diag adj mat
+        self.Aij = buckyAij(None, force_diag=True, n_nodes=self.Nij.shape[1])
 
-        self.have_hosp = "hhs_data" in G.graph
-        if self.have_hosp:
-            # adm1_current_hosp = xp.zeros((self.max_adm1 + 1,), dtype=float)
-            hhs_data = G.graph["hhs_data"].reset_index()
-            hhs_data["date"] = pd.to_datetime(hhs_data["date"])
+        # case data
+        csse_df = pd.read_csv(
+            data_dir / "csse_timeseries.csv",
+            index_col=["adm2", "date"],
+            engine="pyarrow",
+        ).sort_index()
+        cum_case_full_hist = xp.array(csse_df["cumulative_reported_cases"].unstack().fillna(0.0).values).T
+        cum_death_full_hist = xp.array(csse_df["cumulative_deaths"].unstack().fillna(0.0).values).T
+        inc_case_full_hist = xp.diff(cum_case_full_hist, axis=0, prepend=0.0)
+        inc_death_full_hist = xp.diff(cum_death_full_hist, axis=0, prepend=0.0)
 
-            # ensure we're not cheating w/ future data
-            hhs_data = hhs_data.loc[hhs_data.date <= pd.Timestamp(self.start_date)]
+        self.n_hist = 101
+        dates = csse_df.xs(self.adm2_id[0].item(), level="adm2").index.values
+        date_dows = xp.array([x.weekday() for x in dates])
 
-            # add int index for dates
-            hhs_data["date_index"] = pd.Categorical(hhs_data.date, ordered=True).codes
+        last_friday = dates[xp.to_cpu(date_dows) == 4][-1]
+        self.start_date = last_friday
+        last_friday_index = xp.to_cpu(xp.nonzero(date_dows == 4)[0][-1]).item()
+        csse_date_slice = slice(last_friday_index - self.n_hist + 1, last_friday_index + 1)
 
-            # sort to line up our indices
-            hhs_data = hhs_data.set_index(["date_index", "adm1"]).sort_index()
+        self.cum_case_hist = cum_case_full_hist[csse_date_slice]
+        self.inc_case_hist = inc_case_full_hist[csse_date_slice]
+        self.cum_death_hist = cum_death_full_hist[csse_date_slice]
+        self.inc_death_hist = inc_death_full_hist[csse_date_slice]
 
-            max_hhs_inds = hhs_data.index.max()
-            adm1_current_hosp_hist = xp.zeros((max_hhs_inds[0] + 1, max_hhs_inds[1] + 1))
-            adm1_inc_hosp_hist = xp.zeros((max_hhs_inds[0] + 1, max_hhs_inds[1] + 1))
+        # HHS hospitalizations
+        hosp_df = pd.read_csv(
+            data_dir / "hhs_timeseries.csv",
+            index_col=["adm1", "date"],
+            engine="pyarrow",
+        ).sort_index()
+        inc_hosps = xp.array(hosp_df["incident_hospitalizations"].unstack().fillna(0.0).values).T
+        curr_hosps = xp.array(hosp_df["current_hospitalizations"].unstack().fillna(0.0).values).T
 
-            # collapse adult/pediatric columns
-            tot_hosps = (
-                hhs_data.total_adult_patients_hospitalized_confirmed_covid
-                + hhs_data.total_pediatric_patients_hospitalized_confirmed_covid
-            )
-            inc_hosps = (
-                hhs_data.previous_day_admission_adult_covid_confirmed
-                + hhs_data.previous_day_admission_pediatric_covid_confirmed
-            )
+        hosp_adm1_ind = xp.array(hosp_df.index.get_level_values(0).unique().values)
 
-            # remove nans
-            tot_hosps = tot_hosps.fillna(0.0)
-            inc_hosps = inc_hosps.fillna(0.0)
+        hosp_dates = hosp_df.xs(xp.to_cpu(self.adm1_id[0]).item(), level="adm1").index.values
+        start_date_index = xp.argwhere(xp.array(hosp_dates == self.start_date)).item()
+        hhs_date_slice = slice(start_date_index - self.n_hist + 1, start_date_index + 1)
 
-            adm1_current_hosp_hist[tuple(xp.array(tot_hosps.index.to_list()).T)] = tot_hosps.to_numpy()
-            adm1_inc_hosp_hist[tuple(xp.array(inc_hosps.index.to_list()).T)] = inc_hosps.to_numpy()
+        self.adm1_curr_hosp_hist = xp.empty((self.n_hist, xp.to_cpu(hosp_adm1_ind.max()).item() + 1))
+        self.adm1_inc_hosp_hist = xp.empty((self.n_hist, xp.to_cpu(hosp_adm1_ind.max()).item() + 1))
 
-            # clip to same historical length as case/death data
-            self.adm1_curr_hosp_hist = adm1_current_hosp_hist[-self.n_hist :]
-            self.adm1_inc_hosp_hist = adm1_inc_hosp_hist[-self.n_hist :]
+        self.adm1_inc_hosp_hist[:, hosp_adm1_ind] = inc_hosps[hhs_date_slice]
+        self.adm1_curr_hosp_hist[:, hosp_adm1_ind] = curr_hosps[hhs_date_slice]
 
-        # TODO move these params to config?
-        if spline_smooth:
-            self.rolling_mean_func_cum = partial(fit, df=self.cum_case_hist.shape[0] // 7)
-        else:
-            self._rolling_mean_type = "arithmetic"  # "geometric"
-            self._rolling_mean_window_size = 7
-            self.rolling_mean_func_cum = partial(
-                rolling_mean,
-                window_size=self._rolling_mean_window_size,
-                axis=0,
-                mean_type=self._rolling_mean_type,
-            )
-
-        # TODO remove the rolling mean stuff; it's deprecated
-        self.rolling_mean_func_cum = lambda x, **kwargs: x
+        # Prem contact matrices
+        prem_df = pd.read_csv(
+            data_dir / "prem_matrices.csv",
+            index_col=["location", "i", "j"],
+            engine="pyarrow",
+        )
+        self.Cij = {loc: xp.array(g_df.values).reshape(16, 16) for loc, g_df in prem_df.groupby("location")}
 
         (
             clean_cum_cases,
@@ -536,49 +525,6 @@ class buckyGraphData:
         """Total adm1 populations."""
         return self.sum_adm1(self.Nj)
 
-    # Define and cache some rolling means of the historical data @ adm2
-    @cached_property
-    def rolling_inc_cases(self):
-        """Return the rolling mean of incident cases."""
-        return xp.clip(
-            self.rolling_mean_func_cum(
-                xp.clip(xp.gradient(self.cum_case_hist, axis=0, edge_order=2), a_min=0, a_max=None),
-            ),
-            a_min=0.0,
-            a_max=None,
-        )
-
-    @cached_property
-    def rolling_inc_deaths(self):
-        """Return the rolling mean of incident deaths."""
-        return xp.clip(
-            self.rolling_mean_func_cum(
-                xp.clip(xp.gradient(self.cum_death_hist, axis=0, edge_order=2), a_min=0, a_max=None),
-            ),
-            a_min=0.0,
-            a_max=None,
-        )
-
-    @cached_property
-    def rolling_cum_cases(self):
-        """Return the rolling mean of cumulative cases."""
-        return xp.clip(self.rolling_mean_func_cum(self.cum_case_hist), a_min=0.0, a_max=None)
-
-    @cached_property
-    def rolling_cum_deaths(self):
-        """Return the rolling mean of cumulative deaths."""
-        return xp.clip(self.rolling_mean_func_cum(self.cum_death_hist), a_min=0.0, a_max=None)
-
-    @cached_property
-    def rolling_adm1_curr_hosp(self):
-        """Return the rolling mean of cumulative deaths."""
-        return xp.clip(self.rolling_mean_func_cum(self.adm1_curr_hosp_hist), a_min=0.0, a_max=None)
-
-    @cached_property
-    def rolling_adm1_inc_hosp(self):
-        """Return the rolling mean of cumulative deaths."""
-        return xp.clip(self.rolling_mean_func_cum(self.adm1_inc_hosp_hist), a_min=0.0, a_max=None)
-
     # adm1 rollups of historical data
     @cached_property
     def adm1_cum_case_hist(self):
@@ -620,20 +566,3 @@ class buckyGraphData:
     def adm0_inc_death_hist(self):
         """Incident deaths at adm0."""
         return xp.sum(self.inc_death_hist, axis=1)
-
-
-def _read_node_attr(G, name, diff=False, dtype=xp.float32, a_min=None, a_max=None):
-    """Read an attribute from every node into a cupy/numpy array and optionally clip and/or diff it."""
-    clipping = (a_min is not None) or (a_max is not None)
-    node_list = list(nx.get_node_attributes(G, name).values())
-    arr = xp.vstack(node_list).astype(dtype).T
-    if clipping:
-        arr = xp.clip(arr, a_min=a_min, a_max=a_max)
-
-    if diff:
-        arr_diff = xp.gradient(arr, axis=0, edge_order=2).astype(dtype)
-        if clipping:
-            arr_diff = xp.clip(arr_diff, a_min=a_min, a_max=a_max)
-        return arr, arr_diff
-
-    return arr
