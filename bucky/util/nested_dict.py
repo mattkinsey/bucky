@@ -3,7 +3,9 @@ from collections import OrderedDict
 from collections.abc import Collection, Iterable, Mapping, MutableMapping  # pylint: disable=no-name-in-module
 from copy import deepcopy
 
-import yaml  # TODO replace pyyaml with ruamel.yaml everywhere?
+from ruamel.yaml import YAML
+
+yaml = YAML()
 
 
 def _is_dict_type(x):
@@ -22,7 +24,7 @@ class NestedDict(MutableMapping):
     def __init__(self, dict_of_dicts=None, seperator=".", ordered=True):
         """Init an empty dict or convert a dict of dicts into a NestedDict."""
         # TODO detect flattened dicts too?
-        self.seperator = seperator  # TODO double check this is being inforced EVERYWHERE...
+        self.seperator = seperator  # TODO double check this is being enforced EVERYWHERE...
         self.ordered = ordered
         if dict_of_dicts is not None:
             if not _is_dict_type(dict_of_dicts):
@@ -92,11 +94,8 @@ class NestedDict(MutableMapping):
 
     def __repr__(self):
         """REPL string representation for NestedDict, basically just yaml-ize it."""
-        ret = "<" + self.__class__.__name__ + ">\n"
         # Just lean on yaml for now but it makes arrays very ugly
-        ret += self.to_yaml(default_flow_style=None)
-        # ret += pformat(self.to_dict())
-        return ret
+        return self.to_yaml()
 
     # def __str__(self):
 
@@ -183,8 +182,9 @@ class NestedDict(MutableMapping):
 
         return self
 
-    def apply(self, func, copy=False, key_filter=None, contains_filter=None):
+    def apply(self, func, copy=False, key_filter=None, contains_filter=None, apply_to_lists=False):
         """Apply a function of values stored in self, optionally filtering or doing a deep copy."""
+        # TODO apply_to_lists is a nasty hack, really need a !distribution type decorator in the yaml
         ret = deepcopy(self) if copy else self
 
         for k, v in ret.items():
@@ -195,7 +195,7 @@ class NestedDict(MutableMapping):
                         ret[k] = func(v)
                         continue
                 ret[k] = v.apply(func, copy=copy, key_filter=key_filter, contains_filter=contains_filter)
-            elif _is_list_type(v):
+            elif _is_list_type(v) and not apply_to_lists:
                 ret[k] = self.__class__(seperator=self.seperator, ordered=self.ordered).from_dict(dict(enumerate(v)))
                 if contains_filter is not None:
                     key_set = set((contains_filter,) if isinstance(contains_filter, str) else contains_filter)

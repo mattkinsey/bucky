@@ -88,7 +88,7 @@ class BuckyConfig(NestedDict):
         def _cast_to_array(v):
             return v if isinstance(v, str) else xp.array(v)
 
-        ret = self.apply(_cast_to_array, copy=copy)
+        ret = self.apply(_cast_to_array, copy=copy, apply_to_lists=True)
         return ret
 
     @sync_numerical_libs
