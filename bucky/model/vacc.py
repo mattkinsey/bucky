@@ -98,7 +98,7 @@ class buckyVaccAlloc:
         vaccs_dist_adm1 = xp.clip(vaccs_dist_adm1, a_min=0.0, a_max=2.0 * self.g_data.adm1_Nj)
         self.vaccs_dist_adm1 = vaccs_dist_adm1
 
-        with open("data/raw/county_acip_demos/adm2_phased_age_dists.p", "rb") as f:
+        with open("data/raw/included_data/adm2_phased_age_dists.p", "rb") as f:
             phase_demos = pickle.load(f)  # noqa: S301
 
         # fill in missing state plans w/ mean of demos from acip states
