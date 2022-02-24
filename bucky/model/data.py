@@ -6,6 +6,7 @@ from functools import partial
 
 import pandas as pd
 from joblib import Memory
+from loguru import logger
 from numpy import RankWarning
 
 from ..numerical_libs import sync_numerical_libs, xp
@@ -370,6 +371,7 @@ class buckyData:
         """Initialize the input data into cupy/numpy, reading it from a networkx graph."""
 
         # population data
+        logger.debug("Reading census data from {}", data_dir / "binned_census_age_groups.csv")
         census_df = pd.read_csv(
             data_dir / "binned_census_age_groups.csv",
             index_col="adm2",
@@ -389,6 +391,7 @@ class buckyData:
         self.Aij = buckyAij(None, force_diag=True, n_nodes=self.Nij.shape[1])
 
         # case data
+        logger.debug("Reading historical CSSE data from {}", data_dir / "csse_timeseries.csv")
         csse_df = pd.read_csv(
             data_dir / "csse_timeseries.csv",
             index_col=["adm2", "date"],
@@ -414,6 +417,7 @@ class buckyData:
         self.inc_death_hist = inc_death_full_hist[csse_date_slice]
 
         # HHS hospitalizations
+        logger.debug("Reading historical HHS hospitalization data from {}", data_dir / "hhs_timeseries.csv")
         hosp_df = pd.read_csv(
             data_dir / "hhs_timeseries.csv",
             index_col=["adm1", "date"],
@@ -435,6 +439,7 @@ class buckyData:
         self.adm1_curr_hosp_hist[:, hosp_adm1_ind] = curr_hosps[hhs_date_slice]
 
         # Prem contact matrices
+        logger.debug("Loading Prem et al. matrices from {}", data_dir / "prem_matrices.csv")
         prem_df = pd.read_csv(
             data_dir / "prem_matrices.csv",
             index_col=["location", "i", "j"],
@@ -442,6 +447,7 @@ class buckyData:
         )
         self.Cij = {loc: xp.array(g_df.values).reshape(16, 16) for loc, g_df in prem_df.groupby("location")}
 
+        logger.debug("Fitting GAM to historical timeseries")
         (
             clean_cum_cases,
             clean_cum_deaths,
