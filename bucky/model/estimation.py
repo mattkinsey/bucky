@@ -9,6 +9,8 @@ from ..util.fractional_slice import frac_last_n_vals
 
 # TODO refactor crr to be more like the other estimates (use the gamma delay)
 
+# TODO lots of misnamed variables (namely anything with 'rolling' in the name...)
+
 
 @sync_numerical_libs
 def estimate_crr(g_data, case_to_death_lag, ifr, days_back=14, case_lag=None, min_deaths=100.0, S_dist=1.0):
@@ -24,8 +26,8 @@ def estimate_crr(g_data, case_to_death_lag, ifr, days_back=14, case_lag=None, mi
         case_lag = xp.sum(case_to_death_lag * adm0_cfr_by_age / adm0_cfr_total, axis=0)
 
     case_lag_int = int(case_lag)
-    recent_cum_cases = g_data.rolling_cum_cases - g_data.rolling_cum_cases[0]
-    recent_cum_deaths = g_data.rolling_cum_deaths - g_data.rolling_cum_deaths[0]
+    recent_cum_cases = g_data.cum_case_hist - g_data.cum_case_hist[0]
+    recent_cum_deaths = g_data.cum_death_hist - g_data.cum_death_hist[0]
     case_lag_frac = case_lag % 1  # TODO replace with util function for the indexing
     cases_lagged = frac_last_n_vals(recent_cum_cases, days_back + case_lag_frac, offset=case_lag_int)
     if case_lag_frac:
@@ -110,7 +112,7 @@ def estimate_chr(
     adm2_mean = xp.sum(S_age_dist * mean[..., None], axis=0)
     k = Rh_gamma_k
 
-    rolling_case_hist = g_data.rolling_inc_cases
+    rolling_case_hist = g_data.inc_case_hist
     rolling_hosp_hist = g_data.adm1_inc_hosp_hist
 
     t_max = rolling_case_hist.shape[0]
@@ -180,8 +182,8 @@ def estimate_cfr(
     adm2_mean = xp.sum(S_age_dist * mean[..., None], axis=0)
     k = Rh_gamma_k
 
-    rolling_case_hist = g_data.rolling_inc_cases
-    rolling_death_hist = g_data.rolling_inc_deaths
+    rolling_case_hist = g_data.inc_case_hist
+    rolling_death_hist = g_data.inc_death_hist
 
     t_max = rolling_case_hist.shape[0]
     x = xp.arange(0.0, t_max)
@@ -249,7 +251,7 @@ def estimate_Rt(
 ):
     """Estimate R_t from the recent case data."""
 
-    rolling_case_hist = g_data.rolling_inc_cases[-case_reporting.shape[0] :] / case_reporting
+    rolling_case_hist = g_data.inc_case_hist[-case_reporting.shape[0] :] / case_reporting
 
     rolling_case_hist = xp.clip(rolling_case_hist, a_min=0.0, a_max=None)
 
