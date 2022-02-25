@@ -19,13 +19,13 @@ data_sources:
     url: https://github.com/mattkinsey/county-acip-demos
     bare: True #unused atm
 
-  - name: descartes_mobility
-    type: git
-    url: https://github.com/descarteslabs/DL-COVID-19.git
+#  - name: descartes_mobility
+#    type: git
+#    url: https://github.com/descarteslabs/DL-COVID-19.git
 
-  - name: covid_exposure_indices
-    type: git
-    url: https://github.com/COVIDExposureIndices/COVIDExposureIndices.git
+#  - name: covid_exposure_indices
+#    type: git
+#    url: https://github.com/COVIDExposureIndices/COVIDExposureIndices.git
 
   - name: tiger_county_shp_files_2019
     type: http
