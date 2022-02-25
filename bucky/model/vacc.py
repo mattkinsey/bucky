@@ -98,7 +98,7 @@ class buckyVaccAlloc:
         vaccs_dist_adm1 = xp.clip(vaccs_dist_adm1, a_min=0.0, a_max=2.0 * self.g_data.adm1_Nj)
         self.vaccs_dist_adm1 = vaccs_dist_adm1
 
-        with open("data/raw/included_data/adm2_phased_age_dists.p", "rb") as f:
+        with open(cfg["system.data_dir"] / "included_data/adm2_phased_age_dists.p", "rb") as f:
             phase_demos = pickle.load(f)  # noqa: S301
 
         # fill in missing state plans w/ mean of demos from acip states
@@ -146,13 +146,15 @@ class buckyVaccAlloc:
         self.baseline_vacc_demos = vacc_demos
 
         # Read in hes data
-        df = pd.read_csv("data/raw/included_data/vaccine_hesitancy/vaccine_hesitancy_all_cols.csv")
+        df = pd.read_csv(cfg["system.data_dir"] / "included_data/vaccine_hesitancy/vaccine_hesitancy_all_cols.csv")
         last_wk = xp.sort(df.wk.unique())[-1]
         df = df.loc[df.wk == last_wk]
         df = df.drop(columns=["wk"])
         df["adm1"] = df.state.map(state_abbr_map).astype(int)
         # df = df.set_index(['age_grp', 'adm1']).Total.unstack(0)
-        df_se = pd.read_csv("data/raw/included_data/vaccine_hesitancy/vaccine_hesitancy_all_cols_se.csv")
+        df_se = pd.read_csv(
+            cfg["system.data_dir"] / "included_data/vaccine_hesitancy/vaccine_hesitancy_all_cols_se.csv",
+        )
         df_se = df_se.loc[df_se.wk == last_wk]
         df_se = df_se.drop(columns=["wk"])
         df_se["adm1"] = df_se.state.map(state_abbr_map).astype(int)

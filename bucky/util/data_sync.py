@@ -103,7 +103,9 @@ def process_datasources(data_sources, data_dir, ssl_no_verify=False, n_jobs=None
 
     # copy included data over
     included_data_path = _locate_included_data()
-    shutil.copytree(included_data_path, raw_data_dir / "included_data", dirs_exist_ok=True)
+    included_data_link = data_dir / "included_data"
+    if not included_data_link.exists():
+        included_data_link.symlink_to(included_data_path, target_is_directory=True)
 
     priority_sources = OrderedDict({source["priority"]: source for source in data_sources if "priority" in source})
 
