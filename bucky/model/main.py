@@ -148,17 +148,18 @@ class buckyModelCovid:
             if xp.is_cupy:
                 xp.random.seed(seed)
 
-    def reset(self, params=None):
+    def reset(self):
         """Reset the state of the model and generate new inital data from a new random seed."""
         # TODO we should refactor reset of the compartments to be real pop numbers then /Nij at the end
 
         # reroll model params
-        # self.g_data.Aij.perturb(self.consts.reroll_variance)
-
         sampled_params = self.cfg["model"].sample_distributions()
         vac_params = sampled_params["vaccine"]
         epi_params = sampled_params["epi"]
         mc_params = sampled_params["monte_carlo"]._to_arrays()
+
+        if mc_params["Aij_gaussian_perturbation_scale"] > 0.0:
+            self.g_data.Aij.perturb(mc_params["Aij_gaussian_perturbation_scale"])
 
         epi_params = add_derived_params(epi_params, self.cfg["model.structure"])
 
@@ -213,10 +214,9 @@ class buckyModelCovid:
 
         # Fill in and correct the shapes of some parameters
         # TODO make a broadcast_to func in the cfg
-        # embed()
+
         epi_params["CFR"] = ifr[..., None] * mean_case_reporting[None, ...]
         epi_params["CHR"] = xp.broadcast_to(epi_params["CHR"][:, None], self.Nij.shape)
-        # epi_params["HFR"] = xp.clip(epi_params["CFR"] / epi_params["CHR"], 0.0, 1.0)
         epi_params["CRR"] = mean_case_reporting
         epi_params["THETA"] = xp.broadcast_to(
             epi_params["THETA"][:, None],

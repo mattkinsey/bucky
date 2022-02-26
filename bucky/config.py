@@ -140,7 +140,7 @@ class BuckyConfig(NestedDict):
         def _set_reroll_var(d):
             if d["distribution.func"] == "truncnorm" and "scale" not in d["distribution"]:
                 d["distribution.scale"] = xp.abs(
-                    xp.array(self["model.monte_carlo.reroll_variance"]) * xp.array(d["distribution.loc"]),
+                    xp.array(self["model.monte_carlo.default_gaussian_variance"]) * xp.array(d["distribution.loc"]),
                 )
             return d
 

@@ -19,9 +19,14 @@ model:
     # Global multiplicative rescaling factor on estimated R_h
     Rh_scaling: 1.
 
-    F_RR_var: 0. # TODO remove, deprecated
-    reroll_variance: 0.0022825319319963455 # TODO is this even used for anything anymore?
+    # Default fractional variance for distributional parameters with no 'scale'
+    # Will be rescaled by the distribution's mean
+    default_gaussian_variance: 0.002282531931996345
 
+    # Magnitude of perturbations to apply to the Aij matrix
+    Aij_gaussian_perturbation_scale: 0.
+
+    # Multiplicative parameters applied to estimated values during initialization
     Rt_fac:
       distribution:
         func: "approx_mPERT"
