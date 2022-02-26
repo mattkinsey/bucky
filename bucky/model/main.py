@@ -750,3 +750,5 @@ def main(cfg=None):
             if "pbar" in locals():
                 pbar.close()
                 logger.info(f"Total runtime: {datetime.datetime.now() - total_start}")
+
+    return env.writer.output_dir
