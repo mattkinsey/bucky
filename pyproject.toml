@@ -163,6 +163,7 @@ flake8-rst-docstrings = ["+*, -RST304"]
 flake8-darglint = ["-*"]  #disable for now
 flake8-annotations = ["-*"]  #disable for now
 flake8-logging-format = ["+*, -G004"]
+flake8-simplify = ["+*, -SIM106"]
 #pylint = ["-*"] # TODO why is this a thing seperate from the plugin?
 
 [tool.pylint.messages_control]

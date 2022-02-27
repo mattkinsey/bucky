@@ -2,8 +2,11 @@
 import datetime
 import logging
 import warnings
+from copy import deepcopy
+from dataclasses import dataclass, field, fields
 from functools import partial
 
+import numpy as np
 import pandas as pd
 from joblib import Memory
 from loguru import logger
@@ -27,6 +30,186 @@ def cached_scatter_add(a, slices, value):
     ret = a.copy()
     xp.scatter_add(ret, slices, value)
     return ret
+
+
+def read_population_tensor(file, return_adm2_ids=False, min_pop_per_bin=1.0):
+    logger.debug("Reading census data from {}", file)
+    census_df = pd.read_csv(
+        file,
+        index_col="adm2",
+        engine="pyarrow",
+    ).sort_index()
+    ret = xp.clip(xp.array(census_df.values).astype(float), a_min=min_pop_per_bin, a_max=None).T
+    if return_adm2_ids:
+        return ret, xp.array(census_df.index)
+    else:
+        return ret
+
+
+@dataclass(frozen=True)
+class SpatialStratifiedTimeseries:
+    adm_level: int
+    adm_ids: xp.array
+    dates: np.array
+
+    def __post_init__(self):
+        valid_shape = self.dates.shape + self.adm_ids.shape
+        for f in fields(self):
+            if "validate_shape" in f.metadata:
+                field_shape = getattr(self, f.name).shape
+                if field_shape != valid_shape:
+                    from IPython import embed
+
+                    embed()
+
+    def __repr__(self):
+        names = [f.name for f in fields(self) if f.name not in ["adm_ids", "dates"]]
+        return (
+            f"{names} for {self.adm_ids.shape[0]} adm{self.adm_level} regions from {self.start_date} to {self.end_date}"
+        )
+
+    @property
+    def start_date(self) -> datetime.date:
+        return self.dates[0]
+
+    @property
+    def end_date(self) -> datetime.date:
+        return self.dates[-1]
+
+    def sum_adm_level(self, level, adm_map):
+        # TODO masking, weighting?
+        if level == self.adm_level:
+            return self
+
+        # assert level < self.adm_level
+
+        if level == 1:
+            out_id_map = adm_map.adm1_ids
+            new_ids = adm_map.uniq_adm1_ids
+        elif level == 0:
+            out_id_map = xp.ones(self.adm_ids.shape, dtype=int)
+            new_ids = xp.zeros((1,))
+        else:
+            raise NotImplementedError
+
+        new_data = {"adm_level": level, "adm_ids": new_ids, "dates": self.dates}
+        for f in fields(self):
+            if "validate_shape" in f.metadata:
+                orig_ts = getattr(self, f.name)
+                new_ts = xp.zeros(new_ids.shape + self.dates.shape, dtype=orig_ts.dtype)
+                xp.scatter_add(new_ts, out_id_map, orig_ts.T)
+                new_data[f.name] = new_ts.T
+
+        return self.__class__(**new_data)
+
+
+def _mask_date_range(dates, n_days=None, valid_date_range=(None, None), force_enddate_dow=None):
+    valid_date_range = list(valid_date_range)
+
+    if valid_date_range[0] is None:
+        valid_date_range[0] = dates[0]
+    if valid_date_range[1] is None:
+        valid_date_range[1] = dates[-1]
+
+    # Set the end of the date range to the last valid date that is the requested day of the week
+    if force_enddate_dow is not None:
+        end_date_dow = valid_date_range[1].weekday()
+        days_after_forced_dow = (end_date_dow - force_enddate_dow + 7) % 7
+
+        valid_date_range[1] = dates[-(days_after_forced_dow + 1)]
+        # assert valid_date_range[1].weekday() == force_enddate_dow
+
+    # only grab the requested amount of history
+    if n_days is not None:
+        valid_date_range[0] = valid_date_range[-1] - datetime.timedelta(days=n_days - 1)
+
+    # Mask out dates not in request range
+    date_mask = (dates >= valid_date_range[0]) & (dates <= valid_date_range[1])
+    return date_mask
+
+
+@dataclass(frozen=True, repr=False)
+class CSSEData(SpatialStratifiedTimeseries):
+    cumulative_cases: xp.array = field(metadata={"validate_shape": True})
+    cumulative_deaths: xp.array = field(metadata={"validate_shape": True})
+
+    @staticmethod
+    def from_csv(file, n_days=None, valid_date_range=(None, None), force_enddate_dow=None):
+        logger.info("Reading historical CSSE data from {}", file)
+        csse_df = pd.read_csv(
+            file,
+            index_col=["adm2", "date"],
+            engine="pyarrow",
+        ).sort_index()
+        cum_case_full_hist = xp.array(csse_df["cumulative_reported_cases"].unstack().fillna(0.0).values).T
+        cum_death_full_hist = xp.array(csse_df["cumulative_deaths"].unstack().fillna(0.0).values).T
+        dates = csse_df.index.unique(level="date").values
+        adm2_ids = csse_df.index.unique(level="adm2").values
+
+        # Slice out the dates we want
+        date_mask = _mask_date_range(dates, n_days, valid_date_range, force_enddate_dow)
+
+        cum_case_hist = cum_case_full_hist[date_mask]
+        cum_death_hist = cum_death_full_hist[date_mask]
+        ret_dates = dates[date_mask]
+
+        return CSSEData(2, adm2_ids, ret_dates, cum_case_hist, cum_death_hist)
+
+
+@dataclass(frozen=True, repr=False)
+class HHSData(SpatialStratifiedTimeseries):
+    current_hospitalizations: xp.array = field(metadata={"validate_shape": True})
+    incident_hospitalizations: xp.array = field(metadata={"validate_shape": True})
+
+    @staticmethod
+    def from_csv(file, n_days=None, valid_date_range=(None, None), force_enddate_dow=None):
+        logger.info("Reading historical HHS hospitalization data from {}", file)
+        hosp_df = pd.read_csv(
+            file,
+            index_col=["adm1", "date"],
+            engine="pyarrow",
+        ).sort_index()
+        inc_hosps_full_hist = xp.array(hosp_df["incident_hospitalizations"].unstack().fillna(0.0).values).T
+        curr_hosps_full_hist = xp.array(hosp_df["current_hospitalizations"].unstack().fillna(0.0).values).T
+
+        adm1_ids = xp.array(hosp_df.index.unique(level="adm1").values)
+        dates = hosp_df.index.unique(level="date").values
+
+        date_mask = _mask_date_range(dates, n_days, valid_date_range, force_enddate_dow)
+
+        curr_hosps = curr_hosps_full_hist[date_mask]
+        inc_hosps = inc_hosps_full_hist[date_mask]
+        ret_dates = dates[date_mask]
+
+        return HHSData(1, adm1_ids, ret_dates, curr_hosps, inc_hosps)
+
+
+@dataclass(frozen=True)
+class AdminLevelMapping:
+    adm0: str
+    adm1_ids: xp.array
+    adm2_ids: xp.array
+
+    def __init__(self, adm0, adm2_ids, adm1_ids=None):
+        object.__setattr__(self, "adm0", adm0)
+        object.__setattr__(self, "adm2_ids", adm2_ids)
+
+        # get squashed mapping from adm2->adm1
+        base_adm1_ids = self.adm2_ids // 1000 if adm1_ids is None else adm1_ids
+
+        uniq_adm1_ids, squashed_adm1_ids = xp.unique(base_adm1_ids, return_inverse=True)
+        object.__setattr__(self, "adm1_ids", squashed_adm1_ids)
+        object.__setattr__(self, "uniq_adm1_ids", uniq_adm1_ids)
+        object.__setattr__(self, "actual_adm1_ids", base_adm1_ids)
+
+    def __post_init__(self):
+        # some basic validation
+        pass
+        # assert len(self.adm1_ids) == len(self.adm2_ids)
+        # assert self.uniq_adm1_ids[self.adm1_ids] == self.actual_adm1_ids
+
+    def __repr__(self):
+        return f"adm0 '{self.adm0}' containing {len(self.uniq_adm1_ids)} adm1 regions and {len(self.adm2_ids)} adm2 regions"
 
 
 class buckyData:
@@ -350,9 +533,9 @@ class buckyData:
                 "inc_cases_fitted": spline_inc_cases,
                 "inc_deaths_fitted": spline_inc_deaths,
                 "inc_hosp_fitted": spline_inc_hosp_adm2,
+                "adm2": xp.broadcast_to(g_data.adm2_id[:, None], spline_cum_cases.shape),
+                "adm1": xp.broadcast_to(g_data.adm1_id[:, None], spline_cum_cases.shape),
             }
-            df["adm2"] = xp.broadcast_to(g_data.adm2_id[:, None], spline_cum_cases.shape)
-            df["adm1"] = xp.broadcast_to(g_data.adm1_id[:, None], spline_cum_cases.shape)
             dates = [str(start_date + datetime.timedelta(days=int(i))) for i in np.arange(-n_hist + 1, 1)]
             df["date"] = np.broadcast_to(np.array(dates)[None, :], spline_cum_cases.shape)
             for k in df:
@@ -367,76 +550,48 @@ class buckyData:
         return spline_cum_cases, spline_cum_deaths, spline_inc_cases, spline_inc_deaths, spline_inc_hosp
 
     @sync_numerical_libs
-    def __init__(self, data_dir=None, spline_smooth=True, force_diag_Aij=False):
+    def __init__(self, data_dir=None, force_diag_Aij=False, hist_length=101, force_historical_end_dow=4):
         """Initialize the input data into cupy/numpy, reading it from a networkx graph."""
 
-        # population data
-        logger.debug("Reading census data from {}", data_dir / "binned_census_age_groups.csv")
-        census_df = pd.read_csv(
-            data_dir / "binned_census_age_groups.csv",
-            index_col="adm2",
-            engine="pyarrow",
-        ).sort_index()
-        self.Nij = xp.clip(xp.array(census_df.values).astype(float), a_min=1.0, a_max=None).T
+        self.n_hist = hist_length
 
-        # adm-level mappings
-        self.adm2_id = xp.array(census_df.index)
+        # population data
+        census_file = data_dir / "binned_census_age_groups.csv"
+        self.Nij, self.adm2_id = read_population_tensor(census_file, return_adm2_ids=True)
+
+        # adm-level mappings and bookkeeping
         self.adm1_id = self.adm2_id // 1000
         self.adm0_name = "US"
 
         self.max_adm2 = xp.to_cpu(xp.max(self.adm2_id))
         self.max_adm1 = xp.to_cpu(xp.max(self.adm1_id))
 
-        # make diag adj mat
-        self.Aij = buckyAij(None, force_diag=True, n_nodes=self.Nij.shape[1])
+        self.adm_mapping = AdminLevelMapping(adm0="US", adm2_ids=self.adm2_id)
 
-        # case data
-        logger.debug("Reading historical CSSE data from {}", data_dir / "csse_timeseries.csv")
-        csse_df = pd.read_csv(
-            data_dir / "csse_timeseries.csv",
-            index_col=["adm2", "date"],
-            engine="pyarrow",
-        ).sort_index()
-        cum_case_full_hist = xp.array(csse_df["cumulative_reported_cases"].unstack().fillna(0.0).values).T
-        cum_death_full_hist = xp.array(csse_df["cumulative_deaths"].unstack().fillna(0.0).values).T
-        inc_case_full_hist = xp.diff(cum_case_full_hist, axis=0, prepend=0.0)
-        inc_death_full_hist = xp.diff(cum_death_full_hist, axis=0, prepend=0.0)
+        # make adj mat obj
+        self.Aij = buckyAij(n_nodes=self.Nij.shape[1], force_diag=force_diag_Aij)
 
-        self.n_hist = 101
-        dates = csse_df.xs(self.adm2_id[0].item(), level="adm2").index.values
-        date_dows = xp.array([x.weekday() for x in dates])
+        # CSSE case/death data
+        csse_file = data_dir / "csse_timeseries.csv"
+        csse_data = CSSEData.from_csv(csse_file, n_days=self.n_hist, force_enddate_dow=force_historical_end_dow)
 
-        last_friday = dates[xp.to_cpu(date_dows) == 4][-1]
-        self.start_date = last_friday
-        last_friday_index = xp.to_cpu(xp.nonzero(date_dows == 4)[0][-1]).item()
-        csse_date_slice = slice(last_friday_index - self.n_hist + 1, last_friday_index + 1)
-
-        self.cum_case_hist = cum_case_full_hist[csse_date_slice]
-        self.inc_case_hist = inc_case_full_hist[csse_date_slice]
-        self.cum_death_hist = cum_death_full_hist[csse_date_slice]
-        self.inc_death_hist = inc_death_full_hist[csse_date_slice]
+        # TODO make these propeties that read form either csse_data of the fitted_data
+        self.start_date = csse_data.end_date  # TODO rename to sim_start_date or something...
+        self.cum_case_hist = csse_data.cumulative_cases
+        self.cum_death_hist = csse_data.cumulative_deaths
 
         # HHS hospitalizations
-        logger.debug("Reading historical HHS hospitalization data from {}", data_dir / "hhs_timeseries.csv")
-        hosp_df = pd.read_csv(
-            data_dir / "hhs_timeseries.csv",
-            index_col=["adm1", "date"],
-            engine="pyarrow",
-        ).sort_index()
-        inc_hosps = xp.array(hosp_df["incident_hospitalizations"].unstack().fillna(0.0).values).T
-        curr_hosps = xp.array(hosp_df["current_hospitalizations"].unstack().fillna(0.0).values).T
+        hhs_file = data_dir / "hhs_timeseries.csv"
+        hhs_data = HHSData.from_csv(hhs_file, n_days=self.n_hist, force_enddate_dow=force_historical_end_dow)
 
-        hosp_adm1_ind = xp.array(hosp_df.index.get_level_values(0).unique().values)
+        from IPython import embed
 
-        hosp_dates = hosp_df.xs(xp.to_cpu(self.adm1_id[0]).item(), level="adm1").index.values
-        start_date_index = xp.argwhere(xp.array(hosp_dates == self.start_date)).item()
-        hhs_date_slice = slice(start_date_index - self.n_hist + 1, start_date_index + 1)
-
-        self.adm1_curr_hosp_hist = xp.empty((self.n_hist, xp.to_cpu(hosp_adm1_ind.max()).item() + 1))
-        self.adm1_inc_hosp_hist = xp.empty((self.n_hist, xp.to_cpu(hosp_adm1_ind.max()).item() + 1))
-
-        self.adm1_inc_hosp_hist[:, hosp_adm1_ind] = inc_hosps[hhs_date_slice]
-        self.adm1_curr_hosp_hist[:, hosp_adm1_ind] = curr_hosps[hhs_date_slice]
+        embed()
+        # TODO make properties...
+        self.adm1_curr_hosp_hist = xp.empty((self.n_hist, self.max_adm1 + 1))
+        self.adm1_inc_hosp_hist = xp.empty((self.n_hist, self.max_adm1 + 1))
+        self.adm1_curr_hosp_hist[:, hhs_data.adm_ids] = hhs_data.current_hospitalizations
+        self.adm1_inc_hosp_hist[:, hhs_data.adm_ids] = hhs_data.incident_hospitalizations
 
         # Prem contact matrices
         logger.debug("Loading Prem et al. matrices from {}", data_dir / "prem_matrices.csv")
