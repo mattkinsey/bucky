@@ -1,6 +1,5 @@
 """Postprocesses data across dates and simulation runs before aggregating at geographic levels (ADM0, ADM1, or ADM2)."""
 import gc
-import logging
 import queue
 import threading
 
@@ -11,6 +10,7 @@ import pyarrow.compute as pac
 import pyarrow.dataset as ds
 import pyarrow.types as pat
 import tqdm
+from loguru import logger
 
 from .numerical_libs import enable_cupy, reimport_numerical_libs, xp
 from .util.read_config import bucky_cfg
@@ -32,7 +32,7 @@ def main(cfg):
     output_levels = cfg["postprocessing.output_levels"]
 
     if verbose:
-        logging.info(cfg)
+        logger.info(cfg)
 
     output_dir = cfg["postprocessing.output_dir"]
     if not output_dir.exists():
@@ -203,7 +203,7 @@ def main(cfg):
             gc.collect()
 
     except (KeyboardInterrupt, SystemExit):
-        logging.warning("Caught SIGINT, cleaning up")
+        logger.warning("Caught SIGINT, cleaning up")
         write_queue.put(None)  # send signal to term loop
         write_thread.join()  # join the write_thread
     finally:
