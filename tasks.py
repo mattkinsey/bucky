@@ -134,6 +134,13 @@ def lint(c):
 
 
 @task()
+def mypy(c):
+    # type: (Context) -> None
+    """Run mypy."""
+    _run(c, f"poetry run mypy {PYTHON_TARGETS_STR}")
+
+
+@task()
 def tests(c):
     # type: (Context) -> None
     """Run tests."""
