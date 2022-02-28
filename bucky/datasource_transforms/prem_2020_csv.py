@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pandas as pd
-from IPython import embed
 
 
 def transform(output_filename):
@@ -31,5 +30,3 @@ def transform(output_filename):
     df = df.set_index(["location", "i", "j"]).sort_index()
 
     df.to_csv(output_filename, index=True)
-
-    # embed()

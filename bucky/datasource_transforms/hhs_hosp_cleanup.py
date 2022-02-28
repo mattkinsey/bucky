@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pandas as pd
 import us
-from IPython import embed
 
 
 def transform(output_file):
@@ -33,5 +32,3 @@ def transform(output_file):
     df = df.fillna(0)
 
     df.to_csv(output_file, index=True)
-
-    # embed()

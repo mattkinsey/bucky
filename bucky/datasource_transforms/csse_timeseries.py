@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pandas as pd
-from IPython import embed
 
 # CSSE UIDs for Michigan prison information
 MI_PRISON_UIDS = [84070004, 84070005]
@@ -98,9 +97,5 @@ def transform(output_file, census_data_path):
         df["date"] = pd.to_datetime(df["date"])
         column_dfs.append(df.set_index(["adm2", "date"]).sort_index())
 
-        # embed()
-
     final_df = pd.concat(column_dfs, axis=1)
     final_df.to_csv(output_file, index=True)
-
-    # embed()
