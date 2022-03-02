@@ -1,7 +1,8 @@
 """Utility class to manage the adjacency matrix regardless of if its dense or sparse."""
-import logging
 import operator
 from functools import reduce
+
+from loguru import logger
 
 from ..numerical_libs import sync_numerical_libs, xp, xp_sparse
 from ..util.distributions import truncnorm
@@ -32,7 +33,7 @@ class buckyAij:
         # same if it's fairly small? (<100 rows?)
 
         self._Aij = self._normalize(self._base_Aij, axis=0)
-        logging.info(f"Loaded Aij: size={self._base_Aij.shape}, sparse={self.sparse}, format={self.sparse_format}")
+        logger.info(f"Loaded Aij: size={self._base_Aij.shape}, sparse={self.sparse}, format={self.sparse_format}")
 
     def todense(self):
         """Convert to dense."""

@@ -155,16 +155,17 @@ def enable_cupy(optimize=False):
         fully implemented.
 
     """
-    import logging  # pylint: disable=import-outside-toplevel
     import sys  # pylint: disable=import-outside-toplevel
+
+    from loguru import logger  # pylint: disable=import-outside-toplevel
 
     cupy_spec = importlib.util.find_spec("cupy")
     if cupy_spec is None:
-        logging.info("CuPy not found, reverting to cpu/numpy")
+        logger.info("CuPy not found, reverting to cpu/numpy")
         return 1
 
     if xp.__name__ == "cupy":
-        logging.info("CuPy already loaded, skipping")
+        logger.info("CuPy already loaded, skipping")
         return 0
 
     # modify src before importing
@@ -212,14 +213,14 @@ def enable_cupy(optimize=False):
 
     spec = importlib.util.find_spec("optuna")
     if spec is None:
-        logging.info("Optuna not installed, kernel opt is disabled")
+        logger.info("Optuna not installed, kernel opt is disabled")
         cp.optimize_kernels = contextlib.nullcontext
         cp.ExperimentalWarning = MockExperimentalWarning
     elif optimize:
         import optuna  # pylint: disable=import-outside-toplevel
 
         optuna.logging.set_verbosity(optuna.logging.WARN)
-        logging.info("Using optuna to optimize kernels, the first calls will be slowwwww")
+        logger.info("Using optuna to optimize kernels, the first calls will be slowwwww")
         cp.optimize_kernels = partial(cupyx.optimizing.optimize, path=bucky_cfg["cache_dir"] + "/optuna")
 
         warnings.filterwarnings(
