@@ -17,7 +17,7 @@ pandas==1.4.1
 geopandas==0.10.2
 matplotlib==3.5.1
 tqdm==4.62.3
-scipy==1.7.3
+scipy==1.8.0
 networkx==2.7
 PyYAML==6.0
 numpydoc==1.2
