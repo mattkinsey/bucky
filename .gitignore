@@ -1,7 +1,7 @@
 # Bucky data dirs
-data/
-output/
-raw_output/
+/data/
+/output/
+/raw_output/
 
 # joblib cache
 .cache/
