@@ -36,7 +36,7 @@ To submit pull requests to the [main repository](https://github.com/mattkinsey/b
 * In the GitHub UI, [fork the main repository](https://help.github.com/articles/fork-a-repo/) to your own account.
 * Add your fork of the repository as the origin
   ``` bash
-  git clone https://github.com/[your_username]/bucky.git
+  git clone https://github.com/[your_username]/bucky.git -b [branch_name]
   cd bucky
   ```
 * Add the original version of the repository as an "upstream" source:
