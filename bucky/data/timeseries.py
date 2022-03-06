@@ -1,5 +1,5 @@
 import datetime
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field, fields, replace
 from typing import Dict, Optional, Tuple
 
 import numpy as np
@@ -87,6 +87,9 @@ class SpatialStratifiedTimeseries:
             ret[out_name] = var_full_hist[date_mask]
 
         return ret
+
+    def replace(self, **changes):
+        return replace(self, **changes)
 
     def sum_adm_level(self, level: int):
         # TODO masking, weighting?
