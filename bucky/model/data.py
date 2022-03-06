@@ -78,10 +78,6 @@ class buckyData:
             force_enddate_dow=force_historical_end_dow,
         )
 
-        self.start_date = (
-            self.raw_csse_data.end_date
-        )  # TODO rename to sim_start_date or something... (also it doesnt really belong here...)
-
         # HHS hospitalizations
         hhs_file = data_dir / "hhs_timeseries.csv"
         self.raw_hhs_data = HHSData.from_csv(hhs_file, n_days=self.n_hist, force_enddate_dow=force_historical_end_dow)

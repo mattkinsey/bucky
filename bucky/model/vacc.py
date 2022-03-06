@@ -13,9 +13,8 @@ class buckyVaccAlloc:
     """Class managing all the vaccine rollout related estimates."""
 
     @sync_numerical_libs
-    def __init__(self, g_data, cfg, scen_params=None):
+    def __init__(self, g_data, cfg, first_date, scen_params=None):
         """Initialize."""
-        first_date = g_data.start_date
         end_t = cfg["runtime.t_max"]
         self.flags = cfg["model.flags"]
 

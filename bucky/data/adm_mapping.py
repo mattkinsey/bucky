@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
+import numpy as np
 from loguru import logger
 
 from .._typing import ArrayLike, PathLike
@@ -40,9 +41,14 @@ class AdminLevelMapping:
     def __repr__(self) -> str:
         return f"adm0 '{self.adm0}' containing {len(self.uniq_adm1_ids)} adm1 regions and {len(self.adm2_ids)} adm2 regions"
 
+    @sync_numerical_libs
     def to_csv(self, filename: PathLike):
         # For writing the mapping to the csv in the output metadata
-        raise NotImplementedError
+        adm2_ids = xp.to_cpu(self.adm2_ids)
+        adm1_ids = xp.to_cpu(self.adm1_ids)
+        adm0_ids = np.broadcast_to(self.adm0, adm2_ids.shape)
+        adm_map_table = np.stack([adm2_ids, adm1_ids, adm0_ids]).T
+        np.savetxt(filename, adm_map_table, header="adm2,adm1,adm0", comments="", delimiter=",", fmt="%s")
 
     @property
     def n_adm1(self):

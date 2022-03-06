@@ -56,12 +56,10 @@ class buckyModelCovid:
         self.disable_npi = disable_npi
         self.reject_runs = reject_runs
 
-        self.output_dates = None  # TODO make a property and lru_cache(1)
-
         self.g_data = self.load_data(cfg["system.data_dir"])
 
         self.writer = BuckyOutputWriter(cfg["system.raw_output_dir"], self.run_id)
-        self.writer.write_metadata(self.g_data, self.t_max)
+        self.writer.write_metadata(self.g_data.adm_mapping, self.projected_dates)
 
     '''
     def update_params(self, update_dict):
@@ -78,6 +76,11 @@ class buckyModelCovid:
         # TODO we should go through an replace lots of math using self.g_data.* with function IN buckyData
         # TODO rename g_data
         g_data = buckyData(data_dir=data_dir, force_diag_Aij=True)
+
+        self.sim_start_date = g_data.csse_data.end_date
+        self.projected_dates = [
+            str(self.sim_start_date + datetime.timedelta(days=int(np.round(t)))) for t in range(self.t_max + 1)
+        ]
 
         # Make contact mats sym and normalized (move to g_data)
         self.contact_mats = g_data.Cij
@@ -105,21 +108,20 @@ class buckyModelCovid:
         # Get pull some frequently used vars into out scope (stratified population, etc)
         self.Nij = g_data.Nij
         self.Nj = g_data.Nj
-        self.init_date = g_data.start_date
 
-        self.base_mc_instance = buckyMCInstance(self.init_date, self.t_max, self.Nij, self.Cij)
+        self.base_mc_instance = buckyMCInstance(self.sim_start_date, self.t_max, self.Nij, self.Cij)
 
         # fill in npi_params either from file or as ones
-        self.npi_params = get_npi_params(g_data, self.init_date, self.t_max, self.npi_file, self.disable_npi)
+        self.npi_params = get_npi_params(g_data, self.sim_start_date, self.t_max, self.npi_file, self.disable_npi)
 
         if self.npi_params["npi_active"]:
             self.base_mc_instance.add_npi(self.npi_params)
 
         if self.flags["vaccines"]:
             if SCENARIO_HUB:
-                self.vacc_data = buckyVaccAlloc(g_data, self.cfg, scen_params)
+                self.vacc_data = buckyVaccAlloc(g_data, self.cfg, self.sim_start_date, scen_params)
             else:
-                self.vacc_data = buckyVaccAlloc(g_data, self.cfg)
+                self.vacc_data = buckyVaccAlloc(g_data, self.cfg, self.sim_start_date)
             self.base_mc_instance.add_vacc(self.vacc_data)
         return g_data
 
@@ -530,12 +532,7 @@ class buckyModelCovid:
             mc_data["adm2_id"] = adm2_ids
 
         if "date" in columns:
-            if self.output_dates is None:
-                t_output = xp.to_cpu(sol.t)
-                dates = [str(self.init_date + datetime.timedelta(days=np.round(t))) for t in t_output]
-                self.output_dates = dates
-
-            mc_data["date"] = np.broadcast_to(np.arange(len(self.output_dates)), out.state.shape[1:])
+            mc_data["date"] = np.broadcast_to(np.arange(len(self.projected_dates)), out.state.shape[1:])
 
         if "rid" in columns:
             mc_data["rid"] = np.broadcast_to(seed, out.state.shape[1:])

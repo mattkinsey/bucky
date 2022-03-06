@@ -50,22 +50,17 @@ class BuckyOutputWriter:
             self.write_thread = AsyncQueueThread(write_parquet_dataset, pre_func=init_write_thread, data_dir=data_dir)
 
     @sync_numerical_libs
-    def write_metadata(self, g_data, t_max):
+    def write_metadata(self, adm_mapping, str_dates):
         """Write metadata to output dir."""
         metadata_dir = self.output_dir / "metadata"
         metadata_dir.mkdir(exist_ok=True)
 
         # write out adm level mappings
         adm_map_file = metadata_dir / "adm_mapping.csv"
-        adm2_ids = xp.to_cpu(g_data.adm2_id)
-        adm1_ids = xp.to_cpu(g_data.adm1_id)
-        adm0_ids = np.broadcast_to(g_data.adm0_name, adm2_ids.shape)
-        adm_map_table = np.stack([adm2_ids, adm1_ids, adm0_ids]).T
-        np.savetxt(adm_map_file, adm_map_table, header="adm2,adm1,adm0", comments="", delimiter=",", fmt="%s")
+        adm_mapping.to_csv(adm_map_file)
 
         # write out dates
         date_file = metadata_dir / "dates.csv"
-        str_dates = [str(g_data.start_date + datetime.timedelta(days=int(np.round(t)))) for t in range(t_max + 1)]
         np.savetxt(date_file, str_dates, header="date", comments="", delimiter=",", fmt="%s")
 
     def write_mc_data(self, data_dict):
