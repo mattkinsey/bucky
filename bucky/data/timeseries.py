@@ -152,6 +152,16 @@ def _mask_date_range(
 class CSSEData(SpatialStratifiedTimeseries):
     cumulative_cases: ArrayLike = field(metadata={"validate_shape": True, "summable": True})
     cumulative_deaths: ArrayLike = field(metadata={"validate_shape": True, "summable": True})
+    incident_cases: ArrayLike = field(default=None, metadata={"validate_shape": True, "summable": True})
+    incident_deaths: ArrayLike = field(default=None, metadata={"validate_shape": True, "summable": True})
+
+    def __post_init__(self):
+        if self.incident_cases is None:
+            object.__setattr__(self, "incident_cases", xp.gradient(self.cumulative_cases, axis=0, edge_order=2))
+        if self.incident_deaths is None:
+            object.__setattr__(self, "incident_deaths", xp.gradient(self.cumulative_cases, axis=0, edge_order=2))
+
+        super().__post_init__()
 
     @staticmethod
     def from_csv(
