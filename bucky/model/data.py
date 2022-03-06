@@ -170,23 +170,6 @@ class buckyData:
         """Total adm1 populations."""
         return self.sum_adm1(self.Nj)
 
-    # TODO these 4 are temporary until we fix everywhere they are used instead of csse_data
-    @cached_property
-    def cum_death_hist(self):
-        return self.csse_data.cumulative_deaths
-
-    @cached_property
-    def inc_death_hist(self):
-        return self.csse_data.incident_deaths
-
-    @cached_property
-    def cum_case_hist(self):
-        return self.csse_data.cumulative_cases
-
-    @cached_property
-    def inc_case_hist(self):
-        return self.csse_data.incident_cases
-
     # adm1 rollups of historical data
     @cached_property
     def adm1_cum_case_hist(self):
