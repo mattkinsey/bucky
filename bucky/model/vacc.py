@@ -107,7 +107,7 @@ class buckyVaccAlloc:
         states_following_acip = [1, 26, 27, 32, 42, 47, 55]
         for adm1 in states_following_acip:
             # TODO this depends on the fact that both Nij and phase_demos are sorted by fips
-            adm1_mask = g_data.adm1_id == adm1
+            adm1_mask = g_data.adm_mapping.actual_adm1_ids == adm1
             tmp[:, adm1_mask] = phase_demos[adm1]
         tmp = xp.clip(tmp.T / (g_data.Nij[..., None] + 1.0), a_min=-1.0, a_max=1.0)
         mean_acip_demos = xp.mean(tmp[:, (tmp >= 0).all((0, 2)), :], axis=1)

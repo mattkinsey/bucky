@@ -26,8 +26,8 @@ def estimate_crr(g_data, case_to_death_lag, ifr, days_back=14, case_lag=None, mi
         case_lag = xp.sum(case_to_death_lag * adm0_cfr_by_age / adm0_cfr_total, axis=0)
 
     case_lag_int = int(case_lag)
-    recent_cum_cases = g_data.cum_case_hist - g_data.cum_case_hist[0]
-    recent_cum_deaths = g_data.cum_death_hist - g_data.cum_death_hist[0]
+    recent_cum_cases = g_data.csse_data.cumulative_cases - g_data.csse_data.cumulative_cases[0]
+    recent_cum_deaths = g_data.csse_data.cumulative_deaths - g_data.csse_data.cumulative_deaths[0]
     case_lag_frac = case_lag % 1  # TODO replace with util function for the indexing
     cases_lagged = frac_last_n_vals(recent_cum_cases, days_back + case_lag_frac, offset=case_lag_int)
     if case_lag_frac:

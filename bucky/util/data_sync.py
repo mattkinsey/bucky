@@ -2,7 +2,6 @@ import functools
 import hashlib
 import io
 import multiprocessing
-import shutil
 import subprocess  # noqa: S404
 import urllib.request
 import zipfile
@@ -10,7 +9,6 @@ from collections import OrderedDict
 from importlib import resources
 from pathlib import Path
 
-from IPython import embed
 from loguru import logger
 
 from .import_by_name import import_by_name
@@ -55,6 +53,7 @@ def _exec_shell_cmd(cmd, cwd=None):
             ex.stdout,
             ex.stderr,
         )
+        # reraise exception, wrap it and toss to a general bucky exception catcher?
 
 
 def _git_clone(url, local_name, abs_path, bare=False, depth=1, tag=None):
