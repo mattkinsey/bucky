@@ -203,6 +203,8 @@ def clean_historical_data(csse_data, hhs_data, adm_mapping, force_save_plots=Fal
     spline_inc_deaths = power_transform2.inv(spline_inc_deaths)
     spline_inc_hosp = power_transform3.inv(spline_inc_hosp)
 
+    # TODO ret data only exists to get passed to the plot, replace it with the fitted_* varaibles
+    # No need to BuckyFittedData to exist then
     ret_data = {
         "cumulative_cases": spline_cum_cases,
         "cumulative_deaths": spline_cum_deaths,
@@ -211,15 +213,25 @@ def clean_historical_data(csse_data, hhs_data, adm_mapping, force_save_plots=Fal
         "incident_hospitalizations": spline_inc_hosp,
     }
 
+    fitted_csse_data = csse_data.replace(
+        **{
+            "cumulative_cases": spline_cum_cases.T,
+            "cumulative_deaths": spline_cum_deaths.T,
+            "incident_cases": spline_inc_cases.T,
+            "incident_deaths": spline_inc_deaths.T,
+        },
+    )
+
+    fitted_hhs_data = hhs_data.replace(incident_hospitalizations=spline_inc_hosp.T)
+
     # Only plot if the fits arent in the cache already
     # TODO this wont update if doing a historical run thats already cached
     save_plots = (not all_cached) or force_save_plots
 
-    save_plots = True
     if save_plots:
         plot_historical_fits(csse_data, hhs_data, adm_mapping, ret_data, valid_adm1_case_mask, valid_adm1_death_mask)
 
-    return ret_data
+    return fitted_csse_data, fitted_hhs_data
 
 
 def plot_historical_fits(csse_data, hhs_data, adm_mapping, fitted_data, valid_adm1_case_mask, valid_adm1_death_mask):
