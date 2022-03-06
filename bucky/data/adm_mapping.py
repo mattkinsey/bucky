@@ -7,6 +7,7 @@ from .._typing import ArrayLike, PathLike
 from ..numerical_libs import sync_numerical_libs, xp
 
 
+# TODO allow initing with just adm1_ids (and make adm0 name optional?)
 @dataclass(frozen=True)
 class AdminLevelMapping:
     adm0: str
@@ -40,4 +41,9 @@ class AdminLevelMapping:
         return f"adm0 '{self.adm0}' containing {len(self.uniq_adm1_ids)} adm1 regions and {len(self.adm2_ids)} adm2 regions"
 
     def to_csv(self, filename: PathLike):
+        # For writing the mapping to the csv in the output metadata
         raise NotImplementedError
+
+    @property
+    def n_adm1(self):
+        return len(self.uniq_adm1_ids)

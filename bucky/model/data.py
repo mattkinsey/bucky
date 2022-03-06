@@ -65,32 +65,29 @@ class buckyData:
         self.adm1_id = self.adm2_id // 1000
         self.adm0_name = "US"
 
-        self.max_adm2 = xp.to_cpu(xp.max(self.adm2_id))
-        self.max_adm1 = xp.to_cpu(xp.max(self.adm1_id))
-
         self.adm_mapping = AdminLevelMapping(adm0="US", adm2_ids=self.adm2_id)
+
+        # TODO need to remove these but ALOT of other code is still using this old way w/ sum_adm1
+        self.max_adm1 = self.adm_mapping.n_adm1 - 1  # TODO remove (other things need this atm)
+        # self.adm1_id = self.adm_mapping.adm1_ids
 
         # make adj mat obj
         self.Aij = buckyAij(n_nodes=self.Nij.shape[1], force_diag=force_diag_Aij)
 
         # CSSE case/death data
         csse_file = data_dir / "csse_timeseries.csv"
-        csse_data = CSSEData.from_csv(csse_file, n_days=self.n_hist, force_enddate_dow=force_historical_end_dow)
+        self.raw_csse_data = CSSEData.from_csv(
+            csse_file,
+            n_days=self.n_hist,
+            force_enddate_dow=force_historical_end_dow,
+        )
 
         # TODO make these propeties that read form either csse_data of the fitted_data
-        self.start_date = csse_data.end_date  # TODO rename to sim_start_date or something...
-        # self.cum_case_hist = csse_data.cumulative_cases
-        # self.cum_death_hist = csse_data.cumulative_deaths
+        self.start_date = self.raw_csse_data.end_date  # TODO rename to sim_start_date or something...
 
         # HHS hospitalizations
         hhs_file = data_dir / "hhs_timeseries.csv"
-        hhs_data = HHSData.from_csv(hhs_file, n_days=self.n_hist, force_enddate_dow=force_historical_end_dow)
-
-        # TODO make properties...
-        self.adm1_curr_hosp_hist = xp.empty((self.n_hist, self.max_adm1 + 1))
-        # self.adm1_inc_hosp_hist = xp.empty((self.n_hist, self.max_adm1 + 1))
-        self.adm1_curr_hosp_hist[:, hhs_data.adm_ids] = hhs_data.current_hospitalizations
-        # self.adm1_inc_hosp_hist[:, hhs_data.adm_ids] = hhs_data.incident_hospitalizations
+        self.raw_hhs_data = HHSData.from_csv(hhs_file, n_days=self.n_hist, force_enddate_dow=force_historical_end_dow)
 
         # Prem contact matrices
         logger.debug("Loading Prem et al. matrices from {}", data_dir / "prem_matrices.csv")
@@ -102,26 +99,16 @@ class buckyData:
         self.Cij = {loc: xp.array(g_df.values).reshape(16, 16) for loc, g_df in prem_df.groupby("location")}
 
         logger.debug("Fitting GAM to historical timeseries")
-        tmp = clean_historical_data(csse_data, hhs_data, self.adm_mapping)
+        self.csse_data, self.hhs_data = clean_historical_data(self.raw_csse_data, self.raw_hhs_data, self.adm_mapping)
 
-        (
-            clean_cum_cases,
-            clean_cum_deaths,
-            clean_inc_cases,
-            clean_inc_deaths,
-            clean_inc_hosp,
-        ) = self.clean_historical_data(
-            self.cum_case_hist.T,
-            self.cum_death_hist.T,
-            self.adm1_inc_hosp_hist.T,
-            self.start_date,
-            self,
-        )
-        self.cum_case_hist = clean_cum_cases.T
-        self.cum_death_hist = clean_cum_deaths.T
-        self.inc_case_hist = clean_inc_cases.T
-        self.inc_death_hist = clean_inc_deaths.T
-        self.adm1_inc_hosp_hist = clean_inc_hosp.T
+        # TODO remove once we switch everything over to hhs_data
+        self.adm1_curr_hosp_hist = xp.empty((self.n_hist, self.max_adm1 + 1))
+        self.adm1_inc_hosp_hist = xp.empty((self.n_hist, self.max_adm1 + 1))
+        self.adm1_curr_hosp_hist[:, self.raw_hhs_data.adm_ids] = self.raw_hhs_data.current_hospitalizations
+        self.adm1_inc_hosp_hist[:, self.hhs_data.adm_ids] = self.hhs_data.incident_hospitalizations
+
+        # TODO need to remove this but ALOT of other code is still using this old way w/ sum_adm1
+        self.max_adm1 = self.adm_mapping.n_adm1 - 1  # TODO remove (other things need this atm)
 
     # TODO maybe provide a decorator or take a lambda or something to generalize it?
     # also this would be good if it supported rolling up to adm0 for multiple countries
@@ -135,12 +122,15 @@ class buckyData:
         # TODO should take an axis argument and handle reshape, then remove all the transposes floating around
         # TODO we should use xp.unique(return_inverse=True) to compress these rather than
         #  allocing all the adm1 ids that dont exist, see the new postprocess
-        shp = (self.max_adm1 + 1,) + adm2_arr.shape[1:]
+        # shp = (self.max_adm1 + 1,) + adm2_arr.shape[1:]
+        shp = (self.adm_mapping.n_adm1,) + adm2_arr.shape[1:]
         out = xp.zeros(shp, dtype=adm2_arr.dtype)
         if mask is None:
-            adm1_ids = self.adm1_id
+            # adm1_ids = self.adm1_id
+            adm1_ids = self.adm_mapping.adm1_ids
         else:
-            adm1_ids = self.adm1_id[mask]
+            adm1_ids = self.adm_mapping.adm1_ids[mask]
+            # adm1_ids = self.adm1_id[mask]
             # adm2_arr = adm2_arr[mask]
         if cache:
             out = cached_scatter_add(out, adm1_ids, adm2_arr)
@@ -186,6 +176,23 @@ class buckyData:
     def adm1_Nj(self):
         """Total adm1 populations."""
         return self.sum_adm1(self.Nj)
+
+    # TODO these 4 are temporary until we fix everywhere they are used instead of csse_data
+    @cached_property
+    def cum_death_hist(self):
+        return self.csse_data.cumulative_deaths
+
+    @cached_property
+    def inc_death_hist(self):
+        return self.csse_data.incident_deaths
+
+    @cached_property
+    def cum_case_hist(self):
+        return self.csse_data.cumulative_cases
+
+    @cached_property
+    def inc_case_hist(self):
+        return self.csse_data.incident_cases
 
     # adm1 rollups of historical data
     @cached_property
