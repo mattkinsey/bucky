@@ -67,10 +67,6 @@ class buckyData:
 
         self.adm_mapping = AdminLevelMapping(adm0="US", adm2_ids=self.adm2_id)
 
-        # TODO need to remove these but ALOT of other code is still using this old way w/ sum_adm1
-        self.max_adm1 = self.adm_mapping.n_adm1 - 1  # TODO remove (other things need this atm)
-        # self.adm1_id = self.adm_mapping.adm1_ids
-
         # make adj mat obj
         self.Aij = buckyAij(n_nodes=self.Nij.shape[1], force_diag=force_diag_Aij)
 
@@ -82,8 +78,9 @@ class buckyData:
             force_enddate_dow=force_historical_end_dow,
         )
 
-        # TODO make these propeties that read form either csse_data of the fitted_data
-        self.start_date = self.raw_csse_data.end_date  # TODO rename to sim_start_date or something...
+        self.start_date = (
+            self.raw_csse_data.end_date
+        )  # TODO rename to sim_start_date or something... (also it doesnt really belong here...)
 
         # HHS hospitalizations
         hhs_file = data_dir / "hhs_timeseries.csv"
@@ -101,14 +98,14 @@ class buckyData:
         logger.debug("Fitting GAM to historical timeseries")
         self.csse_data, self.hhs_data = clean_historical_data(self.raw_csse_data, self.raw_hhs_data, self.adm_mapping)
 
+        # TODO need to remove this but ALOT of other code is still using this old way w/ sum_adm1
+        self.max_adm1 = self.adm_mapping.n_adm1 - 1  # TODO remove (other things need this atm)
+
         # TODO remove once we switch everything over to hhs_data
         self.adm1_curr_hosp_hist = xp.empty((self.n_hist, self.max_adm1 + 1))
         self.adm1_inc_hosp_hist = xp.empty((self.n_hist, self.max_adm1 + 1))
         self.adm1_curr_hosp_hist[:, self.raw_hhs_data.adm_ids] = self.raw_hhs_data.current_hospitalizations
         self.adm1_inc_hosp_hist[:, self.hhs_data.adm_ids] = self.hhs_data.incident_hospitalizations
-
-        # TODO need to remove this but ALOT of other code is still using this old way w/ sum_adm1
-        self.max_adm1 = self.adm_mapping.n_adm1 - 1  # TODO remove (other things need this atm)
 
     # TODO maybe provide a decorator or take a lambda or something to generalize it?
     # also this would be good if it supported rolling up to adm0 for multiple countries
