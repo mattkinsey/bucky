@@ -232,7 +232,7 @@ class buckyModelCovid:
         yy = buckyState(self.cfg["model.structure"], self.Nij)
 
         # Ti = self.params.Ti
-        current_I = xp.sum(frac_last_n_vals(self.g_data.inc_case_hist, epi_params["Ti"], axis=0), axis=0)
+        current_I = xp.sum(frac_last_n_vals(self.g_data.csse_data.incident_cases, epi_params["Ti"], axis=0), axis=0)
 
         current_I[xp.isnan(current_I)] = 0.0
         current_I[current_I < 0.0] = 0.0
@@ -249,8 +249,8 @@ class buckyModelCovid:
 
         age_dist_fac = self.g_data.Nij / self.g_data.Nj[None, ...]
         I_init = E_fac * current_I[None, :] * S_age_dist / self.Nij
-        D_init = self.g_data.cum_death_hist[-1][None, :] * age_dist_fac / self.Nij
-        recovered_init = (self.g_data.cum_case_hist[-1] / epi_params["SYM_FRAC"]) * R_fac
+        D_init = self.g_data.csse_data.cumulative_deaths[-1][None, :] * age_dist_fac / self.Nij
+        recovered_init = (self.g_data.csse_data.cumulative_cases[-1] / epi_params["SYM_FRAC"]) * R_fac
         R_init = (
             (recovered_init) * age_dist_fac / self.Nij - D_init - I_init / epi_params["SYM_FRAC"]
         )  # Rh is factored in later
@@ -322,11 +322,11 @@ class buckyModelCovid:
             adm2_chr_delay_int = adm2_chr_delay.astype(int)  # TODO temp, this should be a distribution of floats
             adm2_chr_delay_mod = adm2_chr_delay % 1
             inc_case_h_delay = (1.0 - adm2_chr_delay_mod) * xp.take_along_axis(
-                self.g_data.inc_case_hist,
+                self.g_data.csse_data.incident_cases,
                 -adm2_chr_delay_int[None, :],
                 axis=0,
             )[0] + adm2_chr_delay_mod * xp.take_along_axis(
-                self.g_data.inc_case_hist,
+                self.g_data.csse_data.incident_cases,
                 -adm2_chr_delay_int[None, :] - 1,
                 axis=0,
             )[
@@ -370,7 +370,9 @@ class buckyModelCovid:
         # init the bin we're using to track incident cases
         # (it's filled with cumulatives until we diff it later)
         # TODO should this come from the rolling hist?
-        yy.incC = xp.clip(self.g_data.cum_case_hist[-1][None, :], a_min=0.0, a_max=None) * S_age_dist / self.Nij
+        yy.incC = (
+            xp.clip(self.g_data.csse_data.cumulative_cases[-1][None, :], a_min=0.0, a_max=None) * S_age_dist / self.Nij
+        )
 
         # Sanity check state vector
         yy.validate_state()
@@ -552,7 +554,7 @@ class buckyModelCovid:
 
             if self.reject_runs:
                 init_inc_death_mean = xp.mean(xp.sum(daily_deaths[:, 1:4], axis=0))
-                hist_inc_death_mean = xp.mean(xp.sum(self.g_data.inc_death_hist[-7:], axis=-1))
+                hist_inc_death_mean = xp.mean(xp.sum(self.g_data.csse_data.incident_deaths[-7:], axis=-1))
 
                 inc_death_rejection_fac = 2.0  # TODO These should come from the cli arg -r
                 if (init_inc_death_mean > inc_death_rejection_fac * hist_inc_death_mean) or (
@@ -566,7 +568,7 @@ class buckyModelCovid:
 
             if self.reject_runs:
                 init_inc_case_mean = xp.mean(xp.sum(daily_reported_cases[:, 1:4], axis=0))
-                hist_inc_case_mean = xp.mean(xp.sum(self.g_data.inc_case_hist[-7:], axis=-1))
+                hist_inc_case_mean = xp.mean(xp.sum(self.g_data.csse_data.incident_cases[-7:], axis=-1))
 
                 inc_case_rejection_fac = 1.5  # TODO These should come from the cli arg -r
                 if (init_inc_case_mean > inc_case_rejection_fac * hist_inc_case_mean) or (

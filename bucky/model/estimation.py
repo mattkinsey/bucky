@@ -112,7 +112,7 @@ def estimate_chr(
     adm2_mean = xp.sum(S_age_dist * mean[..., None], axis=0)
     k = Rh_gamma_k
 
-    rolling_case_hist = g_data.inc_case_hist
+    rolling_case_hist = g_data.csse_data.incident_cases
     rolling_hosp_hist = g_data.adm1_inc_hosp_hist
 
     t_max = rolling_case_hist.shape[0]
@@ -182,8 +182,8 @@ def estimate_cfr(
     adm2_mean = xp.sum(S_age_dist * mean[..., None], axis=0)
     k = Rh_gamma_k
 
-    rolling_case_hist = g_data.inc_case_hist
-    rolling_death_hist = g_data.inc_death_hist
+    rolling_case_hist = g_data.csse_data.incident_cases
+    rolling_death_hist = g_data.csse_data.incident_deaths
 
     t_max = rolling_case_hist.shape[0]
     x = xp.arange(0.0, t_max)
@@ -251,7 +251,7 @@ def estimate_Rt(
 ):
     """Estimate R_t from the recent case data."""
 
-    rolling_case_hist = g_data.inc_case_hist[-case_reporting.shape[0] :] / case_reporting
+    rolling_case_hist = g_data.csse_data.incident_cases[-case_reporting.shape[0] :] / case_reporting
 
     rolling_case_hist = xp.clip(rolling_case_hist, a_min=0.0, a_max=None)
 
