@@ -27,7 +27,7 @@ def clean_historical_data(csse_data, hhs_data, adm_mapping, force_save_plots=Fal
     """Preprocess the historical data to smooth it and remove outliers."""
 
     n_hist = csse_data.n_days
-    csse_adm1 = csse_data.sum_adm_level(1, adm_mapping)
+    csse_adm1 = csse_data.sum_adm_level(level=1)
 
     adm1_case_hist = csse_adm1.cumulative_cases
     adm1_death_hist = csse_adm1.cumulative_deaths
@@ -242,7 +242,7 @@ def plot_historical_fits(csse_data, hhs_data, adm_mapping, fitted_data, valid_ad
     out_dir.mkdir(parents=True, exist_ok=True)
     out_dir.touch(exist_ok=True)  # update mtime
 
-    csse_adm1 = csse_data.sum_adm_level(1, adm_mapping)
+    csse_adm1 = csse_data.sum_adm_level(level=1)
 
     raw_diff_cases = xp.gradient(csse_adm1.cumulative_cases, axis=0, edge_order=2)
     raw_diff_deaths = xp.gradient(csse_adm1.cumulative_deaths, axis=0, edge_order=2)
@@ -257,7 +257,7 @@ def plot_historical_fits(csse_data, hhs_data, adm_mapping, fitted_data, valid_ad
         fitted_data["incident_deaths"].T,
     )
 
-    fitted_adm1 = fitted_datac.sum_adm_level(1, adm_mapping)
+    fitted_adm1 = fitted_datac.sum_adm_level(level=1)
     # embed()
 
     fips_map = us.states.mapping("fips", "abbr")

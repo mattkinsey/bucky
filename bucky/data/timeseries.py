@@ -19,6 +19,7 @@ class SpatialStratifiedTimeseries:
     adm_level: int
     adm_ids: ArrayLike
     dates: ArrayLike  # TODO cupy cant handle this...
+    adm_mapping: AdminLevelMapping = field(init=False)
 
     def __post_init__(self):
         valid_shape = self.dates.shape + self.adm_ids.shape
@@ -28,6 +29,10 @@ class SpatialStratifiedTimeseries:
                 if field_shape != valid_shape:
                     logger.error("Invalid timeseries shape {}; expected {}.", field_shape, valid_shape)
                     raise ValueError
+
+        # TODO handle other adm levels
+        if self.adm_level == 2:
+            object.__setattr__(self, "adm_mapping", AdminLevelMapping(adm0="US", adm2_ids=self.adm_ids))
 
     def __repr__(self) -> str:
         names = [f.name for f in fields(self) if f.name not in ["adm_ids", "dates"]]
@@ -83,7 +88,7 @@ class SpatialStratifiedTimeseries:
 
         return ret
 
-    def sum_adm_level(self, level: int, adm_map: AdminLevelMapping):
+    def sum_adm_level(self, level: int):
         # TODO masking, weighting?
         if level > self.adm_level:
             logger.error("Requested sum to finer adm level than the data.")
@@ -93,8 +98,8 @@ class SpatialStratifiedTimeseries:
             return self
 
         if level == 1:
-            out_id_map = adm_map.adm1_ids
-            new_ids = adm_map.uniq_adm1_ids
+            out_id_map = self.adm_mapping.adm1_ids
+            new_ids = self.adm_mapping.uniq_adm1_ids
         elif level == 0:
             out_id_map = xp.ones(self.adm_ids.shape, dtype=int)
             new_ids = xp.zeros((1,))
