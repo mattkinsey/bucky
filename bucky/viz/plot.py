@@ -81,7 +81,7 @@ parser.add_argument(
 )
 
 # Pass in the minimum number of historical data points to plot
-parser.add_argument("--min_hist", default=0, type=int, help="Minimum number of historical data points to plot.")
+parser.add_argument("--min_hist", default=28, type=int, help="Minimum number of historical data points to plot.")
 
 # Pass in a specific historical start date and historical file
 parser.add_argument(
@@ -111,7 +111,8 @@ parser.add_argument(
 parser.add_argument(
     "-hist",
     "--hist",
-    action="store_true",
+    default=True,  # TODO this should be a flag to disable hist I think (we almost always want it...)
+    # action="store_true",
     help="Plot historical data in addition to simulation data",
 )
 
