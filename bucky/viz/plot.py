@@ -5,6 +5,7 @@ import logging
 import multiprocessing
 import os
 import sys
+from pathlib import Path
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -12,6 +13,7 @@ import matplotlib.pyplot as plt
 matplotlib.use("Agg")
 import pandas as pd
 import tqdm
+import us
 
 from .geoid import read_geoid_from_graph, read_lookup
 from .get_historical_data import get_historical_data
@@ -47,15 +49,6 @@ parser.add_argument(
     default=None,
     type=str,
     help="Output directory for plots. Defaults to input_dir/plots/",
-)
-
-# Graph file used for this run. Defaults to most recently created
-parser.add_argument(
-    "-g",
-    "--graph_file",
-    default=None,
-    type=str,
-    help="Graph file used during model. Defaults to most recently created graph",
 )
 
 # Aggregation levels, e.g. state, county, etc.
@@ -690,7 +683,12 @@ def main(args=None):
     if args.lookup is not None:
         lookup_table = read_lookup(args.lookup)
     else:
-        lookup_table = read_geoid_from_graph(args.graph_file)
+        adm_mapping_file = Path(input_dir) / "metadata" / "adm_mapping.csv"
+        adm1_name_map = us.states.mapping("fips", "name")
+        adm_mapping_df = pd.read_csv(adm_mapping_file)
+        adm_mapping_df["adm1_name"] = adm_mapping_df["adm1"].astype(str).str.zfill(2).map(adm1_name_map)
+        adm_mapping_df["adm0_name"] = us.name
+        lookup_table = adm_mapping_df
 
     # Historical data start
     hist_start_date = args.hist_start
