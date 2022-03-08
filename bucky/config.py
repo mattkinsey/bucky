@@ -113,6 +113,7 @@ class BuckyConfig(NestedDict):
         # TODO move
         x_bins_new = xp.array(x_bins_new)
         x_bins = xp.array(x_bins)
+        y = xp.array(y)
         if (x_bins_new.shape != x_bins.shape) or xp.any(x_bins_new != x_bins):
             x_mean_new = xp.mean(x_bins_new, axis=1)
             x_mean = xp.mean(x_bins, axis=1)
@@ -121,11 +122,25 @@ class BuckyConfig(NestedDict):
 
     @sync_numerical_libs
     def interp_age_bins(self):
-        def _interp_one(d):
+        def _interp_values_one(d):
             d["value"] = self._age_interp(self["model.structure.age_bins"], d.pop("age_bins"), d["value"])
             return d
 
-        ret = self.apply(_interp_one, contains_filter=["age_bins", "value"])
+        def _interp_dists_one(d):
+            bins = d.pop("age_bins")
+            if "loc" in d["distribution"]:
+                d["distribution.loc"] = self._age_interp(self["model.structure.age_bins"], bins, d["distribution.loc"])
+            if "scale" in d["distribution"]:
+                d["distribution.scale"] = self._age_interp(
+                    self["model.structure.age_bins"],
+                    bins,
+                    d["distribution.scale"],
+                )
+            return d
+
+        self._to_arrays()
+        ret = self.apply(_interp_values_one, contains_filter=["age_bins", "value"])
+        ret = ret.apply(_interp_dists_one, contains_filter=["age_bins", "distribution"])
         return ret
 
     def promote_sampled_values(self):
@@ -169,7 +184,7 @@ class BuckyConfig(NestedDict):
 
         # self._to_arrays()
         ret = self._set_default_variances(copy=True)
-        # ret = ret._interp_age_bins()
+        ret = ret.interp_age_bins()
         ret = ret.apply(_sample_distribution, contains_filter="distribution")
         ret = ret.interp_age_bins()
         ret = ret.promote_sampled_values()
