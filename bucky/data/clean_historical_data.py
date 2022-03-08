@@ -270,7 +270,6 @@ def plot_historical_fits(csse_data, hhs_data, adm_mapping, fitted_data, valid_ad
     )
 
     fitted_adm1 = fitted_datac.sum_adm_level(level=1)
-    # embed()
 
     fips_map = us.states.mapping("fips", "abbr")
 

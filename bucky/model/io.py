@@ -50,7 +50,7 @@ class BuckyOutputWriter:
             self.write_thread = AsyncQueueThread(write_parquet_dataset, pre_func=init_write_thread, data_dir=data_dir)
 
     @sync_numerical_libs
-    def write_metadata(self, adm_mapping, str_dates):
+    def write_metadata(self, adm_mapping, str_dates, fitted_timeseries=None):
         """Write metadata to output dir."""
         metadata_dir = self.output_dir / "metadata"
         metadata_dir.mkdir(exist_ok=True)
@@ -62,6 +62,11 @@ class BuckyOutputWriter:
         # write out dates
         date_file = metadata_dir / "dates.csv"
         np.savetxt(date_file, str_dates, header="date", comments="", delimiter=",", fmt="%s")
+
+        if fitted_timeseries is not None:
+            for name, ts in fitted_timeseries.items():
+                ts_file = metadata_dir / (name + ".csv")
+                ts.to_csv(ts_file)
 
     def write_mc_data(self, data_dict):
         """Write the data from one MC to the output dir."""

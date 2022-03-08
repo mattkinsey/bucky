@@ -59,7 +59,11 @@ class buckyModelCovid:
         self.g_data = self.load_data(cfg["system.data_dir"])
 
         self.writer = BuckyOutputWriter(cfg["system.raw_output_dir"], self.run_id)
-        self.writer.write_metadata(self.g_data.adm_mapping, self.projected_dates)
+        self.writer.write_metadata(
+            self.g_data.adm_mapping,
+            self.projected_dates,
+            {"csse_fitted_timeseries": self.g_data.csse_data, "hhs_fitted_timeseries": self.g_data.hhs_data},
+        )
 
     '''
     def update_params(self, update_dict):

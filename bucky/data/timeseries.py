@@ -88,6 +88,22 @@ class SpatialStratifiedTimeseries:
 
         return ret
 
+    def to_csv(self, filename):
+        # TODO log
+        output_dfs = {}
+        for f in fields(self):
+            if "validate_shape" in f.metadata:
+                col_name = f.name
+                data = getattr(self, f.name)
+                col_df = pd.DataFrame(
+                    xp.to_cpu(data),
+                    index=xp.to_cpu(self.dates),
+                    columns=xp.to_cpu(self.adm_ids),
+                ).stack()
+                output_dfs[col_name] = col_df
+
+        pd.DataFrame(output_dfs).to_csv(filename, index_label=("date", "adm" + str(self.adm_level)))
+
     def replace(self, **changes):
         return replace(self, **changes)
 
