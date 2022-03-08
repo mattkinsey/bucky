@@ -45,7 +45,7 @@ class AdminLevelMapping:
     def to_csv(self, filename: PathLike):
         # For writing the mapping to the csv in the output metadata
         adm2_ids = xp.to_cpu(self.adm2_ids)
-        adm1_ids = xp.to_cpu(self.adm1_ids)
+        adm1_ids = xp.to_cpu(self.actual_adm1_ids)
         adm0_ids = np.broadcast_to(self.adm0, adm2_ids.shape)
         adm_map_table = np.stack([adm2_ids, adm1_ids, adm0_ids]).T
         np.savetxt(filename, adm_map_table, header="adm2,adm1,adm0", comments="", delimiter=",", fmt="%s")
