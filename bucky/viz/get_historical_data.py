@@ -8,8 +8,8 @@ import pandas as pd
 from .read_config import bucky_cfg
 
 covid_tracking = os.path.join(bucky_cfg["data_dir"], "cases/covid_tracking.csv")
-csse = os.path.join(bucky_cfg["data_dir"], "cases/csse_hist_timeseries.csv")
-hhs_hosp = os.path.join(bucky_cfg["data_dir"], "cases/hhs_hosps.csv")
+csse = os.path.join(bucky_cfg["data_dir"], "csse_timeseries.csv")
+hhs_hosp = os.path.join(bucky_cfg["data_dir"], "hhs_timeseries.csv")
 vacc = os.path.join(bucky_cfg["data_dir"], "vac/covid19-vaccine-timeseries/vacc-timeseries.csv")
 
 # Specify file and column name
