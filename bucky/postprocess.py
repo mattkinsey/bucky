@@ -1,6 +1,7 @@
 """Postprocesses data across dates and simulation runs before aggregating at geographic levels (ADM0, ADM1, or ADM2)."""
 import gc
 import queue
+import shutil
 import threading
 
 import numpy as np
@@ -37,6 +38,13 @@ def main(cfg):
     output_dir = cfg["postprocessing.output_dir"]
     if not output_dir.exists():
         output_dir.mkdir(parents=True)
+
+    # Copy metadata
+    output_metadata_dir = output_dir / "metadata"
+    output_metadata_dir.mkdir(exist_ok=True)
+    # TODO this should probably recurse directories too...
+    for md_file in metadata_dir.iterdir():
+        shutil.copy2(md_file, output_metadata_dir / md_file.name)
 
     adm_mapping = pd.read_csv(metadata_dir / "adm_mapping.csv")
     dates = pd.read_csv(metadata_dir / "dates.csv")
