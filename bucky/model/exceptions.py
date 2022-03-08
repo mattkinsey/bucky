@@ -1,7 +1,8 @@
 """Some custom bucky related exceptions."""
+from ..exceptions import BuckyException
 
 
-class SimulationException(Exception):
+class SimulationException(BuckyException):
     """A generic exception to throw when there's an error related to the simulation."""
 
     pass  # pylint: disable=unnecessary-pass
