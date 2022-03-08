@@ -59,7 +59,7 @@ def postprocess(
     run_dir: Optional[Path] = typer.Option(None, help="Raw output directory for the run being postprocessed"),
 ):
     """`bucky run postprocess`, aggregate outputs from raw_output_dir to make quantile outputs in output_dir."""
-    cfg = ctx.obj
+    cfg = ctx.obj.cfg
 
     # if the raw output dir isn't given, use the most recently created one in the raw_output_dir directory
     if run_dir is None:
