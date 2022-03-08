@@ -165,6 +165,14 @@ class buckyModelCovid:
 
         epi_params = add_derived_params(epi_params, self.cfg["model.structure"])
 
+        # Reject some invalid param combinations
+        if (
+            (mc_params["Te_min"] > epi_params["Te"])
+            or (mc_params["Ti_min"] > epi_params["Ti"])
+            or (epi_params["Te"] > epi_params["Tg"])
+        ):
+            raise SimulationException
+
         # Reroll vaccine allocation
         if self.base_mc_instance.vacc_data.reroll:
             self.base_mc_instance.vacc_data.reroll_distribution()
@@ -677,8 +685,6 @@ class buckyModelCovid:
 
 def main(cfg=None):
     """Main method for a complete simulation called with a set of CLI args."""
-
-    logger.info(cfg)
 
     if cfg["runtime.use_cupy"]:
         logger.info("Using CuPy backend")
