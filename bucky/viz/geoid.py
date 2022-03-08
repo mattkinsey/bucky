@@ -8,7 +8,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
-from ..util.read_config import bucky_cfg
+from .read_config import bucky_cfg
 
 # TODO this belongs in utils, not viz
 
