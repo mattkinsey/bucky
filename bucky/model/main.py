@@ -688,7 +688,7 @@ def main(cfg=None):
 
     if cfg["runtime.use_cupy"]:
         logger.info("Using CuPy backend")
-        enable_cupy(optimize=True)  # TODO need optk in cfg (args.optimize_kernels)
+        enable_cupy(optimize=True, cache_dir=cfg["system.cache_dir"])  # TODO need optk in cfg (args.optimize_kernels)
     else:
         logger.info("Using numpy backend")
 

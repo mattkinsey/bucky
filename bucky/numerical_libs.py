@@ -25,8 +25,6 @@ import scipy.special
 # This will be overwritten with a call to .numerical_libs.enable_cupy()
 import bucky
 
-from .util.read_config import bucky_cfg
-
 CUPY_FORCE_FP32 = False
 
 # Make the numpy namespace more consistent with cupy
@@ -125,7 +123,7 @@ def sync_numerical_libs(func):
     return wrapper
 
 
-def enable_cupy(optimize=False):
+def enable_cupy(optimize=False, cache_dir=None):
     """Perform imports for libraries with APIs matching numpy, scipy.integrate.ivp, scipy.sparse.
 
     These imports will use a monkey-patched version of these modules
@@ -221,7 +219,10 @@ def enable_cupy(optimize=False):
 
         optuna.logging.set_verbosity(optuna.logging.WARN)
         logger.info("Using optuna to optimize kernels, the first calls will be slowwwww")
-        cp.optimize_kernels = partial(cupyx.optimizing.optimize, path=bucky_cfg["cache_dir"] + "/optuna")
+        if cache_dir is not None:
+            cp.optimize_kernels = partial(cupyx.optimizing.optimize, path=cache_dir / "optuna")
+        else:
+            cp.optimize_kernels = cupyx.optimizing.optimize
 
         warnings.filterwarnings(
             action="ignore",
