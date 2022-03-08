@@ -20,7 +20,7 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
     """Class to manage the state of the bucky compartments (and their indices)."""
 
     @sync_numerical_libs
-    def __init__(self, structure_cfg, Nij, state=None):
+    def __init__(self, structure_cfg, Nij, state=None, dtype=xp.float32):
         """Initialize the compartment indices and the state vector using the calling modules numerical libs."""
 
         self.E_gamma_k = structure_cfg["E_gamma_k"]
@@ -55,7 +55,7 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
         self.n_age_grps, self.n_nodes = Nij.shape
 
         if state is None:
-            self.state = xp.zeros(self.state_shape, dtype=xp.float32)
+            self.state = xp.zeros(self.state_shape, dtype=dtype)
         else:
             self.state = state
 
