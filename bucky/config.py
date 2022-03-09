@@ -33,8 +33,7 @@ from .util.nested_dict import NestedDict
 
 def locate_base_config():
     """Locate the base_config package that shipped with bucky (it's likely in site-packages)."""
-    with resources.path("bucky", "base_config") as cfg_path:
-        return Path(cfg_path)
+    return resources.files(__package__) / "base_config"
 
 
 def locate_current_config():
