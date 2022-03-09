@@ -52,4 +52,5 @@ repos:
           "flake8-simplify>=0.15.1",
           "darglint>=1.8.1",
           "pylint>=2.12.2",
+          "bandit<=1.7.2",
         ]
