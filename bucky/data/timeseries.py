@@ -68,10 +68,12 @@ class SpatialStratifiedTimeseries:
         df = pd.read_csv(
             filename,
             index_col=[adm_col, date_col],
-            engine="pyarrow",
+            engine="c",
+            parse_dates=["date"],
         ).sort_index()
 
         dates = df.index.unique(level=date_col).values
+        dates = dates.astype("datetime64[s]").astype(datetime.date)
         date_mask = _mask_date_range(dates, n_days, valid_date_range, force_enddate_dow)
 
         ret = {

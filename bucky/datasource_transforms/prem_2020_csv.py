@@ -7,7 +7,7 @@ def transform(output_filename):
 
     base_dir = Path().cwd()
 
-    df = pd.read_csv(base_dir / "prem_2020_contact_matrices.csv", engine="pyarrow")
+    df = pd.read_csv(base_dir / "prem_2020_contact_matrices.csv", engine="c")
 
     # grab US 'overall' values
     # TODO can we differentiate rural and urban counties?

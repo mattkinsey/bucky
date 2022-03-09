@@ -27,7 +27,7 @@ def read_population_tensor(file, return_adm2_ids=False, min_pop_per_bin=1.0):
     census_df = pd.read_csv(
         file,
         index_col="adm2",
-        engine="pyarrow",
+        engine="c",
     ).sort_index()
     ret = xp.clip(xp.array(census_df.values).astype(float), a_min=min_pop_per_bin, a_max=None).T
     if return_adm2_ids:
@@ -75,7 +75,7 @@ class buckyData:
         prem_df = pd.read_csv(
             data_dir / "prem_matrices.csv",
             index_col=["location", "i", "j"],
-            engine="pyarrow",
+            engine="c",
         )
         self.Cij = {loc: xp.array(g_df.values).reshape(16, 16) for loc, g_df in prem_df.groupby("location")}
 
