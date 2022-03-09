@@ -102,7 +102,7 @@ def process_datasources(data_sources, data_dir, ssl_no_verify=False, n_jobs=None
 
     # copy included data over
     included_data_path = _locate_included_data()
-    included_data_link = data_dir / "included_data"
+    included_data_link = raw_data_dir / "included_data"
     if not included_data_link.exists():
         included_data_link.symlink_to(included_data_path, target_is_directory=True)
 
