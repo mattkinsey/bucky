@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Optional
 
 import typer
-from loguru import logger
 
 from ..config import BuckyConfig
 from ..model.main import main as model_main

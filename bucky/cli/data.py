@@ -1,7 +1,6 @@
 """`bucky viz data` CLI."""
 
 import typer
-from loguru import logger
 
 from ..util.data_sync import process_datasources
 

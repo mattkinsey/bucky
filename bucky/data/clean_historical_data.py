@@ -1,6 +1,3 @@
-import warnings
-
-from IPython import embed
 from loguru import logger
 from numpy import RankWarning
 

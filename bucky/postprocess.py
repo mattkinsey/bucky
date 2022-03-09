@@ -14,8 +14,6 @@ import tqdm
 from loguru import logger
 
 from .numerical_libs import enable_cupy, reimport_numerical_libs, xp
-from .util.read_config import bucky_cfg
-from .viz.geoid import read_lookup
 
 # TODO switch to cupy.quantile instead of percentile (they didn't have that when we first wrote this)
 # also double check but the api might be consistant by now so we dont have to handle numpy/cupy differently

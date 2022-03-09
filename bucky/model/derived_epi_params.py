@@ -1,7 +1,7 @@
 """Calculate derived SEIR parameters from the input parameterization."""
-import loguru
 
-from ..numerical_libs import sync_numerical_libs, xp
+
+from ..numerical_libs import sync_numerical_libs
 
 
 def calc_Te(Tg, Ts, n, f):

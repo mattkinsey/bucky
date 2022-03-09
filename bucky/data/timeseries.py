@@ -8,9 +8,6 @@ from loguru import logger
 
 from .._typing import ArrayLike, PathLike
 from ..numerical_libs import sync_numerical_libs, xp
-from ..util.array_utils import rolling_window
-from ..util.extrapolate import interp_extrap
-from ..util.spline_smooth import fit, lin_reg
 from .adm_mapping import AdminLevelMapping
 
 

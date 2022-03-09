@@ -1,6 +1,6 @@
 """Provide a nested version of dict() along with convenient API additions (apply, update, etc)."""
 from collections import OrderedDict
-from collections.abc import Collection, Iterable, Mapping, MutableMapping  # pylint: disable=no-name-in-module
+from collections.abc import Collection, Mapping, MutableMapping  # pylint: disable=no-name-in-module
 from copy import deepcopy
 
 from ruamel.yaml import YAML
