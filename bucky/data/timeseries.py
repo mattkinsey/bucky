@@ -24,7 +24,7 @@ class SpatialStratifiedTimeseries:
     def __post_init__(self):
         valid_shape = self.dates.shape + self.adm_ids.shape
         for f in fields(self):
-            if "validate_shape" in f.metadata:
+            if "data_field" in f.metadata:
                 field_shape = getattr(self, f.name).shape
                 if field_shape != valid_shape:
                     logger.error("Invalid timeseries shape {}; expected {}.", field_shape, valid_shape)
@@ -92,7 +92,7 @@ class SpatialStratifiedTimeseries:
         # TODO log
         output_dfs = {}
         for f in fields(self):
-            if "validate_shape" in f.metadata:
+            if "data_field" in f.metadata:
                 col_name = f.name
                 data = getattr(self, f.name)
                 col_df = pd.DataFrame(
@@ -166,10 +166,10 @@ def _mask_date_range(
 
 @dataclass(frozen=True, repr=False)
 class CSSEData(SpatialStratifiedTimeseries):
-    cumulative_cases: ArrayLike = field(metadata={"validate_shape": True, "summable": True})
-    cumulative_deaths: ArrayLike = field(metadata={"validate_shape": True, "summable": True})
-    incident_cases: ArrayLike = field(default=None, metadata={"validate_shape": True, "summable": True})
-    incident_deaths: ArrayLike = field(default=None, metadata={"validate_shape": True, "summable": True})
+    cumulative_cases: ArrayLike = field(metadata={"data_field": True, "summable": True})
+    cumulative_deaths: ArrayLike = field(metadata={"data_field": True, "summable": True})
+    incident_cases: ArrayLike = field(default=None, metadata={"data_field": True, "summable": True})
+    incident_deaths: ArrayLike = field(default=None, metadata={"data_field": True, "summable": True})
 
     def __post_init__(self):
         if self.incident_cases is None:
@@ -201,8 +201,8 @@ class CSSEData(SpatialStratifiedTimeseries):
 
 @dataclass(frozen=True, repr=False)
 class HHSData(SpatialStratifiedTimeseries):
-    current_hospitalizations: ArrayLike = field(metadata={"validate_shape": True, "summable": True})
-    incident_hospitalizations: ArrayLike = field(metadata={"validate_shape": True, "summable": True})
+    current_hospitalizations: ArrayLike = field(metadata={"data_field": True, "summable": True})
+    incident_hospitalizations: ArrayLike = field(metadata={"data_field": True, "summable": True})
 
     # TODO we probably need to store a AdminLevelMapping in each timeseries b/c the hhs adm_ids dont line up with the csse ones after we aggregate them to adm1...
     @staticmethod
@@ -226,7 +226,7 @@ class HHSData(SpatialStratifiedTimeseries):
 
 @dataclass(frozen=True, repr=False)
 class BuckyFittedData(SpatialStratifiedTimeseries):
-    cumulative_cases: ArrayLike = field(metadata={"validate_shape": True, "summable": True})
-    cumulative_deaths: ArrayLike = field(metadata={"validate_shape": True, "summable": True})
-    incident_cases: ArrayLike = field(metadata={"validate_shape": True, "summable": True})
-    incident_deaths: ArrayLike = field(metadata={"validate_shape": True, "summable": True})
+    cumulative_cases: ArrayLike = field(metadata={"data_field": True, "summable": True})
+    cumulative_deaths: ArrayLike = field(metadata={"data_field": True, "summable": True})
+    incident_cases: ArrayLike = field(metadata={"data_field": True, "summable": True})
+    incident_deaths: ArrayLike = field(metadata={"data_field": True, "summable": True})
