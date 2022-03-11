@@ -40,7 +40,7 @@ class buckyData:
     """Contains and preprocesses all the data imported from an input graph file."""
 
     @sync_numerical_libs
-    def __init__(self, data_dir=None, force_diag_Aij=False, hist_length=101, force_historical_end_dow=4):
+    def __init__(self, data_dir, fit_cfg, force_diag_Aij=False, hist_length=101, force_historical_end_dow=4):
         """Initialize the input data into cupy/numpy, reading it from a networkx graph."""
 
         self.n_hist = hist_length
@@ -80,7 +80,12 @@ class buckyData:
         self.Cij = {loc: xp.array(g_df.values).reshape(16, 16) for loc, g_df in prem_df.groupby("location")}
 
         logger.debug("Fitting GAM to historical timeseries")
-        self.csse_data, self.hhs_data = clean_historical_data(self.raw_csse_data, self.raw_hhs_data, self.adm_mapping)
+        self.csse_data, self.hhs_data = clean_historical_data(
+            self.raw_csse_data,
+            self.raw_hhs_data,
+            self.adm_mapping,
+            fit_cfg,
+        )
 
         # TODO need to remove this but ALOT of other code is still using this old way w/ sum_adm1
         self.max_adm1 = self.adm_mapping.n_adm1 - 1  # TODO remove (other things need this atm)

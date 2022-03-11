@@ -56,7 +56,7 @@ class buckyModelCovid:
         self.disable_npi = disable_npi
         self.reject_runs = reject_runs
 
-        self.g_data = self.load_data(cfg["system.data_dir"])
+        self.g_data = self.load_data(data_dir=cfg["system.data_dir"], fit_cfg=cfg["model.fitting"])
 
         self.writer = BuckyOutputWriter(cfg["system.raw_output_dir"], self.run_id)
         self.writer.write_metadata(
@@ -72,14 +72,14 @@ class buckyModelCovid:
         self.consts = self.bucky_params.consts
     '''
 
-    def load_data(self, data_dir):
+    def load_data(self, data_dir, fit_cfg):
         """Load the historical data and calculate all the variables that are static across MC runs."""
         # TODO refactor to just have this return g_data?
 
         # Load data from input files
         # TODO we should go through an replace lots of math using self.g_data.* with function IN buckyData
         # TODO rename g_data
-        g_data = buckyData(data_dir=data_dir, force_diag_Aij=True)
+        g_data = buckyData(data_dir=data_dir, fit_cfg=fit_cfg, force_diag_Aij=True)
 
         self.sim_start_date = g_data.csse_data.end_date
         self.projected_dates = [
