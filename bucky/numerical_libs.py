@@ -220,7 +220,9 @@ def enable_cupy(optimize=False, cache_dir=None):
         optuna.logging.set_verbosity(optuna.logging.WARN)
         logger.info("Using optuna to optimize kernels, the first calls will be slowwwww")
         if cache_dir is not None:
-            cp.optimize_kernels = partial(cupyx.optimizing.optimize, path=cache_dir / "optuna")
+            opt_cache = cache_dir / "optuna"
+            opt_cache.mkdir(exist_ok=True)
+            cp.optimize_kernels = partial(cupyx.optimizing.optimize, path=opt_cache)
         else:
             cp.optimize_kernels = cupyx.optimizing.optimize
 
