@@ -61,9 +61,12 @@ def common(
     else:
         log_level = "WARNING"
 
-    logger.remove(0)
-    logger.add(sys.stderr, colorize=color, level=log_level, format=log_fmt, enqueue=True)
-    logger.info("Log level set to {}", log_level)
+    try:
+        logger.remove(0)
+        logger.add(sys.stderr, colorize=color, level=log_level, format=log_fmt, enqueue=True)
+        logger.info("Log level set to {}", log_level)
+    except ValueError:
+        logger.info("Loguru already initialized")
 
     # Grab bucky cfg
     if cfg_path is None:
@@ -75,7 +78,7 @@ def common(
     # add runtime flags to cfg
     cfg["runtime.verbose"] = verbose
     cfg["runtime.debug"] = debug
-    cfg["runtime.use_cupy"] = cupy_available() if gpu else False
+    use_cupy = cupy_available() if gpu else False
 
     # put cfg in typer context for downstream commands
     ctx.obj = cfg
