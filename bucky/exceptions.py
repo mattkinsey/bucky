@@ -2,6 +2,6 @@
 
 
 class BuckyException(Exception):
-    """A generic exception high level base exception."""
+    """A generic high level base exception."""
 
     pass  # pylint: disable=unnecessary-pass

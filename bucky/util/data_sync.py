@@ -11,8 +11,13 @@ from pathlib import Path
 
 from loguru import logger
 
+from ..exceptions import BuckyException
 from .import_by_name import import_by_name
 from .working_directory import working_directory
+
+
+class BuckySyncException(BuckyException):
+    pass
 
 
 def _locate_included_data():
@@ -53,7 +58,7 @@ def _exec_shell_cmd(cmd, cwd=None):
             ex.stdout,
             ex.stderr,
         )
-        # reraise exception, wrap it and toss to a general bucky exception catcher?
+        raise BuckySyncException from ex
 
 
 def _git_clone(url, local_name, abs_path, bare=False, depth=1, tag=None):
