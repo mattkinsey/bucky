@@ -101,7 +101,7 @@ def _git_pull(abs_path, rebase=True):
 def process_datasources(data_sources, data_dir, ssl_no_verify=False, n_jobs=None):
 
     raw_data_dir = data_dir / "raw"
-    raw_data_dir.mkdir(exist_ok=True)
+    raw_data_dir.mkdir(exist_ok=True, parents=True)
 
     _process_one = functools.partial(_process_one_datasource, raw_data_dir=raw_data_dir)
 
