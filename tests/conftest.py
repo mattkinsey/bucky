@@ -1,11 +1,21 @@
 import functools
 import os
+import pathlib
 import sys
 
 import pytest
 import typer
 from _pytest.logging import LogCaptureFixture
 from loguru import logger
+
+
+@pytest.fixture(scope="session")
+def tmp_cwd(tmp_path_factory):
+    cwd = pathlib.Path.cwd()
+    tmp_wd = tmp_path_factory.mktemp("bucky_integration")
+    os.chdir(tmp_wd)
+    yield
+    os.chdir(cwd)
 
 
 @pytest.fixture
