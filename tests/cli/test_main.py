@@ -2,11 +2,9 @@ from typer.testing import CliRunner
 
 from bucky.cli.main import main
 
-runner = CliRunner()
 
-
-def test_app():
-    result = runner.invoke(
+def test_app(cli):
+    result = cli.invoke(
         main,
         [
             "--help",
