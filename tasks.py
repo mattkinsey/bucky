@@ -148,6 +148,14 @@ def tests(c):
     _run(c, f"poetry run pytest {' '.join(pytest_options)} {TEST_DIR} {SOURCE_DIR}")
 
 
+@task()
+def integration(c):
+    # type: (Context) -> None
+    """Run integration tests."""
+    pytest_options = ["--integration", "-o log_cli=true", "--xdoctest", "--cov", "--cov-report=", "--cov-fail-under=0"]
+    _run(c, f"poetry run pytest {' '.join(pytest_options)} {TEST_DIR} {SOURCE_DIR}")
+
+
 @task(
     help={
         "fmt": "Build a local report: report, html, json, annotate, html, xml.",

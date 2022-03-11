@@ -58,6 +58,24 @@ def tests(session: Session) -> None:
             session.notify("coverage")
 
 
+@nox.session(python=python_versions)
+def integration_tests(session: Session) -> None:
+    """Run integration tests."""
+    session.install(".")
+    install_with_constraints(session, "invoke", "pytest", "xdoctest", "coverage[toml]", "pytest-cov")
+    try:
+        session.run(
+            "inv",
+            "integration",
+            env={
+                "COVERAGE_FILE": f".coverage.{platform.system()}.{platform.python_version()}",
+            },
+        )
+    finally:
+        if session.interactive:
+            session.notify("coverage")
+
+
 @nox.session
 def coverage(session: Session) -> None:
     """Produce the coverage report."""
