@@ -5,6 +5,7 @@ from pathlib import Path, PosixPath
 
 from ruamel.yaml import YAML
 from ruamel.yaml.compat import StringIO
+from ruamel.yaml.scalarfloat import ScalarFloat
 
 yaml = YAML()
 
@@ -78,6 +79,7 @@ class BuckyConfig(NestedDict):
             logger.exception("Config not found!")
 
         # self._to_arrays()
+        self._cast_floats()
 
         return self
 
@@ -97,6 +99,13 @@ class BuckyConfig(NestedDict):
             return xp.to_cpu(xp.squeeze(v)).tolist() if isinstance(v, xp.ndarray) else v
 
         ret = self.apply(_cast_to_list, copy=copy)
+        return ret
+
+    def _cast_floats(self, copy=False):
+        def _cast_float(v):
+            return float(v) if isinstance(v, ScalarFloat) else v
+
+        ret = self.apply(_cast_float, copy=copy)
         return ret
 
     def to_yaml(self, *args, **kwargs):
@@ -187,6 +196,7 @@ class BuckyConfig(NestedDict):
         ret = ret.apply(_sample_distribution, contains_filter="distribution")
         ret = ret.interp_age_bins()
         ret = ret.promote_sampled_values()
+        ret = ret._cast_floats()
         return ret
 
 
