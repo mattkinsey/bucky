@@ -97,6 +97,7 @@ pylint = "^2.12.2"
 ipython = "^7.0.0"
 interrogate = "^1.5.0"
 bandit = "<=1.7.2"
+pytest-steps = "^1.8.0"
 
 
 [tool.black]

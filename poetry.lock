@@ -937,6 +937,14 @@ win32-setctime = {version = ">=1.0.0", markers = "sys_platform == \"win32\""}
 dev = ["colorama (>=0.3.4)", "docutils (==0.16)", "flake8 (>=3.7.7)", "tox (>=3.9.0)", "pytest (>=4.6.2)", "pytest-cov (>=2.7.1)", "black (>=19.10b0)", "isort (>=5.1.1)", "Sphinx (>=4.1.1)", "sphinx-autobuild (>=0.7.1)", "sphinx-rtd-theme (>=0.4.3)"]
 
 [[package]]
+name = "makefun"
+version = "1.13.1"
+description = "Small library to dynamically create python functions."
+category = "dev"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "mako"
 version = "1.1.6"
 description = "A super-fast templating language that borrows the  best ideas from the existing templating languages."
@@ -1486,6 +1494,18 @@ pytest = ">=4.6"
 
 [package.extras]
 testing = ["fields", "hunter", "process-tests", "six", "pytest-xdist", "virtualenv"]
+
+[[package]]
+name = "pytest-steps"
+version = "1.8.0"
+description = "Create step-wise / incremental tests in pytest."
+category = "dev"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+makefun = ">=1.5"
+wrapt = "*"
 
 [[package]]
 name = "python-dateutil"
@@ -2121,7 +2141,7 @@ gpu = ["cupy", "optuna", "scikit-optimize"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7.1,<3.11"
-content-hash = "7833873b27d40e89a3556f608adf95530e23fc0c4a963859f5de043085dce638"
+content-hash = "a7afa0091767b9f2cc8c948e8469feafb526a12d38111be2c763cd31eba1134c"
 
 [metadata.files]
 alabaster = [
@@ -2625,6 +2645,10 @@ loguru = [
     {file = "loguru-0.6.0-py3-none-any.whl", hash = "sha256:4e2414d534a2ab57573365b3e6d0234dfb1d84b68b7f3b948e6fb743860a77c3"},
     {file = "loguru-0.6.0.tar.gz", hash = "sha256:066bd06758d0a513e9836fd9c6b5a75bfb3fd36841f4b996bc60b547a309d41c"},
 ]
+makefun = [
+    {file = "makefun-1.13.1-py2.py3-none-any.whl", hash = "sha256:f10ea6e570d06e84d5488dd109cc09a3127ebbdc0696ddb7bfc234263ab2ac26"},
+    {file = "makefun-1.13.1.tar.gz", hash = "sha256:985bb8b670ffbbb95d2a8aa996d318e6e9a3f26fc6f3ef2da93ebdf8f9c616bf"},
+]
 mako = [
     {file = "Mako-1.1.6-py2.py3-none-any.whl", hash = "sha256:afaf8e515d075b22fad7d7b8b30e4a1c90624ff2f3733a06ec125f5a5f043a57"},
     {file = "Mako-1.1.6.tar.gz", hash = "sha256:4e9e345a41924a954251b95b4b28e14a301145b544901332e658907a7464b6b2"},
@@ -3050,6 +3074,10 @@ pytest = [
 pytest-cov = [
     {file = "pytest-cov-3.0.0.tar.gz", hash = "sha256:e7f0f5b1617d2210a2cabc266dfe2f4c75a8d32fb89eafb7ad9d06f6d076d470"},
     {file = "pytest_cov-3.0.0-py3-none-any.whl", hash = "sha256:578d5d15ac4a25e5f961c938b85a05b09fdaae9deef3bb6de9a6e766622ca7a6"},
+]
+pytest-steps = [
+    {file = "pytest-steps-1.8.0.tar.gz", hash = "sha256:d210dfbd34bda3c318dd10d1764a90dedb5d945b8734c3f5914a87140e642217"},
+    {file = "pytest_steps-1.8.0-py2.py3-none-any.whl", hash = "sha256:7c8ca496431a54460ee146f60ff0518d9a5ace14578b8e52a6145b4b9085688a"},
 ]
 python-dateutil = [
     {file = "python-dateutil-2.8.2.tar.gz", hash = "sha256:0123cacc1627ae19ddf3c27a5de5bd67ee4586fbdd6440d9748f8abb483d3e86"},
