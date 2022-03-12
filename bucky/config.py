@@ -72,6 +72,10 @@ class BuckyConfig(NestedDict):
         try:
             if par.is_dir():
                 for f in sorted(par.rglob("*")):
+                    if f.suffix not in {".yml", ".yaml"}:
+                        logger.warning("Ignoring non YAML file {}", f)
+                        continue
+
                     logger.debug("Loading config file {}", f)
                     self.update(yaml.load(f.read_text(encoding="utf-8")))  # nosec
             else:
