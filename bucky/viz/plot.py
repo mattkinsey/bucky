@@ -1,7 +1,6 @@
 """Creates line plots with confidence intervals at the ADM0, ADM1, or ADM2 level."""
 import argparse
 import glob
-import logging
 import multiprocessing
 import os
 import sys
@@ -14,6 +13,7 @@ matplotlib.use("Agg")
 import pandas as pd
 import tqdm
 import us
+from loguru import logger
 
 from .geoid import read_lookup
 from .get_historical_data import get_historical_data
@@ -346,7 +346,7 @@ def add_hist_data_to_plot(axis, historical_data, adm_key, adm_value, col, sim_ma
         axis.set_xlim(actuals["date"].min(), sim_max_date)
 
     else:
-        logging.warning("Historical data missing for " + adm_key + " " + str(adm_value))
+        logger.warning("Historical data missing for " + adm_key + " " + str(adm_value))
 
     return axis
 
@@ -633,7 +633,7 @@ def make_plots(
 
             # Check if historical data was not successfully fetched
             if hist_data is None:
-                logging.warning("No historical data could be found for: " + str(plot_columns))
+                logger.warning("No historical data could be found for: " + str(plot_columns))
 
             else:
                 hist_data = preprocess_historical_dates(hist_data, hist_start, start_date, end_date, min_hist_points)
@@ -649,65 +649,52 @@ def make_plots(
         )
 
 
-def main(args=None):
+def main(cfg):
     """Main entrypoint."""
 
-    if args is None:
-        args = sys.argv[1:]
-
-    # Logging
-    logging.basicConfig(
-        level=logging.WARNING,
-        stream=sys.stdout,
-        format="%(asctime)s - %(levelname)s - %(filename)s:%(funcName)s:%(lineno)d - %(message)s",
-    )
-
-    # Parse CLI args
-    args = parser.parse_args()
-    logging.info(args)
+    logger.info(cfg)
 
     # Parse arguments
-    input_dir = args.input_dir
+    input_dir = cfg["input_dir"]
 
-    output_dir = args.output
-
-    if output_dir is None:
-        output_dir = os.path.join(input_dir, "plots")
-
-    # Make sure output directory exists
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    output_dir = input_dir / "plots"  # TODO add optional cli arg
+    output_dir.mkdir(exist_ok=True)
 
     # aggregation levels
-    levels = args.levels
+    levels = cfg["levels"]
 
     # Columns for plotting
-    plot_cols = args.plot_columns
+    plot_cols = cfg["columns"]
 
-    if args.lookup is not None:
-        lookup_table = read_lookup(args.lookup)
-    else:
-        adm_mapping_file = Path(input_dir) / "metadata" / "adm_mapping.csv"
-        adm1_name_map = us.states.mapping("fips", "name")
-        adm_mapping_df = pd.read_csv(adm_mapping_file)
-        adm_mapping_df["adm1_name"] = adm_mapping_df["adm1"].astype(str).str.zfill(2).map(adm1_name_map)
-        adm_mapping_df["adm0_name"] = us.name
-        lookup_table = adm_mapping_df
+    # Make lookup_table from adm mapping
+    adm_mapping_file = Path(input_dir) / "metadata" / "adm_mapping.csv"
+    adm1_name_map = us.states.mapping("fips", "name")
+    adm_mapping_df = pd.read_csv(adm_mapping_file)
+    adm_mapping_df["adm1_name"] = adm_mapping_df["adm1"].astype(str).str.zfill(2).map(adm1_name_map)
+    adm_mapping_df["adm0_name"] = us.name
+    lookup_table = adm_mapping_df
 
+    # TODO need to handle/remove all the other olc cli args below
     # Historical data start
-    hist_start_date = args.hist_start
+    hist_start_date = None  # args.hist_start # TODO deprecate?
 
     # Parse optional flags
-    window = args.window_size
-    plot_historical = args.hist
-    # verbose = args.verbose
-    plot_end_date = args.end_date
-    list_quantiles = args.quantiles
-    hist_data_file = args.hist_file
-    min_hist = args.min_hist
+    window = 7  # TODO make optional arg: window_size
+    plot_historical = True  # TODO make bool flag (it should default to true though): no-hist?
+
+    plot_end_date = None  # make optional arg --end_date
+    list_quantiles = None  # make optional arg: --quantiles, -q
+    hist_data_file = None  # TODO do we still need this? args.hist_file
+    min_hist = 21  # TODO make optional arg, probably needs a better name
 
     # Number of processes for pool
-    num_proc = args.processes
+    if cfg["num_proc"] == -1:
+        num_proc = multiprocessing.cpu_count() // 2  # todo cli arg
+    else:
+        num_proc = cfg["num_proc"]
+
+    if num_proc < 1:
+        num_proc = 1
 
     # If a historical file was passed in, make sure hist is also true
     if hist_data_file is not None:
@@ -726,7 +713,7 @@ def main(args=None):
         plot_end_date,
         hist_data_file,
         min_hist,
-        args.adm1_name,
+        "TODO",  # args.adm1_name,
         hist_start_date,
         num_proc,
     )
