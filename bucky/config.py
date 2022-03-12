@@ -71,7 +71,8 @@ class BuckyConfig(NestedDict):
 
         try:
             if par.is_dir():
-                for f in sorted(par.iterdir()):
+                for f in sorted(par.rglob("*")):
+                    logger.debug("Loading config file {}", f)
                     self.update(yaml.load(f.read_text(encoding="utf-8")))  # nosec
             else:
                 self.update(yaml.load(par.read_text(encoding="utf-8")))  # nosec
