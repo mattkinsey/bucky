@@ -530,8 +530,12 @@ def plot(out_dir, lookup_df, key, sim_data, hist_data, plot_columns, quantiles, 
     # this tqdm wrapper does the same thing...
     # from tqdm.contrib.concurrent import process_map
     # process_map(pool_plot, pool_input, max_workers=num_proc)
-    with multiprocessing.Pool(num_proc) as p:
-        list(tqdm.tqdm(p.imap(pool_plot, pool_input), total=len(area_groups)))
+    if (num_proc > 1) or (len(area_groups) == 1):
+        with multiprocessing.Pool(num_proc) as p:
+            list(tqdm.tqdm(p.imap(pool_plot, pool_input), total=len(area_groups)))
+    else:
+        for p_inp in tqdm.tqdm(pool_input, total=len(area_groups)):
+            pool_plot(p_inp)
 
 
 def make_plots(
