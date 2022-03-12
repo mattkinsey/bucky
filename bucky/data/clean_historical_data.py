@@ -346,9 +346,10 @@ def plot_historical_fits(csse_data, hhs_data, adm_mapping, fitted_data, valid_ad
         ax[1, 2].plot(xp.to_cpu(xp.log1p(raw_diff_deaths[:, i])), label="Log(Incident Deaths)")
         ax[1, 2].plot(xp.to_cpu(xp.log1p(fitted_adm1.incident_deaths[:, i])), label="Fit")
 
-        hind = xp.to_cpu(xp.argwhere(hhs_data.adm_ids == adm1_fips.item()))
-        if len(hind):
-            hind = hind[0][0]
+        hind_arr = xp.argwhere(hhs_data.adm_ids == adm1_fips)
+
+        if len(hind_arr):
+            hind = hind_arr[0][0]
             ax[0, 3].plot(xp.to_cpu(hhs_data.incident_hospitalizations[:, hind]), label="Incident Hosp")
             ax[0, 3].plot(xp.to_cpu(fitted_data["incident_hospitalizations"][hind]), label="Fit")
 
@@ -368,7 +369,7 @@ def plot_historical_fits(csse_data, hhs_data, adm_mapping, fitted_data, valid_ad
         ax[1, 1].legend()
         ax[0, 2].legend()
         ax[1, 2].legend()
-        if len(hind):
+        if len(hind_arr):
             ax[0, 3].legend()
             ax[1, 3].legend()
 
