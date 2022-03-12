@@ -18,7 +18,6 @@ from .exceptions import SimulationException
 from .io import BuckyOutputWriter
 from .mc_instance import buckyMCInstance
 from .npi import get_npi_params
-from .optimize import test_opt
 from .rhs import RHS_func
 from .state import buckyState
 from .vacc import buckyVaccAlloc
@@ -719,11 +718,6 @@ def main(cfg=None):
         )
 
         try:
-            if False:  # TODO handle optimize in cfg
-                test_opt(env)
-                return
-                # TODO Should exit() here
-
             # Monte Carlo loop
             seed_seq = np.random.SeedSequence(cfg["runtime.seed"])
             pbar = tqdm.tqdm(total=cfg["runtime.n_mc"], desc="Performing Monte Carlos", dynamic_ncols=True)
