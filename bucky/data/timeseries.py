@@ -78,7 +78,7 @@ class SpatialStratifiedTimeseries:
 
         ret = {
             "dates": dates[date_mask],
-            "adm_ids": df.index.unique(level=adm_col).values,
+            "adm_ids": xp.array(df.index.unique(level=adm_col).values),
         }
 
         for fcolumn, out_name in column_names.items():
