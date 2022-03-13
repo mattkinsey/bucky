@@ -51,7 +51,7 @@ def locate_current_config():
             logger.info("Using bucky config directory at {}", str(cfg_dir))
             return cfg_dir
 
-        cfg_one_file = p / "bucky.yaml"
+        cfg_one_file = p / "bucky.yml"
         if cfg_one_file.exists():
             logger.info("Using bucky config file at {}", str(cfg_one_file))
             return cfg_one_file
@@ -71,13 +71,15 @@ class BuckyConfig(NestedDict):
 
         try:
             if par.is_dir():
-                for f in sorted(par.rglob("*")):
-                    if f.suffix not in {".yml", ".yaml"}:
-                        logger.warning("Ignoring non YAML file {}", f)
-                        continue
+                for f_str in sorted(glob(str(par / "**"), recursive=True)):
+                    f = Path(f_str)
+                    if f.is_file():
+                        if f.suffix not in {".yml", ".yaml"}:
+                            logger.warning("Ignoring non YAML file {}", f)
+                            continue
 
-                    logger.debug("Loading config file {}", f)
-                    self.update(yaml.load(f.read_text(encoding="utf-8")))  # nosec
+                        logger.debug("Loading config file {}", f)
+                        self.update(yaml.load(f.read_text(encoding="utf-8")))  # nosec
             else:
                 self.update(yaml.load(par.read_text(encoding="utf-8")))  # nosec
         except FileNotFoundError:
