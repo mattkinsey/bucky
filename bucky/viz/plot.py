@@ -1,9 +1,6 @@
 """Creates line plots with confidence intervals at the ADM0, ADM1, or ADM2 level."""
-import argparse
-import glob
 import multiprocessing
 import os
-import sys
 from pathlib import Path
 
 import matplotlib
@@ -15,135 +12,8 @@ import tqdm
 import us
 from loguru import logger
 
-from .geoid import read_lookup
-from .get_historical_data import get_historical_data
-from .read_config import bucky_cfg
+from .get_historical_data import get_historical_data, get_historical_fit
 from .readable_col_names import readable_col_names
-
-# from matplotlib.ticker import StrMethodFormatter  # isort:skip
-
-# Disable weird y-axis formatting
-matplotlib.rc("axes.formatter", useoffset=False)
-
-plt.style.use("ggplot")
-
-parser = argparse.ArgumentParser(description="Bucky model plotting tools")
-
-# Location of processed data
-parser.add_argument(
-    "-i",
-    "--input_dir",
-    default=max(
-        glob.glob(os.path.join(bucky_cfg["output_dir"], "*/")),
-        key=os.path.getctime,
-        default="Most recently created folder in output_dir",
-    ),
-    type=str,
-    help="Directory location of aggregated data",
-)
-
-# Output directory
-parser.add_argument(
-    "-o",
-    "--output",
-    default=None,
-    type=str,
-    help="Output directory for plots. Defaults to input_dir/plots/",
-)
-
-# Aggregation levels, e.g. state, county, etc.
-parser.add_argument(
-    "-l",
-    "--levels",
-    default=["adm0", "adm1"],
-    nargs="+",
-    type=str,
-    help="Requested plot levels",
-)
-
-# Columns for plot, historical data
-default_plot_cols = ["daily_reported_cases", "daily_deaths"]
-
-parser.add_argument(
-    "--plot_columns",
-    default=default_plot_cols,
-    nargs="+",
-    type=str,
-    help="Columns to plot",
-)
-
-# Can pass in a lookup table to use in place of graph
-parser.add_argument(
-    "--lookup",
-    default=None,
-    type=str,
-    help="Lookup table for geographic mapping info",
-)
-
-# Pass in the minimum number of historical data points to plot
-parser.add_argument("--min_hist", default=28, type=int, help="Minimum number of historical data points to plot.")
-
-# Pass in a specific historical start date and historical file
-parser.add_argument(
-    "--hist_start",
-    default=None,
-    type=str,
-    help="Start date of historical data. If not passed in, will align with start date of simulation",
-)
-
-# Optional flags
-parser.add_argument(
-    "--adm1_name",
-    default=None,
-    type=str,
-    help="Admin1 to make admin2-level plots for",
-)
-
-parser.add_argument(
-    "--end_date",
-    default=None,
-    type=str,
-    help="Data will not be plotted past this point",
-)
-
-# parser.add_argument("-v", "--verbose", action="store_true", help="Print extra information")
-
-parser.add_argument(
-    "-hist",
-    "--hist",
-    default=True,  # TODO this should be a flag to disable hist I think (we almost always want it...)
-    # action="store_true",
-    help="Plot historical data in addition to simulation data",
-)
-
-parser.add_argument(
-    "--hist_file",
-    type=str,
-    default=None,
-    help="Path to historical data file. If None, uses either CSSE or \
-            Covid Tracking data depending on columns requested.",
-)
-
-parser.add_argument(
-    "-q",
-    "--quantiles",
-    nargs="+",
-    type=float,
-    default=None,
-    help="Specify the quantiles to plot. Defaults to all quantiles present in data.",
-)
-
-# Size of window in days
-parser.add_argument(
-    "-w",
-    "--window_size",
-    default=7,
-    type=int,
-    help="Size of window (in days) to apply to historical data",
-)
-
-# Number of multiprocessing threads
-parser.add_argument("-p", "--processes", default=16, type=int, help="Number of processes for multiprocessing")
 
 
 def get_all_plot_titles(l_table, adm_key, adm_values):
@@ -705,22 +575,23 @@ def main(cfg):
         plot_historical = True
 
     # Plot
-    make_plots(
-        levels,
-        input_dir,
-        output_dir,
-        lookup_table,
-        plot_historical,
-        plot_cols,
-        list_quantiles,
-        window,
-        plot_end_date,
-        hist_data_file,
-        min_hist,
-        "TODO",  # args.adm1_name,
-        hist_start_date,
-        num_proc,
-    )
+    with matplotlib.style.context("ggplot"), matplotlib.rc_context({"axes.formatter.useoffset": False}):
+        make_plots(
+            levels,
+            input_dir,
+            output_dir,
+            lookup_table,
+            plot_historical,
+            plot_cols,
+            list_quantiles,
+            window,
+            plot_end_date,
+            hist_data_file,
+            min_hist,
+            "TODO",  # args.adm1_name,
+            hist_start_date,
+            num_proc,
+        )
 
 
 if __name__ == "__main__":
