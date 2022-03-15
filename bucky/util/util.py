@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 import tqdm
 
+from .. import __version__
+
 
 class TqdmLoggingHandler(logging.Handler):
     """Logging handler that is friendly with tqdm.
@@ -146,12 +148,14 @@ def date_to_t_int(dates, start_date):
 #    return r1, r2
 
 
-def _banner():
+def _banner(msg=None):
     """A banner for the CLI."""
     print(r" ____             _          ")  # noqa: T001
     print(r"| __ ) _   _  ___| | ___   _ ")  # noqa: T001
-    print(r"|  _ \| | | |/ __| |/ / | | |")  # noqa: T001
+    print(r"|  _ \| | | |/ __| |/ / | | |", end="")  # noqa: T001
+    print(f"   v{__version__}")  # noqa: T001
     print(r"| |_) | |_| | (__|   <| |_| |")  # noqa: T001
-    print(r"|____/ \__,_|\___|_|\_\\__, |")  # noqa: T001
+    print(r"|____/ \__,_|\___|_|\_\\__, |", end="")  # noqa: T001
+    print(f"   {msg}" if msg is not None else "")  # noqa: T001
     print(r"                       |___/ ")  # noqa: T001
     print(r"                             ")  # noqa: T001

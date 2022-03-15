@@ -14,6 +14,7 @@ import tqdm
 from loguru import logger
 
 from .numerical_libs import enable_cupy, reimport_numerical_libs, xp
+from .util.util import _banner
 
 # TODO switch to cupy.quantile instead of percentile (they didn't have that when we first wrote this)
 # also double check but the api might be consistant by now so we dont have to handle numpy/cupy differently
@@ -21,6 +22,8 @@ from .numerical_libs import enable_cupy, reimport_numerical_libs, xp
 
 def main(cfg):
     """Main method for postprocessing the raw outputs from an MC run."""
+
+    _banner("Postprocessing Quantiles")
 
     quantiles = cfg["postprocessing.output_quantiles"]
     verbose = cfg["runtime.verbose"]
