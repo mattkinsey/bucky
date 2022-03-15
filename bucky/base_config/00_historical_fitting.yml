@@ -10,15 +10,15 @@ model:
 
       extrap_args:
         n_pts: 7
-        order: 2
+        order: 1
 
       gam_args:
         alp: 1.5
-        tol: 1.0e-5
-        gam_inc: 8.0
-        gam_cum: 8.0
+        tol: 1.0e-8
+        gam_inc: 2.0
+        gam_cum: 2.0
         standardize: False
         a_min: 0.0
          
-        robust_weighting: True
+        robust_weighting: False #True
         robust_weighting_iters: 5
