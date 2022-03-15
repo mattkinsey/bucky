@@ -177,6 +177,62 @@ def get_historical_data(columns, level, lookup_df, window_size, hist_file):
     return df
 
 
+def get_historical_fit(input_dir, columns, level, lookup_df, min_date):
+
+    plot_cols_to_fit_cols = {
+        "daily_reported_cases": {"fit_col_name": "incident_cases", "fit_filename": "csse_fitted_timeseries.csv"},
+        "daily_deaths": {"fit_col_name": "incident_deaths", "fit_filename": "csse_fitted_timeseries.csv"},
+        "daily_hospitalizations": {
+            "fit_col_name": "incident_hospitalizations",
+            "fit_filename": "hhs_fitted_timeseries.csv",
+        },
+        "current_hospitalizations": {
+            "fit_col_name": "current_hospitalizations",
+            "fit_filename": "hhs_fitted_timeseries.csv",
+        },
+    }
+
+    df = None
+    for requested_col in columns:
+
+        # Determine column and file names
+        fit_col = plot_cols_to_fit_cols[requested_col]["fit_col_name"]
+        fit_filename = plot_cols_to_fit_cols[requested_col]["fit_filename"]
+
+        fit_data = pd.read_csv(os.path.join(input_dir, "metadata", fit_filename))
+
+        # If data doesn't have a column corresponding to requested
+        # level, use lookup table to add it
+        if level not in fit_data.columns:
+            # Use either county or state to aggregate as needed
+            lookup_col = "adm2" if "adm2" in fit_data.columns else "adm1"
+            lookup_df = lookup_df.set_index(lookup_col)
+            level_dict = lookup_df[level].to_dict()
+            fit_data[level] = fit_data[lookup_col].map(level_dict)
+
+            # Drop items that were not mappable
+            fit_data = fit_data.dropna(subset=[level])
+
+        # Aggregate on geographic level
+        agg_data = fit_data.groupby(["date", level]).sum()
+        agg_data = agg_data.rename(columns={fit_col: requested_col})
+        agg_data = agg_data.round(3)
+
+        # If first column, initialize dataframe
+        if df is None:
+            df = agg_data[requested_col].to_frame()
+        # Combine with previous data
+        else:
+            df = df.merge(agg_data[requested_col].to_frame(), how="outer", left_index=True, right_index=True)
+
+        lookup_df = lookup_df.reset_index()
+
+    df = df.reset_index()
+
+    df = df[pd.to_datetime(df.date) >= min_date]
+    return df
+
+
 # TODO all this main stuff should be in test/
 if __name__ == "__main__":
 

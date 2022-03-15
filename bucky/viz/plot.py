@@ -210,13 +210,56 @@ def add_hist_data_to_plot(axis, historical_data, adm_key, adm_value, col, sim_ma
 
         actuals = actuals.assign(date=pd.to_datetime(actuals["date"]))
         hist_label = "Historical " + readable_col_names[col]
-        actuals.plot(x="date", y=col, ax=axis, color="r", marker="o", ls="", label=hist_label)
+        actuals.plot(x="date", y=col, ax=axis, color="r", marker="o", ls="", label=hist_label, scaley=False)
 
         # Set xlim
         axis.set_xlim(actuals["date"].min(), sim_max_date)
 
     else:
         logger.warning("Historical data missing for " + adm_key + " " + str(adm_value))
+
+    return axis
+
+
+def add_fit_data_to_plot(axis, fitted_data, adm_key, adm_value, col, sim_max_date):
+    """Add historical data for requested column and area to initialized matplotlib axis object.
+
+    Parameters
+    ----------
+    axis : matplotlib.axes.Axes
+        Previously initialized axis object
+    fitted_data : pandas.DataFrame
+        Dataframe of fit data
+    adm_key : str
+        Admin key to use to relate simulation data and geographic areas
+    adm_value : int
+        Admin code value for area
+    col : str
+        Column to add to plot
+    sim_max_date : pandas.Timestamp
+        Latest date in simulation data
+
+    Returns
+    -------
+    axis : matplotlib.axes.Axes
+        Modified axis object with added data
+    """
+
+    # TODO: CHANGE STYLE HERE
+    # Get historical data for area
+    actuals = fitted_data.loc[fitted_data[adm_key] == adm_value]
+
+    if not actuals.empty and col in fitted_data.columns:
+
+        actuals = actuals.assign(date=pd.to_datetime(actuals["date"]))
+        fit_label = "Fitted " + readable_col_names[col]
+        actuals.plot(x="date", y=col, ax=axis, color="k", marker="", ls="--", label=fit_label, scaley=False)
+
+        # Set xlim
+        # axis.set_xlim(actuals["date"].min(), sim_max_date)
+
+    else:
+        logger.warning("Fit data missing for " + adm_key + " " + str(adm_value))
 
     return axis
 
@@ -279,7 +322,7 @@ def pool_plot(args):
     args : tuple
         Zipped input data
     """
-    (area_code, area_data), name, hist_data, plot_columns, quantiles, adm_key, out_dir = args
+    (area_code, area_data), name, hist_data, plot_columns, quantiles, adm_key, out_dir, fit_data = args
 
     # Set date
     area_data = area_data.assign(date=pd.to_datetime(area_data["date"]))
@@ -297,6 +340,10 @@ def pool_plot(args):
     for i, p_col in enumerate(plot_columns):
 
         axs[i] = add_col_data_to_plot(axs[i], p_col, area_data, quantiles)
+
+        if fit_data is not None and i <= (len(plot_columns) - 1):
+            max_date = area_data["date"].max()
+            axs[i] = add_fit_data_to_plot(axs[i], fit_data, adm_key, area_code, p_col, max_date)
 
         # Plot historical data which is already at the correct level
         if hist_data is not None and i <= (len(plot_columns) - 1):
@@ -320,7 +367,7 @@ def pool_plot(args):
     area_data.to_csv(csv_filename)
 
 
-def plot(out_dir, lookup_df, key, sim_data, hist_data, plot_columns, quantiles, num_proc):
+def plot(out_dir, lookup_df, key, sim_data, hist_data, plot_columns, quantiles, num_proc, fit_data):
     """Given a dataframe and a key, creates plots with requested columns.
 
     For example, a pandas.DataFrame with state-level data would create a plot for
@@ -386,6 +433,11 @@ def plot(out_dir, lookup_df, key, sim_data, hist_data, plot_columns, quantiles, 
     else:
         group_hist_data = [None for _ in range(len(area_keys))]
 
+    # Get all historical fit data
+    if fit_data is not None:
+        group_fit_data = get_group_historical_data(fit_data, key, area_keys)
+    else:
+        group_fit_data = [None for _ in range(len(area_keys))]
     # Also pass in adm key, plot columns
     pool_input = zip(
         area_groups,
@@ -395,6 +447,7 @@ def plot(out_dir, lookup_df, key, sim_data, hist_data, plot_columns, quantiles, 
         [quantiles for _ in range(len(area_keys))],
         [key for _ in range(len(area_keys))],
         [out_dir for _ in range(len(area_keys))],
+        group_fit_data,
     )
 
     # this tqdm wrapper does the same thing...
@@ -423,6 +476,7 @@ def make_plots(
     admin1=None,
     hist_start=None,
     num_proc=16,
+    plot_fit=True,
 ):
     """Wrapper function around plot. Creates plots, aggregating data if necessary.
 
@@ -511,6 +565,19 @@ def make_plots(
 
             else:
                 hist_data = preprocess_historical_dates(hist_data, hist_start, start_date, end_date, min_hist_points)
+
+            # Plot historical data fit line
+            if plot_fit:
+                fit_data = get_historical_fit(
+                    input_directory,
+                    plot_columns,
+                    level,
+                    lookup_df,
+                    min_date=hist_data.date.min(),
+                )
+            else:
+                fit_data = None
+
         plot(
             out_dir=plot_dir,
             lookup_df=lookup_df,
@@ -520,6 +587,7 @@ def make_plots(
             plot_columns=plot_columns,
             quantiles=quantiles,
             num_proc=num_proc,
+            fit_data=fit_data,
         )
 
 
