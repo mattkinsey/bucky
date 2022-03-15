@@ -1,5 +1,6 @@
 """Global configuration handler for Bucky, also include prior parameters"""
 
+from glob import glob
 from importlib import resources
 from pathlib import Path, PosixPath
 
