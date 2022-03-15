@@ -553,13 +553,13 @@ def main(cfg):
     hist_start_date = None  # args.hist_start # TODO deprecate?
 
     # Parse optional flags
-    window = 7  # TODO make optional arg: window_size
+    window = cfg["window_size"]
     plot_historical = True  # TODO make bool flag (it should default to true though): no-hist?
 
     plot_end_date = None  # make optional arg --end_date
     list_quantiles = None  # make optional arg: --quantiles, -q
     hist_data_file = None  # TODO do we still need this? args.hist_file
-    min_hist = 21  # TODO make optional arg, probably needs a better name
+    min_hist = cfg["n_hist"]
 
     # Number of processes for pool
     if cfg["num_proc"] == -1:

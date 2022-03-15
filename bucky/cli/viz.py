@@ -39,6 +39,13 @@ def plot(
         "-np",
         help="Number of parallel procs to use",
     ),
+    n_hist: int = typer.Option(28, "--nhist", "-nh", help="Number of historical days to include in plot"),
+    hist_window_size: int = typer.Option(
+        1,
+        "--window",
+        "-w",
+        help="Window size for rolling mean of plotted historical data points",
+    ),
 ):
     """`bucky viz plot`, produce matplotlib quantile plots from output files."""
     cfg = ctx.obj
@@ -50,5 +57,7 @@ def plot(
     cfg["plot.levels"] = [level.name for level in levels]
     cfg["plot.columns"] = columns
     cfg["plot.num_proc"] = num_proc
+    cfg["plot.n_hist"] = n_hist
+    cfg["plot.window_size"] = hist_window_size
 
     plot_main(cfg["plot"])
