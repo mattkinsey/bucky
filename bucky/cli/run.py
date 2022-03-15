@@ -14,7 +14,12 @@ app = typer.Typer(context_settings={"ignore_unknown_options": True})
 
 
 @app.callback(invoke_without_command=True)
-def run_no_subcmd(ctx: typer.Context):
+def run_no_subcmd(
+    ctx: typer.Context,
+    days: int = typer.Option(30, "-d", help="Number of days to project forward"),
+    seed: int = typer.Option(42, "-s", help="Global PRNG seed"),
+    n_mc: int = typer.Option(100, "-n", help="Number of Monte Carlo iterations"),
+):
     # If no subcommand is selected run model->postprocess->plot
     if ctx.invoked_subcommand is None:
 
