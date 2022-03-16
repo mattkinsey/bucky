@@ -29,6 +29,14 @@ def transform(output_file):
 
     df = df[["incident_hospitalizations", "current_hospitalizations"]]
 
+    # Add in nan rows for the missing territories
+    if 66 in df.index.unique("adm1"):
+        raise RuntimeError("Unexpected adm1 66 in HHS Data")
+    if 69 in df.index.unique("adm1"):
+        raise RuntimeError("Unexpected adm1 69 in HHS Data")
+    empty_row_inds = pd.MultiIndex.from_product([[66, 69], df.index.unique("date")])
+    df = df.reindex(df.index.append(empty_row_inds)).sort_index()
+
     df = df.fillna(0)
 
     df.to_csv(output_file, index=True)
