@@ -90,12 +90,6 @@ class buckyData:
         # TODO need to remove this but ALOT of other code is still using this old way w/ sum_adm1
         self.max_adm1 = self.adm_mapping.n_adm1 - 1  # TODO remove (other things need this atm)
 
-        # TODO remove once we switch everything over to hhs_data
-        self.adm1_curr_hosp_hist = xp.empty((self.n_hist, self.max_adm1 + 1))
-        self.adm1_inc_hosp_hist = xp.empty((self.n_hist, self.max_adm1 + 1))
-        self.adm1_curr_hosp_hist[:, self.raw_hhs_data.adm_ids] = self.raw_hhs_data.current_hospitalizations
-        self.adm1_inc_hosp_hist[:, self.hhs_data.adm_ids] = self.hhs_data.incident_hospitalizations
-
     # TODO maybe provide a decorator or take a lambda or something to generalize it?
     # also this would be good if it supported rolling up to adm0 for multiple countries
     # memo so we don'y have to handle caching this on the input data?

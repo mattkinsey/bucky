@@ -301,10 +301,9 @@ class buckyModelCovid:
         yy.Rh = epi_params["CHR"] * I_init / yy.Rh_gamma_k * epi_params["CRR"]
 
         if self.cfg["model.flags.rescale_chr"]:
-            adm1_hosp = xp.zeros((self.g_data.max_adm1 + 1,), dtype=float)
-            xp.scatter_add(adm1_hosp, self.g_data.adm1_id, xp.sum(yy.Rh * self.Nij, axis=(0, 1)))
-            adm2_hosp_frac = (self.g_data.adm1_curr_hosp_hist[-1] / adm1_hosp)[self.g_data.adm1_id]
-            adm0_hosp_frac = xp.nansum(self.g_data.adm1_curr_hosp_hist[-1]) / xp.nansum(adm1_hosp)
+            adm1_hosp = self.g_data.sum_adm1(xp.sum(yy.Rh * self.Nij, axis=(0, 1)))
+            adm2_hosp_frac = (self.g_data.hhs_data.current_hospitalizations[-1] / adm1_hosp)[self.g_data.adm1_id]
+            adm0_hosp_frac = xp.nansum(self.g_data.hhs_data.current_hospitalizations[-1]) / xp.nansum(adm1_hosp)
             adm2_hosp_frac[xp.isnan(adm2_hosp_frac) | (adm2_hosp_frac == 0.0)] = adm0_hosp_frac
 
             # adm2_hosp_frac = xp.sqrt(adm2_hosp_frac * adm0_hosp_frac)

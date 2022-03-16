@@ -113,7 +113,7 @@ def estimate_chr(
     k = Rh_gamma_k
 
     rolling_case_hist = g_data.csse_data.incident_cases
-    rolling_hosp_hist = g_data.adm1_inc_hosp_hist
+    rolling_hosp_hist = g_data.hhs_data.incident_hospitalizations
 
     t_max = rolling_case_hist.shape[0]
     x = xp.arange(0.0, t_max)

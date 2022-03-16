@@ -65,10 +65,9 @@ class buckyVaccAlloc:
 
         # fill in first day of timeseries w/ cumulative up until that point
         init_vacs = vac_hist.loc[vac_hist.Date == pd.Timestamp(first_date - datetime.timedelta(days=hist_t))]
-        init_vacs = init_vacs.set_index("adm1").Doses_Distributed.reset_index().to_numpy().astype(int).T
+        init_vacs = init_vacs.set_index("adm1").sort_index().Doses_Distributed.reset_index().to_numpy().astype(int).T
 
-        adm1_init_vac = xp.zeros((g_data.max_adm1 + 1,))
-        adm1_init_vac[init_vacs[0]] = init_vacs[1]
+        adm1_init_vac = xp.array(init_vacs[1])
 
         self.adm1_vac_timeseries[0] = adm1_init_vac
 
@@ -76,12 +75,17 @@ class buckyVaccAlloc:
         # vac_hist['Doses_Distributed_rolling_daily'] = vac_hist['Doses_Distributed'].diff().rolling(7).mean()
         for t in range(1, hist_t + 1):
             daily_vacs = vac_hist.loc[vac_hist.Date == pd.Timestamp(first_date - datetime.timedelta(days=hist_t - t))]
+
             daily_vacs = (
-                daily_vacs.set_index("adm1").Doses_Distributed_rolling_daily.reset_index().to_numpy().astype(int).T
+                daily_vacs.set_index("adm1")
+                .sort_index()
+                .Doses_Distributed_rolling_daily.reset_index()
+                .to_numpy()
+                .astype(int)
+                .T
             )
 
-            adm1_daily_vac = xp.zeros((g_data.max_adm1 + 1,))
-            adm1_daily_vac[daily_vacs[0]] = daily_vacs[1]
+            adm1_daily_vac = xp.array(daily_vacs[1])
 
             self.adm1_vac_timeseries[t] = adm1_daily_vac
 
@@ -169,6 +173,9 @@ class buckyVaccAlloc:
         # resp_factor = xp.sqrt(resp_factor)
         self.hes_frac_ij_adm1 = xp.zeros_like(self.g_data.adm1_Nij)
         self.hes_se_ij_adm1 = xp.zeros_like(self.g_data.adm1_Nij)
+        adm1_ind_map = {v: i for i, v in enumerate(xp.to_cpu(g_data.adm_mapping.uniq_adm1_ids))}
+        df.index = df.index.map(adm1_ind_map)
+        df_se.index = df_se.index.map(adm1_ind_map)
         if scen_params is not None:
             df["hes"] = df[scen_params["hes_col"]]
         for col in age_map:  # pylint: disable=consider-using-dict-items
@@ -224,7 +231,7 @@ class buckyVaccAlloc:
         # hes_adm1 = xp.minimum(hes_adm1, scen_params['max_uptake'])
         # national_uptake = (xp.sum((self.dose2 * self.g_data.Nij), axis=[1,2])/xp.sum(self.g_data.adm0_Ni[3:]))[-1]
 
-        vacc_demos = hes_adm1[:, self.g_data.adm1_id] * self.baseline_vacc_demos
+        vacc_demos = hes_adm1[:, self.g_data.adm_mapping.adm1_ids] * self.baseline_vacc_demos
 
         self.adm1_phase = xp.zeros((g_data.max_adm1 + 1,))
         self.pop_per_phase_adm1 = xp.zeros((max_phases, g_data.max_adm1 + 1))
@@ -249,7 +256,7 @@ class buckyVaccAlloc:
                 #    print(t, p)
                 #    print(frac_dist)
                 tmp = xp.zeros_like(phase_hist_adm1[0])
-                frac_dist_adm2 = frac_dist[g_data.adm1_id][None, ...]
+                frac_dist_adm2 = frac_dist[g_data.adm_mapping.adm1_ids][None, ...]
 
                 if dose1_t <= end_t and dose1_t >= 0:
                     self.dose1[dose1_t] += frac_dist_adm2 * vacc_demos[p]
@@ -259,7 +266,7 @@ class buckyVaccAlloc:
                 if dose2_t <= end_t and dose2_t >= 0:
                     self.dose2[dose2_t] += frac_dist_adm2 * vacc_demos[p]
 
-        self.phase_hist = phase_hist_adm1[:, self.g_data.adm1_id]
+        self.phase_hist = phase_hist_adm1[:, self.g_data.adm_mapping.adm1_ids]
         self.active = self.flags["vaccines"]
         self.reroll = self.flags["vaccine_monte_carlo"]
 
