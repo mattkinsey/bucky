@@ -50,6 +50,12 @@ def common(
         show_default=False,
         help="Force numpy, otherwise cupy will be used if in it's place (if installed).",
     ),
+    ssl_no_verify: bool = typer.Option(
+        False,
+        "--ssl_no_verify",
+        "-s",
+        help="Disable SSL verification",
+    ),
 ):
     """Bucky CLI."""
 
@@ -78,6 +84,7 @@ def common(
     # add runtime flags to cfg
     cfg["runtime.verbose"] = verbose
     cfg["runtime.debug"] = debug
+    cfg["ssl_no_verify"] = ssl_no_verify
     use_cupy = cupy_available() if gpu else False
 
     # put cfg in typer context for downstream commands

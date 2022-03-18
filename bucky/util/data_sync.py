@@ -2,6 +2,7 @@ import functools
 import hashlib
 import io
 import multiprocessing
+import ssl
 import subprocess  # noqa: S404
 import urllib.request
 import zipfile
@@ -103,7 +104,7 @@ def process_datasources(data_sources, data_dir, ssl_no_verify=False, n_jobs=None
     raw_data_dir = data_dir / "raw"
     raw_data_dir.mkdir(exist_ok=True, parents=True)
 
-    _process_one = functools.partial(_process_one_datasource, raw_data_dir=raw_data_dir)
+    _process_one = functools.partial(_process_one_datasource, raw_data_dir=raw_data_dir, ssl_no_verify=ssl_no_verify)
 
     # copy included data over
     included_data_path = _locate_included_data()
@@ -135,7 +136,7 @@ def process_datasources(data_sources, data_dir, ssl_no_verify=False, n_jobs=None
         pool.join()
 
 
-def _process_one_datasource(source_cfg, raw_data_dir):
+def _process_one_datasource(source_cfg, raw_data_dir, ssl_no_verify):
     f_path = raw_data_dir / source_cfg["name"]
 
     if source_cfg["type"] == "git":
@@ -169,8 +170,12 @@ def _process_one_datasource(source_cfg, raw_data_dir):
         if to_download:
             f_path.mkdir(exist_ok=True)
 
+            context = None
+            if ssl_no_verify:
+                context = ssl._create_unverified_context()  # noqa: S323
+
             logger.info("Downloading {}...", source_cfg["url"])
-            with urllib.request.urlopen(source_cfg["url"]) as tmp_file:  # noqa: S310
+            with urllib.request.urlopen(source_cfg["url"], context=context) as tmp_file:  # noqa: S310
                 f_obj = io.BytesIO(tmp_file.read())
 
             f_dat = f_obj.read()
