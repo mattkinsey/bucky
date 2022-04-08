@@ -62,7 +62,7 @@ def _exec_shell_cmd(cmd, cwd=None):
         raise BuckySyncException from ex
 
 
-def _git_clone(url, local_name, abs_path, bare=False, depth=1, tag=None):
+def _git_clone(url, local_name, abs_path, ssl_no_verify, bare=False, depth=1, tag=None):
     """Updates a git repository given its path.
 
     Parameters
@@ -71,7 +71,10 @@ def _git_clone(url, local_name, abs_path, bare=False, depth=1, tag=None):
         Abs path location of repository to update
     """
     # build git command
-    git_command = "git clone --progress "
+    git_command = "git "
+    if ssl_no_verify:
+        git_command += "-c http.sslVerify=false "
+    git_command += "clone --progress "
     if depth is not None:
         git_command += f"--depth={depth} "
     if bare:
@@ -85,6 +88,10 @@ def _git_clone(url, local_name, abs_path, bare=False, depth=1, tag=None):
 
     # run git subprocess
     _exec_shell_cmd(git_command, cwd=abs_path)
+
+    # set ssl verification within cloned repo
+    if ssl_no_verify:
+        _exec_shell_cmd("git config http.sslVerify false", cwd=abs_path / local_name)
 
 
 def _git_pull(abs_path, rebase=True):
@@ -152,7 +159,12 @@ def _process_one_datasource(source_cfg, raw_data_dir, ssl_no_verify):
 
         else:
             logger.info("Git repo {}, not found in data_dir. Cloning...", source_cfg["name"])
-            _git_clone(source_cfg["url"], local_name=source_cfg["name"], abs_path=raw_data_dir)
+            _git_clone(
+                source_cfg["url"],
+                local_name=source_cfg["name"],
+                abs_path=raw_data_dir,
+                ssl_no_verify=ssl_no_verify,
+            )
 
     if source_cfg["type"] == "http":
 
