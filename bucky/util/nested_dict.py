@@ -107,15 +107,23 @@ class NestedDict(MutableMapping):
 
     def flatten(self, parent=""):
         """Flatten to a normal dict where the heirarcy exists in the key names."""
-        ret = []
-        for k, v in self.items():
-            base_key = parent + self.seperator + k if parent else k
-            if _is_dict_type(v):  # isinstance(v, type(self)):
-                ret.extend(v.flatten(parent=base_key).items())
-            else:
-                ret.append((base_key, v))
+        ret = OrderedDict() if self.ordered else {}
 
-        return dict(ret)
+        def _recursive_flatten(v, parent_key=""):
+            if _is_list_type(v):
+                for i, v2 in enumerate(v):
+                    key = parent_key + self.seperator + str(i) if parent_key else str(i)
+                    _recursive_flatten(v2, key)
+            elif _is_dict_type(v):
+                for k, v2 in v.items():
+                    key = parent_key + self.seperator + k if parent_key else k
+                    _recursive_flatten(v2, key)
+            else:
+                ret[parent_key] = v
+
+        _recursive_flatten(self)
+
+        return ret
 
     def from_flat_dict(self, flat_dict):
         """Create a NestedDict from a flattened dict."""
