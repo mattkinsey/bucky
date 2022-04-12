@@ -2,8 +2,10 @@
 from collections import OrderedDict
 from collections.abc import Collection, Mapping, MutableMapping  # pylint: disable=no-name-in-module
 from copy import deepcopy
+from pprint import pformat
 
 from ruamel.yaml import YAML
+from ruamel.yaml.representer import RepresenterError
 
 yaml = YAML()
 
@@ -95,7 +97,11 @@ class NestedDict(MutableMapping):
     def __repr__(self):
         """REPL string representation for NestedDict, basically just yaml-ize it."""
         # Just lean on yaml for now but it makes arrays very ugly
-        return self.to_yaml()
+        try:
+            return self.to_yaml()
+        except RepresenterError:
+            # Fallback to printing a dict if something prevents yaml
+            return pformat(self.to_dict())
 
     # def __str__(self):
 
