@@ -124,7 +124,7 @@ def estimate_chr(
 
     adm0_theta = xp.sum(adm2_mean * g_data.Nj / g_data.N) / k
 
-    w = 1.0 / (xp.special.gamma(k) * adm0_theta ** k) * x ** (k - 1) * xp.exp(-x / adm0_theta)
+    w = 1.0 / (xp.special.gamma(k) * adm0_theta**k) * x ** (k - 1) * xp.exp(-x / adm0_theta)
     w = w / (1.0 - w)
 
     w = w / xp.sum(w)
@@ -144,7 +144,7 @@ def estimate_chr(
     adm1_theta = g_data.sum_adm1(adm2_mean * g_data.Nj) / g_data.adm1_Nj / k
 
     x = xp.tile(x, (adm1_theta.shape[0], 1)).T
-    w = 1.0 / (xp.special.gamma(k) * adm1_theta ** k) * x ** (k - 1) * xp.exp(-x / adm1_theta)
+    w = 1.0 / (xp.special.gamma(k) * adm1_theta**k) * x ** (k - 1) * xp.exp(-x / adm1_theta)
     w = w / (1.0 - w)
     w = w / xp.sum(w, axis=0)
     w = w[::-1]
@@ -194,7 +194,7 @@ def estimate_cfr(
 
     adm0_theta = xp.sum(adm2_mean * g_data.Nj / g_data.N) / k
 
-    w = 1.0 / (xp.special.gamma(k) * adm0_theta ** k) * x ** (k - 1) * xp.exp(-x / adm0_theta)
+    w = 1.0 / (xp.special.gamma(k) * adm0_theta**k) * x ** (k - 1) * xp.exp(-x / adm0_theta)
     w = w / (1.0 - w)
     w = w / xp.sum(w)
     w = w[::-1]
@@ -214,7 +214,7 @@ def estimate_cfr(
     adm1_theta = g_data.sum_adm1(adm2_mean * g_data.Nj) / g_data.adm1_Nj / k
 
     x = xp.tile(x, (adm1_theta.shape[0], 1)).T
-    w = 1.0 / (xp.special.gamma(k) * adm1_theta ** k) * x ** (k - 1) * xp.exp(-x / adm1_theta)
+    w = 1.0 / (xp.special.gamma(k) * adm1_theta**k) * x ** (k - 1) * xp.exp(-x / adm1_theta)
     w = w / (1.0 - w)
     w = w / xp.sum(w, axis=0)
     w = w[::-1]
@@ -264,7 +264,7 @@ def estimate_Rt(
     theta = mean / k
     x = xp.arange(0.0, t_max)
 
-    w = 1.0 / (xp.special.gamma(k) * theta ** k) * x ** (k - 1) * xp.exp(-x / theta)
+    w = 1.0 / (xp.special.gamma(k) * theta**k) * x ** (k - 1) * xp.exp(-x / theta)
     w = w / (1.0 - w)
     w = w / xp.sum(w)
     w = w[::-1]

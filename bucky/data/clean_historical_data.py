@@ -194,19 +194,19 @@ def clean_historical_data(csse_data, hhs_data, adm_mapping, fit_cfg, force_save_
             resid = spline_inc_cases - inc_cases
             stddev = xp.quantile(xp.abs(resid), axis=1, q=0.682)
             clean_resid = xp.clip(resid / (6.0 * stddev[:, None] + 1e-8), -1.0, 1.0)
-            robust_weights = xp.clip(1.0 - clean_resid ** 2.0, 0.0, 1.0) ** 2.0
+            robust_weights = xp.clip(1.0 - clean_resid**2.0, 0.0, 1.0) ** 2.0
             spline_inc_cases = fit(inc_cases, **inc_fit_args, label="PIRLS Incident Cases", w=robust_weights)
 
             resid = spline_inc_deaths - inc_deaths
             stddev = xp.quantile(xp.abs(resid), axis=1, q=0.682)
             clean_resid = xp.clip(resid / (6.0 * stddev[:, None] + 1e-8), -1.0, 1.0)
-            robust_weights = xp.clip(1.0 - clean_resid ** 2.0, 0.0, 1.0) ** 2.0
+            robust_weights = xp.clip(1.0 - clean_resid**2.0, 0.0, 1.0) ** 2.0
             spline_inc_deaths = fit(inc_deaths, **inc_fit_args, label="PIRLS Incident Deaths", w=robust_weights)
 
             resid = spline_inc_hosp - inc_hosp
             stddev = xp.quantile(xp.abs(resid), axis=1, q=0.682)
             clean_resid = xp.clip(resid / (6.0 * stddev[:, None] + 1e-8), -1.0, 1.0)
-            robust_weights = xp.clip(1.0 - clean_resid ** 2.0, 0.0, 1.0) ** 2.0
+            robust_weights = xp.clip(1.0 - clean_resid**2.0, 0.0, 1.0) ** 2.0
             spline_inc_hosp = fit(inc_hosp, **inc_fit_args, label="PIRLS Incident Hosps", w=robust_weights)
 
     # invert power transform
