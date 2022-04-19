@@ -105,6 +105,15 @@ model:
         func: "truncnorm_from_CI"
         CI: [3.,6.]
         a_min: 1.
+
+    # Hazard ratio (for deaths) of current strain vs wildtype
+    HR_vs_wildtype:
+      distribution:
+        func: "truncnorm_from_CI"
+        CI: [.3, .55]
+        a_min: 0.
+        a_max: 1.
+
     ASYM_FRAC:
       # Fraction of infections that are asymptomatic
       distribution:

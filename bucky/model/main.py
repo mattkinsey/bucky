@@ -201,6 +201,7 @@ class buckyModelCovid:
         # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7721859/
         mean_ages = xp.mean(xp.array(sampled_params["structure.age_bins"]), axis=1)
         ifr = xp.exp(-7.56 + 0.121 * mean_ages) / 100.0
+        ifr = ifr * epi_params["HR_vs_wildtype"]
 
         # Estimate the case reporting rate
         # crr_days_needed = max( #TODO this depends on all the Td params, and D_REPORT_TIME...
