@@ -7,8 +7,8 @@ data_sources:
       - desc: "Transform CSSE data into useable format"
         func: bucky.datasource_transforms.csse_timeseries.transform
         args:
-          output_file: ../../csse_timeseries.csv
-          census_data_path: ../../binned_census_age_groups.csv
+          output_file: !path ../../csse_timeseries.csv
+          census_data_path: !path ../../binned_census_age_groups.csv
 
   - name: vaccine_timeseries
     type: git
@@ -48,7 +48,7 @@ data_sources:
       - desc: "Convert Prem contact matrix csv into usable format"
         func: bucky.datasource_transforms.prem_2020_csv.transform
         args:
-          output_filename: ../../prem_matrices.csv
+          output_filename: !path ../../prem_matrices.csv
         check_hash:
           file: !path ../../prem_matrices.csv
           hash: 88b6f2aaaabccb66d8f21ca6b2c9998305a565999aad7b11a652a5307009ab81
@@ -64,7 +64,7 @@ data_sources:
         func: bucky.datasource_transforms.bin_bridged_race_census_csv.bin_census_data
         args:
           filename: pcen_v2020_y1020.txt
-          out_filename: ../../binned_census_age_groups.csv
+          out_filename: !path ../../binned_census_age_groups.csv
         check_hash:
           file: !path ../../binned_census_age_groups.csv
           hash: a1f7bac1ef2136efa7033253e3065dba457ce5b24b5f89b6f6eeb8f9ae64106f
@@ -77,4 +77,4 @@ data_sources:
       - desc: "Aggregate and drop unused columns from HHS data."
         func: bucky.datasource_transforms.hhs_hosp_cleanup.transform
         args:
-          output_file: ../../hhs_timeseries.csv
+          output_file: !path ../../hhs_timeseries.csv
