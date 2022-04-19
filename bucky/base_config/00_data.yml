@@ -32,6 +32,12 @@ data_sources:
     url: https://www2.census.gov/geo/tiger/TIGER2021/COUNTY/tl_2021_us_county.zip
     unzip: True
     hash: 26890ff92275ff1392cd205c7021ba510b7f63f2ff985ca327b9f5fd5e9ecc90
+    postprocess:
+      - desc: "Precomputing distances between counties"
+        func: bucky.datasource_transforms.county_adjacency.calculate
+        args:
+          output_filename: !path ../../county_connectivity.csv
+          census_data_path: !path ../../binned_census_age_groups.csv
 
   - name: tiger_state_shp_files_2021
     type: http
