@@ -305,7 +305,7 @@ class buckyModelCovid:
             adm1_hosp = self.g_data.sum_adm1(xp.sum(yy.Rh * self.Nij, axis=(0, 1)))
             adm2_hosp_frac = (self.g_data.hhs_data.current_hospitalizations[-1] / adm1_hosp)[self.g_data.adm1_id]
             adm0_hosp_frac = xp.nansum(self.g_data.hhs_data.current_hospitalizations[-1]) / xp.nansum(adm1_hosp)
-            adm2_hosp_frac[xp.isnan(adm2_hosp_frac) | (adm2_hosp_frac == 0.0)] = adm0_hosp_frac
+            adm2_hosp_frac[~xp.isfinite(adm2_hosp_frac) | (adm2_hosp_frac == 0.0)] = adm0_hosp_frac
 
             # adm2_hosp_frac = xp.sqrt(adm2_hosp_frac * adm0_hosp_frac)
 
