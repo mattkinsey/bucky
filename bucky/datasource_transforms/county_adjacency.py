@@ -1,3 +1,4 @@
+from multiprocessing import Pool, cpu_count
 from pathlib import Path
 
 import geopandas as gpd
@@ -35,5 +36,12 @@ def calculate(output_filename, census_data_path):
     output_df = pd.merge(output_df, county_pop, left_on="i", right_index=True, how="left")
     output_df = pd.merge(output_df, county_pop, left_on="j", right_index=True, how="left")
     output_df = output_df.rename(columns={"population_x": "i_pop", "population_y": "j_pop"})
+
+    n_cpu = min(cpu_count(), 4)
+    with Pool(n_cpu) as pool:
+        result = pool.map(county_df.geometry.touches, county_df.geometry.values)
+
+    touches_mat = np.stack([res.values.astype(int) for res in result])
+    output_df["touches"] = touches_mat.reshape(-1)
 
     output_df.to_csv(output_filename, index=True)

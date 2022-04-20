@@ -38,6 +38,9 @@ data_sources:
         args:
           output_filename: !path ../../county_connectivity.csv
           census_data_path: !path ../../binned_census_age_groups.csv
+        check_hash:
+          file: !path ../../county_connectivity.csv
+          hash: b8a01020be8f601c3f2070216c312c1ff16fa9ac18cfc670fa54bb588e33d57b
 
   - name: tiger_state_shp_files_2021
     type: http
