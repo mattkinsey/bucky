@@ -287,7 +287,7 @@ def plot_historical_fits(csse_data, hhs_data, adm_mapping, fitted_data, valid_ad
 
     fig, ax = plt.subplots(nrows=2, ncols=4, figsize=(15, 10))
     x = xp.arange(csse_adm1.n_days)
-    for i in tqdm.tqdm(range(csse_adm1.n_loc), desc="Ploting fits", dynamic_ncols=True):
+    for i in tqdm.tqdm(range(csse_adm1.n_loc), desc="Plotting fits", dynamic_ncols=True):
         adm1_fips = adm_mapping.uniq_adm1_ids[i]
         fips_str = str(adm1_fips).zfill(2)
         if fips_str in fips_map:

@@ -22,10 +22,6 @@ from .rhs import RHS_func
 from .state import buckyState
 from .vacc import buckyVaccAlloc
 
-SCENARIO_HUB = False  # True
-scen_params = {}
-
-
 # TODO rename g_data (needs a better name than 'data' though...)
 
 
@@ -89,24 +85,13 @@ class buckyModelCovid:
             str(self.sim_start_date + datetime.timedelta(days=int(np.round(t)))) for t in range(self.t_max + 1)
         ]
 
-        # Make contact mats sym and normalized (move to g_data)
+        # Load and stack contact matrices
         self.contact_mats = g_data.Cij
-        if self.debug:
-            pass
-            # TODO
-            # logging.debug(f"graph contact mats: {G.graph['contact_mats'].keys()}")
-        # for mat in self.contact_mats:
-        #    c_mat = xp.array(self.contact_mats[mat])
-        #    c_mat = (c_mat + c_mat.T) / 2.0
-        #    self.contact_mats[mat] = c_mat
         # remove all_locations so we can sum over the them ourselves
-        # if "all_locations" in self.contact_mats:
-        #    del self.contact_mats["all_locations"]
         if "all" in self.contact_mats:
             del self.contact_mats["all"]
 
         # Remove unknown contact mats
-        # TODO update this stuff going from contact_mats -> Cij...
         valid_contact_mats = ["home", "work", "others", "school"]
         self.contact_mats = {k: v for k, v in self.contact_mats.items() if k in valid_contact_mats}
 
@@ -125,10 +110,7 @@ class buckyModelCovid:
             self.base_mc_instance.add_npi(self.npi_params)
 
         if self.flags["vaccines"]:
-            if SCENARIO_HUB:
-                self.vacc_data = buckyVaccAlloc(g_data, self.cfg, self.sim_start_date, scen_params)
-            else:
-                self.vacc_data = buckyVaccAlloc(g_data, self.cfg, self.sim_start_date)
+            self.vacc_data = buckyVaccAlloc(g_data, self.cfg, self.sim_start_date)
             self.base_mc_instance.add_vacc(self.vacc_data)
         return g_data
 
@@ -186,9 +168,6 @@ class buckyModelCovid:
             self.base_mc_instance.vacc_data.reroll_doses()
             epi_params["vacc_eff_1"] = vac_params["vacc_eff_1"]
             epi_params["vacc_eff_2"] = vac_params["vacc_eff_2"]
-            # if SCENARIO_HUB:
-            #    self.params["vacc_eff_1"] = scen_params["eff_1"]
-            #    self.params["vacc_eff_2"] = scen_params["eff_2"]
 
         # TODO move most of below into a function like:
         # test = calc_initial_state(self.g_data, self.params, self.base_mc_instance)
