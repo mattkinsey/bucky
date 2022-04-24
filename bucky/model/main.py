@@ -544,6 +544,7 @@ class buckyModelCovid:
 
         if "daily_deaths" in columns:
             daily_deaths = xp.gradient(out.D, axis=-1, edge_order=2)
+            daily_deaths[:, 0] = xp.maximum(0.0, daily_deaths[:, 0])
             mc_data["daily_deaths"] = daily_deaths
 
             if self.reject_runs:
@@ -559,6 +560,7 @@ class buckyModelCovid:
 
         if "daily_cases" in columns or "daily_reported_cases" in columns:
             daily_reported_cases = xp.gradient(out.incC, axis=-1, edge_order=2)
+            daily_reported_cases[:, 0] = xp.maximum(0.0, daily_reported_cases[:, 0])
 
             if self.reject_runs:
                 init_inc_case_mean = xp.mean(xp.sum(daily_reported_cases[:, 1:4], axis=0))
@@ -587,8 +589,9 @@ class buckyModelCovid:
             mc_data["cumulative_cases"] = cum_cases_total
 
         if "daily_hospitalizations" in columns:
-            out.incH[:, 0] = out.incH[:, 1]
+            out.incH[:, 0] = out.incH[:, 1] - out.incH[:, 2]
             daily_hosp = xp.gradient(out.incH, axis=-1, edge_order=2)
+            daily_hosp[:, 0] = xp.maximum(0.0, daily_hosp[:, 0])
             mc_data["daily_hospitalizations"] = daily_hosp
 
         if "total_population" in columns:
@@ -655,7 +658,7 @@ class buckyModelCovid:
         # Check for any negative values in the ouput data
         negative_values = False
         for k, val in mc_data.items():
-            if k != "date" and xp.any(xp.around(val, 2) < 0.0):
+            if k != "date" and xp.any(xp.around(val, 5) < 0.0):
                 logger.info("Negative values present in " + k)
                 negative_values = True
 
