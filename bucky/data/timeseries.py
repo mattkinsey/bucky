@@ -1,6 +1,6 @@
 import datetime
 from dataclasses import dataclass, field, fields, replace
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -120,7 +120,17 @@ class SpatialStratifiedTimeseries:
     def replace(self, **changes):
         return replace(self, **changes)
 
-    def sum_adm_level(self, level: int):
+    def sum_adm_level(self, level: Union[int, str]):
+
+        if type(level) == str:
+
+            # Check string begins with 'adm'
+            if level[:3] == "adm":
+                level = int(level.split("adm")[-1])
+            else:
+                logger.error("String admin aggregation level must begin with adm")
+                raise ValueError
+
         # TODO masking, weighting?
         if level > self.adm_level:
             logger.error("Requested sum to finer adm level than the data.")
