@@ -8,6 +8,7 @@ import typer
 from ..config import BuckyConfig
 from ..model.main import main as model_main
 from ..postprocess import main as postprocess_main
+from ..util.util import generate_runid
 from .typer_utils import forward, invoke
 
 app = typer.Typer(context_settings={"ignore_unknown_options": True})
@@ -19,6 +20,7 @@ def run_no_subcmd(
     days: int = typer.Option(30, "-d", help="Number of days to project forward"),
     seed: int = typer.Option(42, "-s", help="Global PRNG seed"),
     n_mc: int = typer.Option(100, "-n", help="Number of Monte Carlo iterations"),
+    run_id: str = typer.Option(generate_runid(), "--runid", help="UUID name of current run"),
 ):
     # If no subcommand is selected run model->postprocess->plot
     if ctx.invoked_subcommand is None:
@@ -38,12 +40,14 @@ def model(
     days: int = typer.Option(30, "-d", help="Number of days to project forward"),
     seed: int = typer.Option(42, "-s", help="Global PRNG seed"),
     n_mc: int = typer.Option(100, "-n", help="Number of Monte Carlo iterations"),
+    run_id: str = typer.Option(generate_runid(), "--runid", help="UUID name of current run"),
 ):
     """`bucky run model`, run the model itself, dumping raw monte carlo output to raw_output_dir."""
     cfg = ctx.obj
     cfg["runtime.t_max"] = days
     cfg["runtime.seed"] = seed
     cfg["runtime.n_mc"] = n_mc
+    cfg["runtime.run_id"] = run_id
     ret = model_main(cfg)
     return ret
 

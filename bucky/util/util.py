@@ -51,7 +51,7 @@ class dotdict(dict):
 
 
 @lru_cache(maxsize=None)
-def get_runid():  # TODO rename to timeid or something
+def generate_runid():
     """Gets a UUID based of the current datatime and caches it."""
     dt_now = datetime.datetime.now()
     return str(dt_now).replace(" ", "__").replace(":", "_").split(".", maxsplit=1)[0]

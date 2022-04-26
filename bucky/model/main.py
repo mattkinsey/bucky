@@ -10,7 +10,7 @@ from tqdm.contrib.logging import logging_redirect_tqdm
 from ..numerical_libs import enable_cupy, reimport_numerical_libs, xp, xp_ivp
 from ..util.distributions import approx_mPERT
 from ..util.fractional_slice import frac_last_n_vals
-from ..util.util import _banner, get_runid
+from ..util.util import _banner
 from .data import buckyData
 from .derived_epi_params import add_derived_params
 from .estimation import estimate_cfr, estimate_chr, estimate_crr, estimate_Rt
@@ -44,7 +44,7 @@ class buckyModelCovid:
 
         # Integrator params
         self.t_max = cfg["runtime.t_max"]
-        self.run_id = get_runid()
+        self.run_id = cfg["runtime.run_id"]
         logger.info("Run ID: {}", self.run_id)
 
         self.npi_file = npi_file
