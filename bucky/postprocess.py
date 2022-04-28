@@ -157,12 +157,15 @@ def main(cfg):
     try:
         percentiles = xp.array(quantiles, dtype=np.float64) * 100.0
         quantiles = np.array(quantiles)
-        dataset = ds.dataset(data_dir, format="parquet", partitioning=["date"])
-        rids = dataset.to_table(columns=["rid"])
-        n_rids = len(pac.unique(rids.column(0)))
-        logger.info(f"Found {n_rids} unique monte carlos")
+
+        def get_nrids():
+            dataset = ds.dataset(data_dir, format="parquet", partitioning=["date"])
+            rids = dataset.to_table(columns=["rid"])
+            return len(pac.unique(rids.column(0)))
+
+        logger.opt(lazy=True).info("Found {n_rids} unique monte carlos", n_rids=lambda: get_nrids())
         for date_i, date in enumerate(tqdm.tqdm(dates)):
-            # dataset = ds.dataset(data_dir, format="parquet", partitioning=["date"])
+            dataset = ds.dataset(data_dir, format="parquet", partitioning=["date"])
             table = dataset.to_table(filter=ds.field("date") == "date=" + str(date_i))
             table = table.drop(("date", "rid", "adm2_id"))  # we don't need these b/c metadata
 
@@ -212,8 +215,8 @@ def main(cfg):
 
                 write_queue.put((output_dir / (level + "_quantiles.csv"), all_q_data))
 
-            # del dataset
-            # gc.collect()
+            del dataset
+            gc.collect()
 
     except (KeyboardInterrupt, SystemExit):
         logger.warning("Caught SIGINT, cleaning up")
