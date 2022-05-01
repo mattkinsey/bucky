@@ -19,15 +19,13 @@ def transform(output_file):
 
     df = df.set_index(["adm1", "date"]).sort_index()
 
-    df["incident_hospitalizations"] = (
-        df.previous_day_admission_adult_covid_confirmed + df.previous_day_admission_pediatric_covid_confirmed
-    )
+    inc_hosps = df.previous_day_admission_adult_covid_confirmed + df.previous_day_admission_pediatric_covid_confirmed
 
-    df["current_hospitalizations"] = (
+    current_hosps = (
         df.total_adult_patients_hospitalized_confirmed_covid + df.total_pediatric_patients_hospitalized_confirmed_covid
     )
 
-    df = df[["incident_hospitalizations", "current_hospitalizations"]]
+    df = pd.concat({"incident_hospitalizations": inc_hosps, "current_hospitalizations": current_hosps}, axis=1)
 
     # Add in nan rows for the missing territories
     if 66 in df.index.unique("adm1"):
