@@ -96,9 +96,6 @@ class BuckyConfig(NestedDict):
         except FileNotFoundError:
             logger.exception("Config not found!")
 
-        # self._to_arrays()
-        self._cast_floats()
-
         return self
 
     @sync_numerical_libs
