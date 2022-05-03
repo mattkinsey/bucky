@@ -112,26 +112,43 @@ def clean_historical_data(csse_data, hhs_data, adm_mapping, fit_cfg, force_save_
     df = max(1 * n_hist // 7 - 1, 4)
     # df = int(10 * n_hist ** (2.0 / 9.0)) + 1  # from gam book section 4.1.7
 
+    cum_fit_args = {
+        "alp": fit_cfg["gam_args.alp"],
+        "df": df,
+        "dist": "g",
+        "standardize": fit_cfg["gam_args.standardize"],
+        "gamma": fit_cfg["gam_args.gam_cum"],
+        "tol": fit_cfg["gam_args.tol"],
+        "clip": (fit_cfg["gam_args.a_min"], None),
+        "bootstrap": False,  # True,
+    }
+
     spline_cum_cases = fit(
         new_cum_cases,
-        df=df,
-        alp=fit_cfg["gam_args.alp"],
-        gamma=fit_cfg["gam_args.gam_cum"],
-        tol=fit_cfg["gam_args.tol"],
+        **cum_fit_args,
         label="PIRLS Cumulative Cases",
-        standardize=fit_cfg["gam_args.standardize"],
-        clip=(fit_cfg["gam_args.a_min"], None),
     )
     spline_cum_deaths = fit(
         new_cum_deaths,
-        df=df,
-        alp=fit_cfg["gam_args.alp"],
-        gamma=fit_cfg["gam_args.gam_cum"],
-        tol=fit_cfg["gam_args.tol"],
+        **cum_fit_args,
         label="PIRLS Cumulative Deaths",
-        standardize=fit_cfg["gam_args.standardize"],
-        clip=(fit_cfg["gam_args.a_min"], None),
     )
+
+    # do iterative robust weighting of the data points
+    # TODO move this to the actual fitting method
+    if fit_cfg["gam_args.robust_weighting"]:
+        for _ in range(fit_cfg["gam_args.robust_weighting_iters"]):
+            resid = spline_cum_cases - new_cum_cases
+            stddev = xp.quantile(xp.abs(resid), axis=1, q=0.682)
+            clean_resid = xp.clip(resid / (6.0 * stddev[:, None] + 1e-8), -1.0, 1.0)
+            robust_weights = xp.clip(1.0 - clean_resid**2.0, 0.0, 1.0) ** 2.0
+            spline_cum_cases = fit(new_cum_cases, **cum_fit_args, label="PIRLS Cumulative Cases", w=robust_weights)
+
+            resid = spline_cum_deaths - new_cum_deaths
+            stddev = xp.quantile(xp.abs(resid), axis=1, q=0.682)
+            clean_resid = xp.clip(resid / (6.0 * stddev[:, None] + 1e-8), -1.0, 1.0)
+            robust_weights = xp.clip(1.0 - clean_resid**2.0, 0.0, 1.0) ** 2.0
+            spline_cum_deaths = fit(new_cum_deaths, **cum_fit_args, label="PIRLS Cumulative Deaths", w=robust_weights)
 
     # Get incident timeseries from fitted cumulatives
     inc_cases = xp.clip(xp.gradient(spline_cum_cases, axis=1, edge_order=2), a_min=0.0, a_max=None)
