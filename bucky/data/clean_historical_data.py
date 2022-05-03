@@ -253,15 +253,15 @@ def clean_historical_data(csse_data, hhs_data, adm_mapping, fit_cfg, force_save_
 
     fitted_hhs_data = hhs_data.replace(incident_hospitalizations=spline_inc_hosp.T)
 
-    fitted_csse_data.validate_isfinite()
-    fitted_hhs_data.validate_isfinite()
-
     # Only plot if the fits arent in the cache already
     # TODO this wont update if doing a historical run thats already cached
     save_plots = (not all_cached) or force_save_plots
 
     if save_plots:
         plot_historical_fits(csse_data, hhs_data, adm_mapping, ret_data, adm1_case_mask, adm1_death_mask)
+
+    fitted_csse_data.validate_isfinite()
+    fitted_hhs_data.validate_isfinite()
 
     return fitted_csse_data, fitted_hhs_data
 
