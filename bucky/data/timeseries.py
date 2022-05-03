@@ -134,6 +134,19 @@ class SpatialStratifiedTimeseries:
 
         return self.__class__(**new_data)
 
+    def validate_isfinite(self):
+        for f in fields(self):
+            if "data_field" in f.metadata:
+                col_name = f.name
+                data = getattr(self, f.name)
+                finite = xp.isfinite(data)
+                if xp.any(~finite):
+                    locs = xp.argwhere(~finite)
+                    logger.error(
+                        f"Nonfinite values found in column {col_name} of {self.__class__.__qualname__} at {locs}!",
+                    )
+                    raise RuntimeError
+
 
 def _mask_date_range(
     dates: np.ndarray,
