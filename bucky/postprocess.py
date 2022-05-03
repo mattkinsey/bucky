@@ -59,27 +59,8 @@ def main(cfg):
         reimport_numerical_libs("postprocess")
 
     # TODO move these to cfg?
-    per_capita_cols = {
-        "cumulative_reported_cases",
-        "cumulative_deaths",
-        "current_hospitalizations",
-        "daily_reported_cases",
-        "daily_deaths",
-        "vacc_dose1",
-        "vacc_dose2",
-        "immune",
-    }
-    pop_weighted_cols = {
-        "case_reporting_rate",
-        "R_eff",
-        "frac_vacc_dose1",
-        "frac_vacc_dose2",
-        "frac_vacc_dose1_65",
-        "frac_vacc_dose2_65",
-        "frac_immune",
-        "frac_immune_65",
-        "state_phase",
-    }
+    per_capita_cols = set(cfg["postprocessing.per_capita_cols"])
+    pop_weighted_cols = set(cfg["postprocessing.pop_weighted_cols"])
 
     adm_mapping["adm0"] = 1
     adm_map = adm_mapping.to_dict(orient="list")
