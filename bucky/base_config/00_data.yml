@@ -33,14 +33,16 @@ data_sources:
     unzip: True
     hash: 26890ff92275ff1392cd205c7021ba510b7f63f2ff985ca327b9f5fd5e9ecc90
     postprocess:
-      - desc: "Precomputing distances between counties"
-        func: bucky.datasource_transforms.county_adjacency.calculate
+      - desc: "Precomputing distances between counties and building ADM mapping"
+        func: bucky.datasource_transforms.extract_shapefile_data.extract
         args:
-          output_filename: !path ../../county_connectivity.csv
+          output_connectivity_filename: !path ../../county_connectivity.csv
+          output_adm_filename: !path ../../adm_mapping.csv
           census_data_path: !path ../../binned_census_age_groups.csv
         check_hash:
           file: !path ../../county_connectivity.csv
           hash: b8a01020be8f601c3f2070216c312c1ff16fa9ac18cfc670fa54bb588e33d57b
+          # TODO check the adm_mapping file (need support for multiple files w/ check_hash)
 
   - name: tiger_state_shp_files_2021
     type: http

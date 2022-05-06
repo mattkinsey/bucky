@@ -4,10 +4,11 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import us
 from scipy.spatial.distance import pdist, squareform
 
 
-def calculate(output_filename, census_data_path):
+def extract(output_connectivity_filename, output_adm_filename, census_data_path):
 
     base_dir = Path().cwd()
 
@@ -17,8 +18,49 @@ def calculate(output_filename, census_data_path):
 
     # Read shapefile
     county_df = gpd.read_file(base_dir / "tl_2021_us_county.shp")
+
+    # Get adm codes
     county_df["adm2"] = county_df["GEOID"].astype(int)
+    county_df["adm1"] = county_df["STATEFP"].astype(int)
+    county_df["adm0"] = 0
+
+    # Get adm names and abbrs
+    county_df["adm2_name"] = county_df["NAMELSAD"]
+    county_df["adm2_abbr"] = county_df["NAME"]
+
+    fips_name_map = us.states.mapping("fips", "name")
+    fips_abbr_map = us.states.mapping("fips", "abbr")
+
+    county_df["adm1_name"] = county_df["STATEFP"].map(fips_name_map)
+    county_df["adm1_abbr"] = county_df["STATEFP"].map(fips_abbr_map)
+
+    county_df["adm0_name"] = "United States"
+    county_df["adm0_abbr"] = "US"
+
+    # Sort by adm2
     county_df = county_df.set_index("adm2").sort_index()
+
+    # add total population
+    county_df = pd.merge(county_df, county_pop, left_index=True, right_index=True, how="left")
+
+    # save adm mapping
+    county_df.to_csv(
+        output_adm_filename,
+        index=True,
+        columns=[
+            "adm1",
+            "adm0",
+            "adm2_name",
+            "adm2_abbr",
+            "adm1_name",
+            "adm1_abbr",
+            "adm0_name",
+            "adm0_abbr",
+            "population",
+        ],
+    )
+
+    # project the polygons so we can calculate distances
     county_df = county_df.to_crs("EPSG:3087")  # https://epsg.io/3087
 
     county_centroids = county_df.centroid
@@ -44,4 +86,4 @@ def calculate(output_filename, census_data_path):
     touches_mat = np.stack([res.values.astype(int) for res in result])
     output_df["touches"] = touches_mat.reshape(-1)
 
-    output_df.to_csv(output_filename, index=True)
+    output_df.to_csv(output_connectivity_filename, index=True)
