@@ -187,7 +187,7 @@ class CSSEData(SpatialStratifiedTimeseries):
         if self.incident_cases is None:
             object.__setattr__(self, "incident_cases", xp.gradient(self.cumulative_cases, axis=0, edge_order=2))
         if self.incident_deaths is None:
-            object.__setattr__(self, "incident_deaths", xp.gradient(self.cumulative_cases, axis=0, edge_order=2))
+            object.__setattr__(self, "incident_deaths", xp.gradient(self.cumulative_deaths, axis=0, edge_order=2))
 
         super().__post_init__()
 
