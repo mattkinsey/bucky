@@ -29,7 +29,7 @@ class SpatialStratifiedTimeseries:
 
         # TODO handle other adm levels
         if self.adm_level == 2:
-            object.__setattr__(self, "adm_mapping", AdminLevelMapping(adm0="US", adm2_ids=self.adm_ids))
+            object.__setattr__(self, "adm_mapping", AdminLevelMapping(adm2_ids=self.adm_ids))
 
     def __repr__(self) -> str:
         names = [f.name for f in fields(self) if f.name not in ["adm_ids", "dates"]]

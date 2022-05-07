@@ -614,6 +614,7 @@ def main(cfg):
     adm_mapping_df = pd.read_csv(adm_mapping_file)
     adm_mapping_df["adm1_name"] = adm_mapping_df["adm1"].astype(str).str.zfill(2).map(adm1_name_map)
     adm_mapping_df["adm0_name"] = us.name
+    adm_mapping_df["adm0"] = "US"
     lookup_table = adm_mapping_df
 
     # TODO need to handle/remove all the other olc cli args below

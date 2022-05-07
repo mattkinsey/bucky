@@ -53,7 +53,7 @@ class buckyData:
         self.adm1_id = self.adm2_id // 1000
         self.adm0_name = "US"
 
-        self.adm_mapping = AdminLevelMapping(adm0="US", adm2_ids=self.adm2_id)
+        self.adm_mapping = AdminLevelMapping(adm2_ids=self.adm2_id)
 
         # make adj mat obj
         self.Aij = buckyAij(n_nodes=self.Nij.shape[1], force_diag=force_diag_Aij)
