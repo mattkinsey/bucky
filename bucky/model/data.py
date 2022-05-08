@@ -40,7 +40,15 @@ class buckyData:
     """Contains and preprocesses all the data imported from an input graph file."""
 
     @sync_numerical_libs
-    def __init__(self, data_dir, fit_cfg, force_diag_Aij=False, hist_length=101, force_historical_end_dow=4):
+    def __init__(
+        self,
+        data_dir,
+        fit_cfg,
+        force_diag_Aij=False,
+        hist_length=101,
+        force_historical_end_dow=4,
+        force_start_date=None,
+    ):
         """Initialize the input data into cupy/numpy, reading it from a networkx graph."""
 
         self.n_hist = hist_length
@@ -64,11 +72,17 @@ class buckyData:
             csse_file,
             n_days=self.n_hist,
             force_enddate_dow=force_historical_end_dow,
+            force_enddate=force_start_date,
         )
 
         # HHS hospitalizations
         hhs_file = data_dir / "hhs_timeseries.csv"
-        self.raw_hhs_data = HHSData.from_csv(hhs_file, n_days=self.n_hist, force_enddate_dow=force_historical_end_dow)
+        self.raw_hhs_data = HHSData.from_csv(
+            hhs_file,
+            n_days=self.n_hist,
+            force_enddate_dow=force_historical_end_dow,
+            force_enddate=force_start_date,
+        )
 
         # Prem contact matrices
         logger.debug("Loading Prem et al. matrices from {}", data_dir / "prem_matrices.csv")

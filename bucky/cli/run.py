@@ -21,6 +21,7 @@ def run_no_subcmd(
     seed: int = typer.Option(42, "-s", help="Global PRNG seed"),
     n_mc: int = typer.Option(100, "-n", help="Number of Monte Carlo iterations"),
     run_id: str = typer.Option(generate_runid(), "--runid", help="UUID name of current run"),
+    start_date: str = typer.Option(None, "--start-date", help="Start date for the simulation. (YYYY-MM-DD)"),
 ):
     # If no subcommand is selected run model->postprocess->plot
     if ctx.invoked_subcommand is None:
@@ -42,6 +43,7 @@ def model(
     seed: int = typer.Option(42, "-s", help="Global PRNG seed"),
     n_mc: int = typer.Option(100, "-n", help="Number of Monte Carlo iterations"),
     run_id: str = typer.Option(generate_runid(), "--runid", help="UUID name of current run"),
+    start_date: str = typer.Option(None, "--start-date", help="Start date for the simulation. (YYYY-MM-DD)"),
 ):
     """`bucky run model`, run the model itself, dumping raw monte carlo output to raw_output_dir."""
     cfg = ctx.obj
@@ -49,6 +51,7 @@ def model(
     cfg["runtime.seed"] = seed
     cfg["runtime.n_mc"] = n_mc
     cfg["runtime.run_id"] = run_id
+    cfg["runtime.start_date"] = start_date
     ret = model_main(cfg)
     return ret
 

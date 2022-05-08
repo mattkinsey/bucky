@@ -59,6 +59,7 @@ class SpatialStratifiedTimeseries:
         filename: PathLike,
         n_days: Optional[int] = None,
         valid_date_range=(None, None),
+        force_enddate: Optional[datetime.date] = None,
         force_enddate_dow: Optional[int] = None,
         adm_col: str = "adm2",
         date_col: str = "date",
@@ -74,7 +75,7 @@ class SpatialStratifiedTimeseries:
 
         dates = df.index.unique(level=date_col).values
         dates = dates.astype("datetime64[s]").astype(datetime.date)
-        date_mask = _mask_date_range(dates, n_days, valid_date_range, force_enddate_dow)
+        date_mask = _mask_date_range(dates, n_days, valid_date_range, force_enddate, force_enddate_dow)
 
         ret = {
             "dates": dates[date_mask],
@@ -152,6 +153,7 @@ def _mask_date_range(
     dates: np.ndarray,
     n_days: Optional[int] = None,
     valid_date_range: Tuple[Optional[datetime.date], Optional[datetime.date]] = (None, None),
+    force_enddate: Optional[datetime.date] = None,
     force_enddate_dow: Optional[int] = None,
 ):
     valid_date_range = list(valid_date_range)
@@ -166,6 +168,13 @@ def _mask_date_range(
         end_date_dow = valid_date_range[1].weekday()
         days_after_forced_dow = (end_date_dow - force_enddate_dow + 7) % 7
         valid_date_range[1] = dates[-(days_after_forced_dow + 1)]
+
+    if force_enddate is not None:
+        if force_enddate_dow is not None:
+            if force_enddate.weekday() != force_enddate_dow:
+                logger.error("Start date not consistant with required day of week")
+                raise RuntimeError
+        valid_date_range[1] = force_enddate
 
     # only grab the requested amount of history
     if n_days is not None:
@@ -196,6 +205,7 @@ class CSSEData(SpatialStratifiedTimeseries):
         file: PathLike,
         n_days: Optional[int] = None,
         valid_date_range=(None, None),
+        force_enddate: Optional[datetime.date] = None,
         force_enddate_dow: Optional[int] = None,
     ):
         logger.info("Reading historical CSSE data from {}", file)
@@ -204,6 +214,7 @@ class CSSEData(SpatialStratifiedTimeseries):
             file,
             n_days,
             valid_date_range,
+            force_enddate,
             force_enddate_dow,
             adm_level,
             column_names={"cumulative_reported_cases": "cumulative_cases", "cumulative_deaths": "cumulative_deaths"},
@@ -218,13 +229,14 @@ class HHSData(SpatialStratifiedTimeseries):
 
     # TODO we probably need to store a AdminLevelMapping in each timeseries b/c the hhs adm_ids dont line up with the csse ones after we aggregate them to adm1...
     @staticmethod
-    def from_csv(file, n_days=None, valid_date_range=(None, None), force_enddate_dow=None):
+    def from_csv(file, n_days=None, valid_date_range=(None, None), force_enddate=None, force_enddate_dow=None):
         logger.info("Reading historical HHS hospitalization data from {}", file)
         adm_level = "adm1"
         var_dict = SpatialStratifiedTimeseries._generic_from_csv(
             file,
             n_days,
             valid_date_range,
+            force_enddate,
             force_enddate_dow,
             adm_col=adm_level,
             column_names={
