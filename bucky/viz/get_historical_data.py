@@ -17,13 +17,7 @@ data_locations = {
     "cumulative_cases": {"file": csse, "column": "cumulative_reported_cases"},
     "cumulative_reported_cases": {"file": csse, "column": "cumulative_reported_cases"},
     "cumulative_deaths": {"file": csse, "column": "cumulative_deaths"},
-    "current_hospitalizations": {
-        "file": hhs_hosp,
-        "column": [
-            "total_adult_patients_hospitalized_confirmed_covid",
-            "total_pediatric_patients_hospitalized_confirmed_covid",
-        ],
-    },
+    "current_hospitalizations": {"file": hhs_hosp, "column": "current_hospitalizations"},
     "daily_reported_cases": {"file": csse, "column": "daily_reported_cases"},
     "daily_cases": {"file": csse, "column": "daily_reported_cases"},
     "daily_deaths": {"file": csse, "column": "daily_deaths"},
@@ -37,7 +31,7 @@ data_locations = {
     },
     "daily_hospitalizations": {
         "file": hhs_hosp,
-        "column": ["previous_day_admission_adult_covid_confirmed", "previous_day_admission_pediatric_covid_confirmed"],
+        "column": "incident_hospitalizations",
     },
 }
 

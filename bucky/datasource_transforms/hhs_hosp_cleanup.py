@@ -3,6 +3,8 @@ from pathlib import Path
 import pandas as pd
 import us
 
+# TODO grab other columns like icu usage?
+
 
 def transform(output_file):
 

@@ -32,6 +32,7 @@ def run_no_subcmd(
         from .viz import plot
 
         invoke(viz_app, plot)
+        invoke(viz_app, plot, columns=["daily_hospitalizations", "current_hospitalizations"])
 
 
 @app.command("model")
