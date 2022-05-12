@@ -1,4 +1,5 @@
 """`bucky viz` CLI."""
+import multiprocessing
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional
@@ -56,8 +57,11 @@ def plot(
     cfg["plot.input_dir"] = input_dir
     cfg["plot.levels"] = [level.name for level in levels]
     cfg["plot.columns"] = columns
-    cfg["plot.num_proc"] = num_proc
     cfg["plot.n_hist"] = n_hist
     cfg["plot.window_size"] = hist_window_size
+    # Number of processes for pool
+    if num_proc == -1:
+        num_proc = multiprocessing.cpu_count() // 2
+    cfg["plot.num_proc"] = num_proc
 
     plot_main(cfg["plot"])
