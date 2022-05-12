@@ -1,4 +1,5 @@
-"""Creates line plots with confidence intervals at the ADM0, ADM1, or ADM2 level."""
+"""Creates plots for Bucky data."""
+import datetime
 import multiprocessing
 import os
 from pathlib import Path
@@ -7,86 +8,18 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 matplotlib.use("Agg")
+
+import numpy as np
 import pandas as pd
 import tqdm
 import us
 from loguru import logger
 
-from .get_historical_data import get_historical_data, get_historical_fit
 from .readable_col_names import readable_col_names
+from .utils import get_fitted_data, get_historical_data, get_simulation_data
 
 
-def get_all_plot_titles(l_table, adm_key, adm_values):
-    """Determine plot titles based on a list of adm codes and lookup table.
-
-    For ADM0 and ADM1 plots, uses names. For ADM2 plots, the ADM1 name is
-    included in addition to the ADM2 name.
-
-    Parameters
-    ----------
-    l_table : pandas.DataFrame
-        Dataframe containing information relating different geographic
-        areas
-    adm_key : str
-        Admin level key
-    adm_value : int
-        Admin code value for area
-
-    Returns
-    -------
-    all_plot_titles : list
-        List of formatted string to use for plot titles
-    """
-
-    all_plot_titles = []
-
-    for val in adm_values:
-        plot_title = l_table.loc[l_table[adm_key] == val][adm_key + "_name"].values[0]
-
-        # If admin2-level, get admin1-level as well
-        if adm_key == "adm2":
-
-            admin1_name = l_table.loc[l_table[adm_key] == val]["adm1_name"].values[0]
-            plot_title = admin1_name + " : " + plot_title
-
-        all_plot_titles.append(plot_title)
-
-    return all_plot_titles
-
-
-def get_plot_title(l_table, adm_key, adm_value):
-    """Determine plot title for a given area based on adm code and lookup table.
-
-    For ADM0 and ADM1 plots, uses names. For ADM2 plots, the ADM1 name is
-    included in addition to the ADM2 name.
-
-    Parameters
-    ----------
-    l_table : pandas.DataFrame
-        Dataframe containing information relating different geographic
-        areas
-    adm_key : str
-        Admin level key
-    adm_value : int
-        Admin code value for area
-
-    Returns
-    -------
-    plot_title : str
-        Formatted string to use for plot title
-    """
-    plot_title = l_table.loc[l_table[adm_key] == adm_value][adm_key + "_name"].values[0]
-
-    # If admin2-level, get admin1-level as well
-    if adm_key == "adm2":
-
-        admin1_name = l_table.loc[l_table[adm_key] == adm_value]["adm1_name"].values[0]
-        plot_title = admin1_name + " : " + plot_title
-
-    return plot_title
-
-
-def add_col_data_to_plot(axis, col, sim_data, quantiles_list):
+def add_simulation_data_to_axis(axis, col, sim_data, quantiles):
     """Adds simulation data for requested column to initialized matplotlib axis object.
 
     Parameters
@@ -97,7 +30,7 @@ def add_col_data_to_plot(axis, col, sim_data, quantiles_list):
         Column to add to plot
     sim_data : pandas.DataFrame
         Area simulation data
-    quantiles_list : list of float, or None
+    quantiles : list of float, or None
         List of quantiles to plot. If None, will plot all available
         quantiles in data.
 
@@ -106,15 +39,16 @@ def add_col_data_to_plot(axis, col, sim_data, quantiles_list):
     axis : matplotlib.axes.Axes
         Modified axis object with added data
     """
-    # Set index
-    sim_data = sim_data.set_index(["date", "quantile"])
+
+    # Index by date and quantile
+    sim_data = sim_data.set_index(["date", "quantile"]).sort_index()
 
     # Middle is median
-    num_q = len(quantiles_list)
-    median_data = sim_data.xs(quantiles_list[int(num_q / 2)], level=1)[col]
+    num_quantiles = len(quantiles)
+    median_data = sim_data.xs(quantiles[int(num_quantiles / 2)], level=1)[col]
     dates = median_data.index.values
 
-    # Plot median and outer quantiles
+    # Plot median
     median_data.plot(
         linewidth=1.5,
         color="k",
@@ -124,14 +58,12 @@ def add_col_data_to_plot(axis, col, sim_data, quantiles_list):
     )
 
     # Iterate over pairs of quantiles
-    num_quantiles = len(quantiles_list)
-
     # Scale opacity
     alpha = 1.0 / (num_quantiles // 2)
     for q in range(num_quantiles // 2):
 
-        lower_q = quantiles_list[q]
-        upper_q = quantiles_list[num_quantiles - 1 - q]
+        lower_q = quantiles[q]
+        upper_q = quantiles[num_quantiles - 1 - q]
 
         lower_data = sim_data.xs(lower_q, level=1)[col]
         upper_data = sim_data.xs(upper_q, level=1)[col]
@@ -151,165 +83,75 @@ def add_col_data_to_plot(axis, col, sim_data, quantiles_list):
     return axis
 
 
-def get_group_historical_data(historical_data, adm_key, adm_values):
-    """Attempts to get historical data for each adm value in a list, in order.
-
-    Parameters
-    ----------
-    historical_data : pandas.DataFrame
-        Dataframe of historical data
-    adm_key : str
-        Admin key to use to relate simulation data and geographic areas
-    adm_values : list
-        List of Admin code values for which to fetch data
-
-    Returns
-    -------
-    grouped_historical_data : list of pandas.DataFrames
-        List of historical data in same order as input list of admin values
-    """
-
-    grouped_historical_data = []
-
-    for val in adm_values:
-
-        # Find historical data for this location and add to list
-        data = historical_data.loc[historical_data[adm_key] == val]
-        grouped_historical_data.append(data)
-
-    return grouped_historical_data
-
-
-def add_hist_data_to_plot(axis, historical_data, adm_key, adm_value, col, sim_max_date):
-    """Add historical data for requested column and area to initialized matplotlib axis object.
+def scale_y_axis(axis, col, sim_data, quantiles, hist_data, fit_data, zero_as_ymin=True):
+    """Adds simulation data for requested column to initialized matplotlib axis object.
 
     Parameters
     ----------
     axis : matplotlib.axes.Axes
         Previously initialized axis object
-    historical_data : pandas.DataFrame
-        Dataframe of historical data
-    adm_key : str
-        Admin key to use to relate simulation data and geographic areas
-    adm_value : int
-        Admin code value for area
     col : str
         Column to add to plot
-    sim_max_date : pandas.Timestamp
-        Latest date in simulation data
-
+    sim_data : pandas.DataFrame
+        Area simulation data
+    quantiles : list of float, or None
+        List of quantiles in data
+    hist_data : pandas.DataFrame
+        Historical data
+    fit_data : pandas.DataFrame
+        Fitted historical data
+    zero_as_ymin: bool
+        If true, uses zero as y-axis minimum
     Returns
     -------
     axis : matplotlib.axes.Axes
-        Modified axis object with added data
+        Modified axis object with modified y-axis limits
     """
-    # Get historical data for area
-    actuals = historical_data.loc[historical_data[adm_key] == adm_value]
 
-    if not actuals.empty and col in historical_data.columns:
+    limits = []
 
-        actuals = actuals.assign(date=pd.to_datetime(actuals["date"]))
-        hist_label = "Historical " + readable_col_names[col]
-        actuals.plot(x="date", y=col, ax=axis, color="r", marker="o", ls="", label=hist_label, scaley=False)
+    # Get min/max of median
+    sim_data = sim_data.set_index(["date", "quantile"])
+    num_quantiles = len(quantiles)
+    median_data = sim_data.xs(quantiles[int(num_quantiles / 2)], level=1)[col]
+    limits.append([median_data.min(), median_data.max()])
 
-        # Set xlim
-        axis.set_xlim(actuals["date"].min(), sim_max_date)
+    # After 30 days, need 0.25-0.75 quantiles shown
+    sim_data = sim_data.reset_index()
 
+    # Only applies if run is longer than 30 days
+    if len(sim_data["date"].unique()) > 30:
+        quantile_mask = (sim_data["quantile"] >= 0.25) & (sim_data["quantile"] <= 0.75)
+        sel_sim_data = sim_data.loc[quantile_mask]
+        sel_sim_data = sel_sim_data.loc[sel_sim_data["date"] > sim_data["date"].min() + pd.DateOffset(30)]
+        limits.append([sel_sim_data[col].min(), sel_sim_data[col].max()])
+
+    # Last 7 days of historical data should be displayed
+    if len(hist_data["date"].unique()) <= 7:
+        hist_date_max = hist_data["date"].max()
+        hist_date_min = hist_data["date"].min()
     else:
-        logger.warning("Historical data missing for " + adm_key + " " + str(adm_value))
+        hist_date_max = hist_data["date"].max()
+        hist_date_min = hist_data["date"].max() - pd.DateOffset(7)
+
+    date_mask = (hist_data["date"] > hist_date_min) & (hist_data["date"] <= hist_date_max)
+    last_hist_week = hist_data.loc[date_mask]
+    limits.append([last_hist_week[col].min(), hist_data[col].max()])
+
+    # Get min and max of current limits
+    limits = np.array(limits)
+    y_min = np.min(limits[:, 0])
+    y_max = np.max(limits[:, 1])
+
+    if zero_as_ymin:
+        y_min = 0.0
+
+    axis.set_ylim(y_min, y_max)
 
     return axis
 
 
-def add_fit_data_to_plot(axis, fitted_data, adm_key, adm_value, col, sim_max_date):
-    """Add historical data for requested column and area to initialized matplotlib axis object.
-
-    Parameters
-    ----------
-    axis : matplotlib.axes.Axes
-        Previously initialized axis object
-    fitted_data : pandas.DataFrame
-        Dataframe of fit data
-    adm_key : str
-        Admin key to use to relate simulation data and geographic areas
-    adm_value : int
-        Admin code value for area
-    col : str
-        Column to add to plot
-    sim_max_date : pandas.Timestamp
-        Latest date in simulation data
-
-    Returns
-    -------
-    axis : matplotlib.axes.Axes
-        Modified axis object with added data
-    """
-
-    # TODO: CHANGE STYLE HERE
-    # Get historical data for area
-    actuals = fitted_data.loc[fitted_data[adm_key] == adm_value]
-
-    if not actuals.empty and col in fitted_data.columns:
-
-        actuals = actuals.assign(date=pd.to_datetime(actuals["date"]))
-        fit_label = "Fitted " + readable_col_names[col]
-        actuals.plot(x="date", y=col, ax=axis, color="k", marker="", ls="--", label=fit_label, scaley=False)
-
-        # Set xlim
-        # axis.set_xlim(actuals["date"].min(), sim_max_date)
-
-    else:
-        logger.warning("Fit data missing for " + adm_key + " " + str(adm_value))
-
-    return axis
-
-
-def preprocess_historical_dates(historical_data, hist_start_date, plot_start, plot_end, min_data_points):
-    """Check that historical data has the correct date range and requested number of data points.
-
-    Parameters
-    ----------
-    historical_data : pandas.DataFrame
-        Dataframe with requested historical data
-    hist_start_date : str or None
-        Plot historical data from this point (formatted as YYYY-MM-DD).
-        If None, aligns with simulation start date.
-    plot_start : pandas.Timestamp
-        Earliest date appearing in simulation data
-    plot_end : pandas.Timestamp
-        Latest date appearing in simulation data
-    min_data_points : int
-        Minimum number of historical data points to plot
-
-    Returns
-    -------
-    historical_data : pandas.DataFrame
-        Historical data with the correct date range and number of points
-    """
-    # Drop data not within requested time range
-    historical_data = historical_data.reset_index()
-    historical_data = historical_data.assign(date=pd.to_datetime(historical_data["date"]))
-
-    # Use plot start as start date unless otherwise specified
-    start_date = plot_start
-
-    if hist_start_date is not None:
-        start_date = hist_start_date
-
-    # Check that there are the minimum number of points
-    last_hist_date = historical_data["date"].max()
-    num_points = (last_hist_date - pd.to_datetime(start_date)).days
-
-    # Shift start date if necessary
-    if num_points < min_data_points:
-        start_date = last_hist_date - pd.Timedelta(str(min_data_points) + " days")
-
-    historical_data = historical_data.loc[(historical_data["date"] < plot_end) & (historical_data["date"] > start_date)]
-
-    return historical_data
-
-
-def pool_plot(args):
+def _pool_plot(args):
     """Function to create plots given a tuple of input data.
 
     This input data should include a pandas DataFrameGroupBy object, the plot
@@ -322,273 +164,195 @@ def pool_plot(args):
     args : tuple
         Zipped input data
     """
-    (area_code, area_data), name, hist_data, plot_columns, quantiles, adm_key, out_dir, fit_data = args
+
+    (area_code, area_data), (_, hist_data), (_, fit_data), level, level_mapping, cols, quantiles, output_dir = args
 
     # Set date
     area_data = area_data.assign(date=pd.to_datetime(area_data["date"]))
 
-    # Initialize figure
+    # Get plot name
+    # TODO fix with new admin mapping
+    if level == "adm0":
+        area_name = area_data[level].unique()[0]
+    else:
+        area_name = level_mapping[area_code]
+
+    # Initalize figure with as many subplots as columns
+    num_subplots = len(cols)
+
+    # Make all evenly sized for now
+    # TODO - Make this a parameter?
+    ratios = [1.0 for subplot in range(num_subplots)]
+
     fig, axs = plt.subplots(
-        2,
+        num_subplots,
         sharex=True,
-        gridspec_kw={"hspace": 0.1, "height_ratios": [2, 1]},
+        gridspec_kw={"hspace": 0.1, "height_ratios": ratios},
         figsize=(15, 7),
     )
-    fig.suptitle(name.upper())
+
+    fig.suptitle(area_name.upper())
 
     # Loop over requested columns
-    for i, p_col in enumerate(plot_columns):
+    for i, col in enumerate(cols):
 
-        axs[i] = add_col_data_to_plot(axs[i], p_col, area_data, quantiles)
+        # Get axis for this column
+        if num_subplots > 1:
+            axis = axs[i]
+        else:
+            axis = axs
 
-        if fit_data is not None and i <= (len(plot_columns) - 1):
-            max_date = area_data["date"].max()
-            axs[i] = add_fit_data_to_plot(axs[i], fit_data, adm_key, area_code, p_col, max_date)
+        # Add Bucky data to the axis
+        axis = add_simulation_data_to_axis(axis, col, area_data, quantiles)
 
-        # Plot historical data which is already at the correct level
-        if hist_data is not None and i <= (len(plot_columns) - 1):
-            max_date = area_data["date"].max()
-            axs[i] = add_hist_data_to_plot(axs[i], hist_data, adm_key, area_code, p_col, max_date)
+        # Add historical data (optional)
+        if hist_data is not None:
+            hist_data = hist_data.assign(date=pd.to_datetime(hist_data["date"]))
+
+            # Check this is not empty
+            if not hist_data.empty and col in hist_data.columns:
+                hist_label = "Historical " + readable_col_names[col]
+                hist_data.plot(x="date", y=col, ax=axis, color="r", marker="o", ls="", label=hist_label, scaley=False)
+            else:
+                logger.warning(level + " historical data missing for " + area_name)
+
+        # Add fitted data (optional)
+        if fit_data is not None:
+            fit_data = fit_data.assign(date=pd.to_datetime(fit_data["date"]))
+
+            # Check this is not empty
+            if not fit_data.empty and col in fit_data.columns:
+                fit_label = "Fitted " + readable_col_names[col]
+                fit_data.plot(x="date", y=col, ax=axis, color="k", marker="", ls="--", label=fit_label, scaley=False)
+            else:
+                logger.warning(level + " fitted data missing for " + area_name)
+
+        axis = scale_y_axis(axis, col, area_data, quantiles, hist_data, fit_data)
 
         # Axis styling
-        axs[i].grid(True)
-        axs[i].legend()
-        axs[i].set_ylabel("Count")
-        # axs[i].yaxis.set_major_formatter(StrMethodFormatter('{x:,.0f}'))
+        axis.grid(True)
+        axis.legend()
+        axis.set_ylabel("Count")
 
-    plot_filename = os.path.join(out_dir, readable_col_names[plot_columns[0]] + "_" + name + ".png")
+    plot_filename = os.path.join(output_dir, readable_col_names[cols[0]] + "_" + area_name + ".png")
     plot_filename = plot_filename.replace(" : ", "_")
     plot_filename = plot_filename.replace(" ", "")
     plt.savefig(plot_filename)
     plt.close()
 
     # Save CSV
-    csv_filename = os.path.join(out_dir, name + ".csv")
-    area_data.to_csv(csv_filename)
+    csv_filename = os.path.join(output_dir, area_name + ".csv")
+    area_data.to_csv(csv_filename, index=False)
 
 
-def plot(out_dir, lookup_df, key, sim_data, hist_data, plot_columns, quantiles, num_proc, fit_data):
-    """Given a dataframe and a key, creates plots with requested columns.
-
-    For example, a pandas.DataFrame with state-level data would create a plot for
-    each unique state. Simulation data is plotted as a line with shaded
-    confidence intervals. Historical data is added as scatter points if
-    requested.
+def default_plot(cfg):
+    """Creates default Bucky plot, one plot per unique ADM region containing as many subplots as columns requested.
 
     Parameters
     ----------
-    out_dir : str
-        Location to place created plots.
-    lookup_df : pandas.DataFrame
-        Dataframe containing information relating different geographic
-        areas
-    key : str
-        Key to use to relate simulation data and geographic areas. Must
-        appear in lookup and simulation data (and historical data if
-        applicable)
-    sim_data : pandas.DataFrame
-        Simulation data to plot
-    hist_data : pandas.DataFrame
-        Historical data to add to plot
-    plot_columns : list of str
-        Columns to plot
-    quantiles : list of float, or None
-        List of quantiles to plot. If None, will plot all available
-        quantiles in data.
-    num_proc : int
-        Number of processes for multiprocessing
+    cfg : BuckyConfig
+        BuckyConfig object with various plot-related parameters
     """
-    # If quantiles were not specified, get all quantiles present in data
-    if quantiles is None:
-        quantiles = sim_data["quantile"].unique()
 
-    # make sure quantiles are sorted
-    quantiles.sort()
+    cols = list(cfg["columns"])
+    output_dir = cfg["output_dir"]
 
-    # Drop lookup nans
-    lookup_df = lookup_df.dropna()
+    # Loop over levels
+    for level in cfg["levels"]:
 
-    # Make one plot for each area
-    # For state plots, one plot per state
-    # For counties, one plot per county
-    unique_sim_areas = sim_data[key].unique()
-    unique_lookup_areas = lookup_df[key].unique()
-
-    # Some lookups have a subset. Use whichever set of areas is smaller
-    if len(unique_sim_areas) < len(unique_lookup_areas):
-        unique_areas = unique_sim_areas
-    else:
-        unique_areas = unique_lookup_areas
-
-    # Get data in a format we can map for pool
-    area_groups = sim_data.groupby(key)
-    area_keys = area_groups.groups.keys()
-
-    # Get all names for plots
-    all_names = get_all_plot_titles(lookup_df, key, area_keys)
-
-    # Get corresponding historical data
-    if hist_data is not None:
-        group_hist_data = get_group_historical_data(hist_data, key, area_keys)
-    else:
-        group_hist_data = [None for _ in range(len(area_keys))]
-
-    # Get all historical fit data
-    if fit_data is not None:
-        group_fit_data = get_group_historical_data(fit_data, key, area_keys)
-    else:
-        group_fit_data = [None for _ in range(len(area_keys))]
-    # Also pass in adm key, plot columns
-    pool_input = zip(
-        area_groups,
-        all_names,
-        group_hist_data,
-        [plot_columns for _ in range(len(area_keys))],
-        [quantiles for _ in range(len(area_keys))],
-        [key for _ in range(len(area_keys))],
-        [out_dir for _ in range(len(area_keys))],
-        group_fit_data,
-    )
-
-    # this tqdm wrapper does the same thing...
-    # from tqdm.contrib.concurrent import process_map
-    # process_map(pool_plot, pool_input, max_workers=num_proc)
-    if (num_proc > 1) or (len(area_groups) == 1):
-        with multiprocessing.Pool(num_proc) as p:
-            list(tqdm.tqdm(p.imap(pool_plot, pool_input), total=len(area_groups)))
-    else:
-        for p_inp in tqdm.tqdm(pool_input, total=len(area_groups)):
-            pool_plot(p_inp)
-
-
-def make_plots(
-    adm_levels,
-    input_directory,
-    output_directory,
-    lookup_df,
-    plot_hist,
-    plot_columns,
-    quantiles,
-    window_size,
-    end_date,
-    hist_file,
-    min_hist_points,
-    admin1=None,
-    hist_start=None,
-    num_proc=16,
-    plot_fit=True,
-):
-    """Wrapper function around plot. Creates plots, aggregating data if necessary.
-
-    Parameters
-    ----------
-    adm_levels : list of str
-        List of ADM levels to make plots for
-    input_directory : str
-        Location of simulation data
-    output_directory : str
-        Parent directory to place created plots.
-    lookup_df : pandas.DataFrame
-        Lookup table for geographic mapping information
-    plot_hist : bool
-        If True, will plot historical data.
-    plot_columns : list of str
-        List of columns to plot from data.
-    quantiles : list of float, or None
-        List of quantiles to plot. If None, will plot all available
-        quantiles in data.
-    window_size : int
-        Size of window (in days) to apply to historical data.
-    end_date : str
-        Plot data until this date. Must be formatted as YYYY-MM-DD.
-        If None, uses last date in simulation.
-    hist_file : str
-        Path to historical data file. If None, uses either CSSE or
-        Covid Tracking data depending on columns requested.
-    min_hist_points : int
-        Minimum number of historical data points to plot.
-    admin1 : list of str, or None
-        List of admin1 values to make plots for. If None, a plot will be
-        created for every unique admin1 values. Otherwise, plots are
-        only made for those requested.
-    hist_start : str, or None
-        Plot historical data from this point (formatted as YYYY-MM-DD).
-        If None, aligns with simulation start date.
-    num_proc : int
-        Number of processes for multiprocessing
-    """
-    # Loop over requested levels
-    for level in adm_levels:
-
-        filename = level + "_quantiles.csv"
-
-        # Read the requested file from the input dir
-        data = pd.read_csv(os.path.join(input_directory, filename))
-        data = data.assign(date=pd.to_datetime(data["date"]))
-
-        # Get dates for data
-        start_date = data["date"].min()
-        if end_date is not None:
-            end_date = pd.to_datetime(end_date)
+        # Get plot directory
+        if level != "adm0":
+            plot_dir = output_dir / level.upper()
         else:
-            end_date = data["date"].max()
+            plot_dir = output_dir
 
-        # Drop data not within range
-        data = data.loc[(data["date"] < end_date) & (data["date"] > start_date)]
+        # Get data
+        sim_data = get_simulation_data(cfg["input_dir"], level)
 
-        # Determine if sub-folder is necessary (state or county-level)
-        plot_dir = output_directory
-        if level in ["adm2", "adm1"]:
+        # Read dates
+        max_hist_date = sim_data["date"].max().to_pydatetime()
+        min_hist_date = sim_data["date"].min().to_pydatetime() - datetime.timedelta(days=cfg["n_hist"] - 1)
 
-            plot_dir = os.path.join(plot_dir, level.upper())
+        # Get all quantiles and make sure they are sorted
+        quantiles = sim_data["quantile"].unique()
+        quantiles.sort()
 
-            # create directory
-            if not os.path.exists(plot_dir):
-                os.makedirs(plot_dir)
+        # Group by adm key
+        group_sim_data = sim_data.groupby(level)
+        num_admin_groups = len(group_sim_data.groups.keys())
 
-        # For admin2 only: if a admin1 name was passed in, only keep data within that admin1
-        if level == "adm2" and admin1 is not None:
+        # Historical data (optional)
+        group_hist_data = [(None, None) for _ in range(num_admin_groups)]
+        if cfg["plot_hist"]:
+            hist_data = get_historical_data(cfg, level, date_range=(min_hist_date, max_hist_date))
 
-            admin2_vals = lookup_df.loc[lookup_df["adm1_name"] == admin1]["adm2"].unique()
-            data = data.loc[data["adm2"].isin(admin2_vals)]
+            # Group by adm key
+            group_hist_data = hist_data.groupby(level)
 
-        # Read historical data if needed
-        hist_data = None
-        if plot_hist:
+        # Fitted historical data (optional)
+        group_fit_data = [(None, None) for _ in range(num_admin_groups)]
+        if cfg["plot_fit"]:
+            fit_data = get_fitted_data(cfg, level, date_range=(min_hist_date, max_hist_date))
 
-            # Get historical data for requested columns
-            hist_data = get_historical_data(plot_columns, level, lookup_df, window_size, hist_file)
+            # Group by adm key
+            group_fit_data = fit_data.groupby(level)
 
-            # Check if historical data was not successfully fetched
-            if hist_data is None:
-                logger.warning("No historical data could be found for: " + str(plot_columns))
+        # TODO replace with Admin level mapping object
+        if level == "adm0":
+            level_mapping = {0: "US"}
+        elif level == "adm1":
+            str_mapping = us.states.mapping("fips", "abbr")
 
-            else:
-                hist_data = preprocess_historical_dates(hist_data, hist_start, start_date, end_date, min_hist_points)
+            # Need fips codes as integers
+            level_mapping = {}
+            for key in str_mapping.keys():
 
-            # Plot historical data fit line
-            if plot_fit:
-                fit_data = get_historical_fit(
-                    input_directory,
-                    plot_columns,
-                    level,
-                    lookup_df,
-                    min_date=hist_data.date.min(),
-                )
-            else:
-                fit_data = None
+                if key is not None:
+                    level_mapping[int(key)] = str_mapping[key]
 
-        plot(
-            out_dir=plot_dir,
-            lookup_df=lookup_df,
-            key=level,
-            sim_data=data,
-            hist_data=hist_data,
-            plot_columns=plot_columns,
-            quantiles=quantiles,
-            num_proc=num_proc,
-            fit_data=fit_data,
+        # Check that all groups are in the same order before sending to pool
+        if cfg["plot_hist"]:
+
+            all_adm_vals_match = True
+
+            # Get groups
+            sim_groupkeys = list(group_sim_data.groups.keys())
+            hist_groupkeys = list(group_hist_data.groups.keys())
+
+            if sim_groupkeys != hist_groupkeys:
+                all_adm_vals_match = False
+
+            # Also compare with fit data (optional)
+            if cfg["plot_fit"]:
+
+                fit_groupkeys = list(group_fit_data.groups.keys())
+
+                if sim_groupkeys != fit_groupkeys or hist_groupkeys != fit_groupkeys:
+                    all_adm_vals_match = False
+
+            if not all_adm_vals_match:
+                logger.error("Mismatch between adm groups in simulation and historical data")
+                raise ValueError
+
+        # Data structure for pool
+        pool_input = zip(
+            group_sim_data,
+            group_hist_data,
+            group_fit_data,
+            [level for _ in range(num_admin_groups)],
+            [level_mapping for _ in range(num_admin_groups)],
+            [cols for _ in range(num_admin_groups)],
+            [quantiles for _ in range(num_admin_groups)],
+            [plot_dir for _ in range(num_admin_groups)],
         )
+
+        num_proc = cfg["num_proc"]
+        if (num_proc > 1) or (num_admin_groups != 1):
+            with multiprocessing.Pool(num_proc) as p:
+                list(tqdm.tqdm(p.imap(_pool_plot, pool_input), total=num_admin_groups))
+        else:
+            for p_inp in tqdm.tqdm(pool_input, total=num_admin_groups):
+                _pool_plot(p_inp)
 
 
 def main(cfg):
@@ -596,71 +360,31 @@ def main(cfg):
 
     logger.info(cfg)
 
-    # Parse arguments
+    # Parse config
     input_dir = cfg["input_dir"]
+    output_dir = cfg["output_dir"]
 
-    output_dir = input_dir / "plots"  # TODO add optional cli arg
-    output_dir.mkdir(exist_ok=True)
+    # Check if output dir was passed in
+    if output_dir == None:
+        output_dir = input_dir / "plots"
+        output_dir.mkdir(exist_ok=True)
+        cfg["output_dir"] = output_dir
 
     # aggregation levels
     levels = cfg["levels"]
 
-    # Columns for plotting
-    plot_cols = cfg["columns"]
+    # Add subfolder for adms other than adm0
+    for level in levels:
+        if level != "adm0":
+            adm_output_dir = output_dir / level.upper()
+            adm_output_dir.mkdir(exist_ok=True)
 
-    # Make lookup_table from adm mapping
-    adm_mapping_file = Path(input_dir) / "metadata" / "adm_mapping.csv"
-    adm1_name_map = us.states.mapping("fips", "name")
-    adm_mapping_df = pd.read_csv(adm_mapping_file)
-    adm_mapping_df["adm1_name"] = adm_mapping_df["adm1"].astype(str).str.zfill(2).map(adm1_name_map)
-    adm_mapping_df["adm0_name"] = us.name
-    adm_mapping_df["adm0"] = "US"
-    lookup_table = adm_mapping_df
+    # Check if n_hist is 0
+    if cfg["n_hist"] < 1:
+        cfg["plot_fit"] = False
 
-    # TODO need to handle/remove all the other olc cli args below
-    # Historical data start
-    hist_start_date = None  # args.hist_start # TODO deprecate?
-
-    # Parse optional flags
-    window = cfg["window_size"]
-    plot_historical = True  # TODO make bool flag (it should default to true though): no-hist?
-
-    plot_end_date = None  # make optional arg --end_date
-    list_quantiles = None  # make optional arg: --quantiles, -q
-    hist_data_file = None  # TODO do we still need this? args.hist_file
-    min_hist = cfg["n_hist"]
-
-    # Number of processes for pool
-    if cfg["num_proc"] == -1:
-        num_proc = multiprocessing.cpu_count() // 2  # todo cli arg
-    else:
-        num_proc = cfg["num_proc"]
-
-    if num_proc < 1:
-        num_proc = 1
-
-    # If a historical file was passed in, make sure hist is also true
-    if hist_data_file is not None:
-        plot_historical = True
-
-    # Plot
-    with matplotlib.style.context("ggplot"), matplotlib.rc_context({"axes.formatter.useoffset": False}):
-        make_plots(
-            levels,
-            input_dir,
-            output_dir,
-            lookup_table,
-            plot_historical,
-            plot_cols,
-            list_quantiles,
-            window,
-            plot_end_date,
-            hist_data_file,
-            min_hist,
-            "TODO",  # args.adm1_name,
-            hist_start_date,
-            num_proc,
-        )
+    # TODO Add different plot types (e.g. Reich projections, etc)
+    default_plot(cfg)
 
 
 if __name__ == "__main__":
