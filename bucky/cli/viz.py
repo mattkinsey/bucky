@@ -43,7 +43,7 @@ def plot(
     ),
     n_hist: int = typer.Option(28, "--nhist", "-nh", help="Number of historical days to include in plot"),
     hist_window_size: int = typer.Option(
-        1,
+        7,
         "--window",
         "-w",
         help="Window size for rolling mean of plotted historical data points",
