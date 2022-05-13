@@ -60,6 +60,8 @@ def model(
 def postprocess(
     ctx: typer.Context,
     run_dir: Optional[Path] = typer.Option(None, help="Raw output directory for the run being postprocessed"),
+    n_cpu: Optional[int] = typer.Option(4, "-c", help="Number of cpus used to calculate quantiles"),
+    n_gpu: Optional[int] = typer.Option(None, "-g", help="Number of gpus used to calculate quantiles"),
 ):
     """`bucky run postprocess`, aggregate outputs from raw_output_dir to make quantile outputs in output_dir."""
     cfg = ctx.obj
@@ -73,5 +75,10 @@ def postprocess(
     cfg["postprocessing.run_name"] = run_dir.stem  # TODO make option
     cfg["postprocessing.output_dir"] = cfg["system.output_dir"] / cfg["postprocessing.run_name"]  # TODO make option
     # add option to change levels (and override the default in the cfg file)
+    cfg["postprocessing.n_cpu"] = n_cpu
+    if cfg["runtime.use_cupy"] and n_gpu is None:
+        cfg["postprocessing.n_gpu"] = 1
+    else:
+        cfg["postprocessing.n_gpu"] = n_gpu
 
     postprocess_main(cfg)  # TODO only part of cfg? maybe just a few vars?
