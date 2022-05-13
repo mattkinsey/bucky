@@ -30,23 +30,23 @@ model:
     Rt_fac:
       distribution:
         func: "approx_mPERT"
-        mu: 1.2
-        a: .95
-        b: 1.55
+        mu: 1.15
+        a: .9
+        b: 1.5
         gamma: 2.
     R_fac:
       distribution:
         func: "approx_mPERT"
         mu: .4
         a: .2
-        b: .7
+        b: .6
         gamma: 1.
     E_fac:
       distribution:
         func: "approx_mPERT"
         mu: .65
-        a: .35
-        b: .95
+        a: .45
+        b: .85
         gamma: 4.
     H_fac:
       distribution:

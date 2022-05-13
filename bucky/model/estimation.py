@@ -235,7 +235,7 @@ def estimate_cfr(
     cfr_fac[~valid] = adm0_cfr_fac
 
     # cfr_fac = 2.0 / (1.0 / cfr_fac + 1.0 / adm0_cfr_fac[..., None])
-    cfr_fac = xp.sqrt(cfr_fac * adm0_cfr_fac[..., None])
+    # cfr_fac = xp.sqrt(cfr_fac * adm0_cfr_fac[..., None])
 
     return xp.clip(base_CFR * cfr_fac, 0.0, 1.0)
 
