@@ -109,7 +109,7 @@ def clean_historical_data(csse_data, hhs_data, adm_mapping, fit_cfg, force_save_
     new_cum_deaths = xp.around(new_cum_deaths, 6) + 0.0
 
     # fit GAM to cumulative data
-    df = max(1 * n_hist // 7 - 1, 4)
+    df = max(n_hist // 7, 4)
     # df = int(10 * n_hist ** (2.0 / 9.0)) + 1  # from gam book section 4.1.7
 
     cum_fit_args = {
