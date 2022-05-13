@@ -185,7 +185,11 @@ class buckyModelCovid:
 
         # Estimate the current age distribution of S, S_age_dist
         if self.base_mc_instance.vacc_data is not None:
-            nonvaccs = xp.clip(1 - self.base_mc_instance.vacc_data.V_tot(vac_params, 0), a_min=0, a_max=1)
+            nonvaccs = xp.clip(
+                1 - self.base_mc_instance.vacc_data.V_tot(vac_params, 0) * mc_params["R_fac"],
+                a_min=0,
+                a_max=1,
+            )
         else:
             nonvaccs = 1.0
         tmp = nonvaccs * self.g_data.Nij / self.g_data.Nj
@@ -195,7 +199,7 @@ class buckyModelCovid:
         # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7721859/
         mean_ages = xp.mean(xp.array(sampled_params["structure.age_bins"]), axis=1)
         ifr = xp.exp(-7.56 + 0.121 * mean_ages) / 100.0
-        ifr = ifr * epi_params["HR_vs_wildtype"]
+        ifr = ifr  # * epi_params["HR_vs_wildtype"]
 
         # Estimate the case reporting rate
         # crr_days_needed = max( #TODO this depends on all the Td params, and D_REPORT_TIME...
@@ -217,7 +221,7 @@ class buckyModelCovid:
         )
 
         # TODO need case reporting in cfg, move all the CRR calc stuff to its own func
-        case_reporting_N_historical_days = 7
+        case_reporting_N_historical_days = 14
         mean_case_reporting = xp.nanmean(self.case_reporting[-case_reporting_N_historical_days:], axis=0)
 
         # Fill in and correct the shapes of some parameters
@@ -289,7 +293,7 @@ class buckyModelCovid:
             I_to_H_time=epi_params["I_TO_H_TIME"],
             Rh_gamma_k=yy.Rh_gamma_k,
             S_age_dist=S_age_dist,
-            days_back=7,
+            days_back=14,
         )
         yy.I = (1.0 - epi_params["CHR"] * epi_params["CRR"]) * I_init / yy.I_gamma_k  # noqa: E741
         yy.Ic = epi_params["CHR"] * I_init / yy.I_gamma_k * epi_params["CRR"]
@@ -311,7 +315,7 @@ class buckyModelCovid:
                 case_to_death_time=epi_params["CASE_TO_DEATH_TIME"],
                 Rh_gamma_k=yy.Rh_gamma_k,
                 S_age_dist=S_age_dist,
-                days_back=7,
+                days_back=14,
             )
             epi_params["CFR"] = xp.clip(
                 epi_params["CFR"] * mc_params["F_scaling"] * F_RR_fac[self.g_data.adm1_id] * scaling_H,
