@@ -29,6 +29,7 @@ CUPY_FORCE_FP32 = False
 
 # Make the numpy namespace more consistent with cupy
 xp.is_cupy = False
+xp.device_count = 0
 xp.scatter_add = xp.add.at
 xp.optimize_kernels = contextlib.nullcontext
 xp.special = scipy.special
@@ -279,6 +280,8 @@ def enable_cupy(optimize=False, cache_dir=None):
 
     # Add is_cupy flag to xp
     cp.is_cupy = True
+
+    cp.device_count = cp.cuda.runtime.getDeviceCount()
 
     bucky.xp = cp
 
