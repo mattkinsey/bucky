@@ -78,7 +78,7 @@ def common(
     # add runtime flags to cfg
     cfg["runtime.verbose"] = verbose
     cfg["runtime.debug"] = debug
-    use_cupy = cupy_available() if gpu else False
+    cfg["runtime.use_cupy"] = cupy_available() if gpu else False
 
     # put cfg in typer context for downstream commands
     ctx.obj = cfg
