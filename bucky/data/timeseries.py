@@ -88,21 +88,33 @@ class SpatialStratifiedTimeseries:
 
         return ret
 
-    def to_csv(self, filename):
-        # TODO log
-        output_dfs = {}
-        for f in fields(self):
-            if "data_field" in f.metadata:
-                col_name = f.name
-                data = getattr(self, f.name)
-                col_df = pd.DataFrame(
-                    xp.to_cpu(data),
-                    index=xp.to_cpu(self.dates),
-                    columns=xp.to_cpu(self.adm_ids),
-                ).stack()
-                output_dfs[col_name] = col_df
+    def to_dict(self, level=None):
+        # get data to requested adm level
+        obj = self.sum_adm_level(level) if level is not None else self
 
-        pd.DataFrame(output_dfs).to_csv(filename, index_label=("date", "adm" + str(self.adm_level)))
+        ret = {f.name: getattr(obj, f.name) for f in fields(obj) if f.name not in ("adm_level", "adm_mapping")}
+
+        # reshape index columns and get the right name for the adm id column
+        ret_shp = ret["dates"].shape + ret["adm_ids"].shape
+        ret["dates"] = np.broadcast_to(ret["dates"][..., None], ret_shp)
+        adm_col_name = f"adm{obj.adm_level}"
+        ret[adm_col_name] = np.broadcast_to(ret.pop("adm_ids")[None, ...], ret_shp)
+
+        # Flatten arrays
+        ret = {k: np.ravel(xp.to_cpu(v)) for k, v in ret.items()}
+
+        return ret
+
+    def to_dataframe(self, level=None):
+        data_dict = self.to_dict(level)
+        df = pd.DataFrame(data_dict)
+        adm_col = df.columns[df.columns.str.match("adm[0-9]")].item()
+        return df.set_index([adm_col, "dates"]).sort_index()
+
+    def to_csv(self, filename, level=None):
+        # TODO log
+        df = self.to_dataframe(level)
+        df.to_csv(filename, index=True)
 
     def replace(self, **changes):
         return replace(self, **changes)
@@ -121,7 +133,7 @@ class SpatialStratifiedTimeseries:
             new_ids = self.adm_mapping.uniq_adm1_ids
         elif level == 0:
             out_id_map = xp.ones(self.adm_ids.shape, dtype=int)
-            new_ids = xp.zeros((1,))
+            new_ids = xp.zeros((1,), dtype=int)
         else:
             raise NotImplementedError
 
