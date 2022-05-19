@@ -96,7 +96,7 @@ class SpatialStratifiedTimeseries:
 
         # reshape index columns and get the right name for the adm id column
         ret_shp = ret["dates"].shape + ret["adm_ids"].shape
-        ret["dates"] = np.broadcast_to(ret["dates"][..., None], ret_shp)
+        ret["date"] = np.broadcast_to(ret.pop("dates")[..., None], ret_shp)
         adm_col_name = f"adm{obj.adm_level}"
         ret[adm_col_name] = np.broadcast_to(ret.pop("adm_ids")[None, ...], ret_shp)
 
@@ -109,7 +109,7 @@ class SpatialStratifiedTimeseries:
         data_dict = self.to_dict(level)
         df = pd.DataFrame(data_dict)
         adm_col = df.columns[df.columns.str.match("adm[0-9]")].item()
-        return df.set_index([adm_col, "dates"]).sort_index()
+        return df.set_index([adm_col, "date"]).sort_index()
 
     def to_csv(self, filename, level=None):
         # TODO log
