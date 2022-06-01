@@ -22,8 +22,6 @@ def plot(
     ctx: typer.Context,
     input_dir: Optional[Path] = typer.Option(None, help="Directory of input data to plot"),
     output_dir: Optional[Path] = typer.Option(None, help="Directory for created plots"),
-    input_dir: Optional[Path] = typer.Option(None, help=""),
-    output_dir: Optional[Path] = typer.Option(None, help=""),
     levels: List[AdmLevel] = typer.Option(
         ["adm0", "adm1"],
         "--levels",
