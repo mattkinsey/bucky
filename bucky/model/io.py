@@ -73,6 +73,7 @@ class BuckyOutputWriter:
         metadata_dir.mkdir(exist_ok=True)
 
         # write out adm level mappings
+        # TODO should just copy from data?
         adm_map_file = metadata_dir / "adm_mapping.csv"
         adm_mapping.to_csv(adm_map_file)
 

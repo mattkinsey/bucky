@@ -1,67 +1,151 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 import numpy as np
+import pandas as pd
 from loguru import logger
 
 from .._typing import ArrayLike, PathLike
 from ..numerical_libs import sync_numerical_libs, xp
+from ..util.cached_prop import cached_property
+
+
+@dataclass(frozen=True)
+class AdminLevel:
+    level: int
+    idx: ArrayLike
+    ids: ArrayLike
+    abbrs: ArrayLike
+    names: ArrayLike
+
+    @sync_numerical_libs
+    def __init__(self, ids, level=0, abbrs=None, names=None):
+        object.__setattr__(self, "level", level)
+        uniq_ids, uniq_index, squashed_idxs = np.unique(ids, return_inverse=True, return_index=True)
+        # TODO assert sizes make sense (in post init)?
+        object.__setattr__(self, "ids", uniq_ids)
+        object.__setattr__(self, "idx", squashed_idxs)
+        if abbrs is None:
+            abbrs = xp.to_cpu(ids).astype(str)
+        # if abbr is just for uniq we need to do something like:
+        # object.__setattr__(self, "abbrs", abbrs[xp.to_cpu(squashed_idxs)])
+        object.__setattr__(self, "abbrs", abbrs[uniq_index])
+        if names is None:
+            names = xp.to_cpu(ids).astype(str)
+        # object.__setattr__(self, "names", names[xp.to_cpu(squashed_idxs)])
+        object.__setattr__(self, "names", names[uniq_index])
+
+    def __repr__(self):
+        # TODO say if we have valid names/abbrs?
+        return f"Admin level {self.level}, with {len(self)} locations"
+
+    def __len__(self):
+        return len(self.ids)
 
 
 # TODO allow initing with just adm1_ids
 @dataclass(frozen=True)
 class AdminLevelMapping:
-    adm0_ids: ArrayLike
-    adm1_ids: ArrayLike
-    adm2_ids: ArrayLike
-    uniq_adm1_ids: ArrayLike
-    actual_adm1_ids: ArrayLike
+    adm0: AdminLevel
+    adm1: AdminLevel
+    adm2: AdminLevel
 
-    def __init__(self, adm2_ids: ArrayLike, adm1_ids: Optional[ArrayLike] = None, adm0_ids: Optional[ArrayLike] = None):
+    @sync_numerical_libs
+    def __init__(
+        self,
+        adm2: AdminLevel,
+        adm1: Optional[AdminLevel] = None,
+        adm0: Optional[AdminLevel] = None,
+        levels: dict = field(init=False),  # noqa: B008
+    ):
 
-        object.__setattr__(self, "adm2_ids", adm2_ids)
+        # TODO should set levels first then make attrs for every level we have automatically
 
-        if adm0_ids is not None:
-            object.__setattr__(self, "adm0_ids", xp.broadcast_to(adm0_ids, adm2_ids.shape))
-        else:
+        object.__setattr__(self, "adm2", adm2)
+
+        if adm0 is None:
             # default to one country
-            object.__setattr__(self, "adm0_ids", xp.zeros(adm2_ids.shape, dtype=int))
+            object.__setattr__(self, "adm0", AdminLevel(np.zeros(adm2.ids.shape, dtype=int), level=0))
+        else:
+            object.__setattr__(self, "adm0", adm0)
 
-        # get squashed mapping from adm2->adm1
-        base_adm1_ids = self.adm2_ids // 1000 if adm1_ids is None else adm1_ids
+        if adm1 is None:
+            # default to one state
+            object.__setattr__(self, "adm1", AdminLevel(np.zeros(adm2.ids.shape, dtype=int), level=1))
+        else:
+            object.__setattr__(self, "adm1", adm1)
 
-        uniq_adm1_ids, squashed_adm1_ids = xp.unique(base_adm1_ids, return_inverse=True)
-        object.__setattr__(self, "adm1_ids", squashed_adm1_ids)
-        object.__setattr__(self, "uniq_adm1_ids", uniq_adm1_ids)
-        object.__setattr__(self, "actual_adm1_ids", base_adm1_ids)
+        object.__setattr__(self, "levels", {0: self.adm0, 1: self.adm1, 2: self.adm2})
 
-    def __post_init__(self):
-        # some basic validation
-        if len(self.adm1_ids) != len(self.adm2_ids):
-            logger.error("Inconsistent adm1 and adm2 id used to create map.")
-            raise ValueError
-        if self.uniq_adm1_ids[self.adm1_ids] != self.actual_adm1_ids:
-            logger.error("Squashed adm1 mapping failed to recover original ids.")
-            raise ValueError
+    # def __post_init__(self):
+    #    # some basic validation
+    #    if len(self.adm1_ids) != len(self.adm2_ids):
+    #        logger.error("Inconsistent adm1 and adm2 id used to create map.")
+    #        raise ValueError
+    #    if self.uniq_adm1_ids[self.adm1_ids] != self.actual_adm1_ids:
+    #        logger.error("Squashed adm1 mapping failed to recover original ids.")
+    #        raise ValueError
 
     def __repr__(self) -> str:
-        return f"adm0 containing {len(self.uniq_adm1_ids)} adm1 regions and {len(self.adm2_ids)} adm2 regions"
+        return f"adm0 containing {len(self.adm1)} adm1 regions and {len(self.adm2)} adm2 regions"
+
+    def mapping(self, from_: str, to: str, level: int):
+        level_map = self.levels[level]
+        if from_ in ("id", "name", "abbr"):
+            from_ = f"{from_}s"
+        if to in ("id", "name", "abbr"):
+            to = f"{to}s"
+
+        return {t: f for t, f in zip(getattr(level_map, from_), getattr(level_map, to))}
 
     @sync_numerical_libs
     def to_csv(self, filename: PathLike):
-        # For writing the mapping to the csv in the output metadata
-        adm2_ids = xp.to_cpu(self.adm2_ids)
-        adm1_ids = xp.to_cpu(self.actual_adm1_ids)
-        adm0_ids = xp.to_cpu(self.adm0_ids)
-        adm_map_table = np.stack([adm2_ids, adm1_ids, adm0_ids]).T
-        np.savetxt(filename, adm_map_table, header="adm2,adm1,adm0", comments="", delimiter=",", fmt="%s")
+        data = {
+            "adm2": self.adm2.ids[self.adm2.idx],
+            "adm1": self.adm1.ids[self.adm1.idx],
+            "adm0": self.adm0.ids[self.adm0.idx],
+            "adm2_name": self.adm2.names[self.adm2.idx],
+            "adm1_name": self.adm1.names[self.adm1.idx],
+            "adm0_name": self.adm0.names[self.adm0.idx],
+            "adm2_abbr": self.adm2.abbrs[self.adm2.idx],
+            "adm1_abbr": self.adm1.abbrs[self.adm1.idx],
+            "adm0_abbr": self.adm0.abbrs[self.adm0.idx],
+        }
+
+        pd.DataFrame(data).to_csv(filename, index=False)
 
     @staticmethod
-    @sync_numerical_libs
     def from_csv(filename: PathLike):
-        ids = np.loadtxt(filename, delimiter=",", skiprows=1, dtype=int).T
-        return AdminLevelMapping(adm2_ids=ids[0], adm1_ids=ids[1], adm0_ids=ids[2])
+
+        df = pd.read_csv(filename)
+        df = df.sort_values(by=["adm2"])
+        maps = {}
+        for col in df.columns:
+            maps[col] = np.array(df[col].to_numpy()) if pd.api.types.is_integer_dtype(df[col]) else df[col].to_numpy()
+
+        return AdminLevelMapping(
+            adm2=AdminLevel(level=2, ids=maps["adm2"], names=maps["adm2_name"], abbrs=maps["adm2_abbr"]),
+            adm1=AdminLevel(level=1, ids=maps["adm1"], names=maps["adm1_name"], abbrs=maps["adm1_abbr"]),
+            adm0=AdminLevel(level=0, ids=maps["adm0"], names=maps["adm0_name"], abbrs=maps["adm0_abbr"]),
+        )
 
     @property
     def n_adm1(self):
-        return len(self.uniq_adm1_ids)
+        return len(self.adm1.ids)
+
+    # some legacy stuff, we should warn on usage b/c its deprecated
+    """
+    @cached_property
+    def adm1_ids(self):
+        return self.adm1.idx
+
+    @cached_property
+    def uniq_adm1_ids(self):
+        return self.adm1.ids
+
+    """
+
+    @cached_property
+    def actual_adm1_ids(self):
+        # TODO we should provide easier access to this...
+        return self.adm1.ids[self.adm1.idx]

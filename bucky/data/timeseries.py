@@ -8,15 +8,16 @@ from loguru import logger
 
 from .._typing import ArrayLike, PathLike
 from ..numerical_libs import sync_numerical_libs, xp
-from .adm_mapping import AdminLevelMapping
+from .adm_mapping import AdminLevel, AdminLevelMapping
 
 
+# TODO now that this holds the adm_mapping, the adm_ids column can probably be replaced...
 @dataclass(frozen=True)
 class SpatialStratifiedTimeseries:
     adm_level: int
     adm_ids: ArrayLike
     dates: ArrayLike  # TODO cupy cant handle this...
-    adm_mapping: AdminLevelMapping = field(init=False)
+    adm_mapping: AdminLevelMapping  # = field(init=False)
 
     def __post_init__(self):
         valid_shape = self.dates.shape + self.adm_ids.shape
@@ -28,8 +29,8 @@ class SpatialStratifiedTimeseries:
                     raise ValueError
 
         # TODO handle other adm levels
-        if self.adm_level == 2:
-            object.__setattr__(self, "adm_mapping", AdminLevelMapping(adm2_ids=self.adm_ids))
+        # if self.adm_level == 2:
+        #    object.__setattr__(self, "adm_mapping", AdminLevelMapping(adm2=AdminLevel(xp.to_cpu(self.adm_ids))))
 
     def __repr__(self) -> str:
         names = [f.name for f in fields(self) if f.name not in ["adm_ids", "dates"]]
@@ -128,16 +129,10 @@ class SpatialStratifiedTimeseries:
         if level == self.adm_level:
             return self
 
-        if level == 1:
-            out_id_map = self.adm_mapping.adm1_ids
-            new_ids = self.adm_mapping.uniq_adm1_ids
-        elif level == 0:
-            out_id_map = xp.ones(self.adm_ids.shape, dtype=int)
-            new_ids = xp.zeros((1,), dtype=int)
-        else:
-            raise NotImplementedError
+        out_id_map = self.adm_mapping.levels[level].idx
+        new_ids = self.adm_mapping.levels[level].ids
 
-        new_data = {"adm_level": level, "adm_ids": new_ids, "dates": self.dates}
+        new_data = {"adm_level": level, "adm_ids": new_ids, "dates": self.dates, "adm_mapping": self.adm_mapping}
         for f in fields(self):
             if "summable" in f.metadata:
                 orig_ts = getattr(self, f.name)
@@ -219,6 +214,7 @@ class CSSEData(SpatialStratifiedTimeseries):
         valid_date_range=(None, None),
         force_enddate: Optional[datetime.date] = None,
         force_enddate_dow: Optional[int] = None,
+        adm_mapping: Optional[AdminLevelMapping] = None,
     ):
         logger.info("Reading historical CSSE data from {}", file)
         adm_level = "adm2"
@@ -231,6 +227,8 @@ class CSSEData(SpatialStratifiedTimeseries):
             adm_level,
             column_names={"cumulative_reported_cases": "cumulative_cases", "cumulative_deaths": "cumulative_deaths"},
         )
+
+        var_dict["adm_mapping"] = adm_mapping
         return CSSEData(2, **var_dict)
 
 
@@ -241,7 +239,14 @@ class HHSData(SpatialStratifiedTimeseries):
 
     # TODO we probably need to store a AdminLevelMapping in each timeseries b/c the hhs adm_ids dont line up with the csse ones after we aggregate them to adm1...
     @staticmethod
-    def from_csv(file, n_days=None, valid_date_range=(None, None), force_enddate=None, force_enddate_dow=None):
+    def from_csv(
+        file: PathLike,
+        n_days: Optional[int] = None,
+        valid_date_range=(None, None),
+        force_enddate: Optional[datetime.date] = None,
+        force_enddate_dow: Optional[int] = None,
+        adm_mapping: Optional[AdminLevelMapping] = None,
+    ):
         logger.info("Reading historical HHS hospitalization data from {}", file)
         adm_level = "adm1"
         var_dict = SpatialStratifiedTimeseries._generic_from_csv(
@@ -257,6 +262,7 @@ class HHSData(SpatialStratifiedTimeseries):
             },
         )
 
+        var_dict["adm_mapping"] = adm_mapping
         return HHSData(1, **var_dict)
 
 

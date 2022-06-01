@@ -110,7 +110,7 @@ class buckyVaccAlloc:
         states_following_acip = [1, 26, 27, 32, 42, 47, 55]
         for adm1 in states_following_acip:
             # TODO this depends on the fact that both Nij and phase_demos are sorted by fips
-            adm1_mask = g_data.adm_mapping.actual_adm1_ids == adm1
+            adm1_mask = g_data.adm_mapping.adm1.ids[g_data.adm_mapping.adm1.idx] == adm1
             tmp[:, adm1_mask] = phase_demos[adm1]
         tmp = xp.clip(tmp.T / (g_data.Nij[..., None] + 1.0), a_min=-1.0, a_max=1.0)
         mean_acip_demos = xp.mean(tmp[:, (tmp >= 0).all((0, 2)), :], axis=1)
@@ -173,7 +173,7 @@ class buckyVaccAlloc:
         # resp_factor = xp.sqrt(resp_factor)
         self.hes_frac_ij_adm1 = xp.zeros_like(self.g_data.adm1_Nij)
         self.hes_se_ij_adm1 = xp.zeros_like(self.g_data.adm1_Nij)
-        adm1_ind_map = {v: i for i, v in enumerate(xp.to_cpu(g_data.adm_mapping.uniq_adm1_ids))}
+        adm1_ind_map = {v: i for i, v in enumerate(g_data.adm_mapping.adm1.ids)}
         df.index = df.index.map(adm1_ind_map)
         df_se.index = df_se.index.map(adm1_ind_map)
         if scen_params is not None:
@@ -231,7 +231,7 @@ class buckyVaccAlloc:
         # hes_adm1 = xp.minimum(hes_adm1, scen_params['max_uptake'])
         # national_uptake = (xp.sum((self.dose2 * self.g_data.Nij), axis=[1,2])/xp.sum(self.g_data.adm0_Ni[3:]))[-1]
 
-        vacc_demos = hes_adm1[:, self.g_data.adm_mapping.adm1_ids] * self.baseline_vacc_demos
+        vacc_demos = hes_adm1[:, self.g_data.adm_mapping.adm1.idx] * self.baseline_vacc_demos
 
         self.adm1_phase = xp.zeros((g_data.max_adm1 + 1,))
         self.pop_per_phase_adm1 = xp.zeros((max_phases, g_data.max_adm1 + 1))
@@ -256,7 +256,7 @@ class buckyVaccAlloc:
                 #    print(t, p)
                 #    print(frac_dist)
                 tmp = xp.zeros_like(phase_hist_adm1[0])
-                frac_dist_adm2 = frac_dist[g_data.adm_mapping.adm1_ids][None, ...]
+                frac_dist_adm2 = frac_dist[g_data.adm_mapping.adm1.idx][None, ...]
 
                 if dose1_t <= end_t and dose1_t >= 0:
                     self.dose1[dose1_t] += frac_dist_adm2 * vacc_demos[p]
@@ -266,7 +266,7 @@ class buckyVaccAlloc:
                 if dose2_t <= end_t and dose2_t >= 0:
                     self.dose2[dose2_t] += frac_dist_adm2 * vacc_demos[p]
 
-        self.phase_hist = phase_hist_adm1[:, self.g_data.adm_mapping.adm1_ids]
+        self.phase_hist = phase_hist_adm1[:, self.g_data.adm_mapping.adm1.idx]
         self.active = self.flags["vaccines"]
         self.reroll = self.flags["vaccine_monte_carlo"]
 

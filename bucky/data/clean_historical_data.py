@@ -66,10 +66,10 @@ def clean_historical_data(csse_data, hhs_data, adm_mapping, fit_cfg, force_save_
         adm1_not_enough_death_data = xp.full(csse_adm1.n_loc, False)
 
     # map the adm1 masks back to adm2
-    adm2_case_mask = adm1_case_mask[:, adm_mapping.adm1_ids]
-    adm2_death_mask = adm1_case_mask[:, adm_mapping.adm1_ids]
-    adm2_not_enough_case_data = adm1_not_enough_case_data[adm_mapping.adm1_ids]
-    adm2_not_enough_death_data = adm1_not_enough_death_data[adm_mapping.adm1_ids]
+    adm2_case_mask = adm1_case_mask[:, adm_mapping.adm1.idx]
+    adm2_death_mask = adm1_case_mask[:, adm_mapping.adm1.idx]
+    adm2_not_enough_case_data = adm1_not_enough_case_data[adm_mapping.adm1.idx]
+    adm2_not_enough_death_data = adm1_not_enough_death_data[adm_mapping.adm1.idx]
 
     # replace masked values by interpolating/extrapolating nearby values if there is enough data
     new_cum_cases = xp.empty((csse_data.n_loc, csse_data.n_days))
@@ -295,6 +295,7 @@ def plot_historical_fits(csse_data, hhs_data, adm_mapping, fitted_data, valid_ad
         2,
         csse_data.adm_ids,
         csse_data.dates,
+        csse_data.adm_mapping,
         fitted_data["cumulative_cases"].T,
         fitted_data["cumulative_deaths"].T,
         fitted_data["incident_cases"].T,
@@ -308,7 +309,7 @@ def plot_historical_fits(csse_data, hhs_data, adm_mapping, fitted_data, valid_ad
     fig, ax = plt.subplots(nrows=2, ncols=4, figsize=(15, 10))
     x = xp.arange(csse_adm1.n_days)
     for i in tqdm.tqdm(range(csse_adm1.n_loc), desc="Plotting fits", dynamic_ncols=True):
-        adm1_fips = adm_mapping.uniq_adm1_ids[i]
+        adm1_fips = adm_mapping.adm1.ids[i]
         fips_str = str(adm1_fips).zfill(2)
         if fips_str in fips_map:
             name = fips_map[fips_str] + " (" + fips_str + ")"
