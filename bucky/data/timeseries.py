@@ -298,6 +298,7 @@ class BuckyFittedCaseData(SpatialStratifiedTimeseries):
         valid_date_range=(None, None),
         force_enddate: Optional[datetime.date] = None,
         force_enddate_dow: Optional[int] = None,
+        adm_mapping: Optional[AdminLevelMapping] = None,
     ):
         logger.info("Reading historical CSSE data from {}", file)
         adm_level = "adm2"
@@ -315,32 +316,6 @@ class BuckyFittedCaseData(SpatialStratifiedTimeseries):
                 "incident_deaths": "incident_deaths",
             },
         )
+
+        var_dict["adm_mapping"] = adm_mapping
         return BuckyFittedCaseData(2, **var_dict)
-
-
-@dataclass(frozen=True, repr=False)
-class BuckyFittedHospData(SpatialStratifiedTimeseries):
-    current_hospitalizations: ArrayLike = field(metadata={"data_field": True, "summable": True})
-    incident_hospitalizations: ArrayLike = field(metadata={"data_field": True, "summable": True})
-
-    # TODO we probably need to store a AdminLevelMapping in each timeseries b/c the hhs adm_ids dont line up with the csse ones after we aggregate them to adm1...
-    @staticmethod
-    def from_csv(file, n_days=None, valid_date_range=(None, None), force_enddate_dow=None):
-        logger.info("Reading historical HHS hospitalization data from {}", file)
-        adm_level = "adm1"
-        var_dict = SpatialStratifiedTimeseries._generic_from_csv(
-            file,
-            n_days,
-            valid_date_range,
-            force_enddate_dow,
-            adm_col=adm_level,
-            column_names={
-                "incident_hospitalizations": "incident_hospitalizations",
-                "current_hospitalizations": "current_hospitalizations",
-            },
-        )
-
-        return BuckyFittedHospData(1, **var_dict)
-
-
-BuckyFittedHospData = HHSData
