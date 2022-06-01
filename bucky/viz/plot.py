@@ -16,6 +16,7 @@ import us
 from loguru import logger
 
 from ..data.adm_mapping import AdminLevelMapping
+from ..util.util import _banner
 from .readable_col_names import readable_col_names
 from .utils import get_fitted_data, get_historical_data, get_simulation_data
 
@@ -362,8 +363,8 @@ def default_plot(cfg):
 
 def main(cfg):
     """Main entrypoint."""
-
-    logger.info(cfg)
+    _banner("Generating timeseries plots with quantiles")
+    logger.debug(cfg)
 
     # Parse config
     input_dir = cfg["input_dir"]
