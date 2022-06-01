@@ -52,6 +52,7 @@ def plot(
     ),
     plot_hist: bool = typer.Option(True, "--plot_hist", help="Plot historical data points"),
     plot_fit: bool = typer.Option(True, "--plot_fit", help="Plot historical data fit"),
+    adm_mapping_file: str = typer.Option(None, help="Location of admin mapping file"),
 ):
     """`bucky viz plot`, produce matplotlib quantile plots from output files."""
     cfg = ctx.obj
@@ -68,6 +69,11 @@ def plot(
     cfg["plot.plot_hist"] = plot_hist
     cfg["plot.hist_data_dir"] = cfg["system.data_dir"]
     cfg["plot.plot_fit"] = plot_fit
+
+    if adm_mapping_file is None:
+        cfg["plot.adm_mapping_file"] = cfg["system.data_dir"] / "adm_mapping.csv"
+    else:
+        cfg["plot.adm_mapping_file"] = adm_mapping_file
 
     # Number of processes for pool
     if num_proc == -1:
