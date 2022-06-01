@@ -296,6 +296,7 @@ class BuckyFittedCaseData(SpatialStratifiedTimeseries):
         file: PathLike,
         n_days: Optional[int] = None,
         valid_date_range=(None, None),
+        force_enddate: Optional[datetime.date] = None,
         force_enddate_dow: Optional[int] = None,
     ):
         logger.info("Reading historical CSSE data from {}", file)
@@ -304,6 +305,7 @@ class BuckyFittedCaseData(SpatialStratifiedTimeseries):
             file,
             n_days,
             valid_date_range,
+            force_enddate,
             force_enddate_dow,
             adm_level,
             column_names={
