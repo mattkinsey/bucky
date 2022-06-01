@@ -2,6 +2,7 @@
 import operator
 from functools import reduce
 
+import pandas as pd
 from loguru import logger
 
 from ..numerical_libs import sync_numerical_libs, xp, xp_sparse
@@ -22,7 +23,14 @@ class buckyAij:
         self.sparse_format = sparse_format
 
         if not force_diag:
-            raise NotImplementedError
+            df = pd.read_csv("data/county_connectivity.csv", index_col=["i", "j"])
+            grav = ((df["i_pop"] * df["j_pop"] + 1.0) / (df["distance"] + 1.0)).values
+            i_adm2 = df.index.get_level_values("i").to_numpy()
+            j_adm2 = df.index.get_level_values("j").to_numpy()
+            _, i_ind = xp.unique(i_adm2, return_inverse=True)
+            _, j_ind = xp.unique(j_adm2, return_inverse=True)
+            self._base_Aij = xp_sparse.csr_matrix((xp.array(grav), (i_ind, j_ind)))
+
         else:
             # cupy is still missing a bunch of dia format functionality :(
             # self.sparse_format = "dia"

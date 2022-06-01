@@ -66,6 +66,16 @@ class BuckyConfig(NestedDict):
     """Bucky configuration."""
 
     def load_cfg(self, par_path):
+        base_cfg = locate_base_config()
+
+        self._load_one_cfg(base_cfg)
+        if par_path != base_cfg:
+            self._load_one_cfg(par_path)
+
+        self._cast_floats()
+        return self
+
+    def _load_one_cfg(self, par_path):
         """Read in the YAML cfg file(s)."""
         logger.info("Loading bucky config from {}", par_path)
         par = Path(par_path)
@@ -85,9 +95,6 @@ class BuckyConfig(NestedDict):
                 self.update(yaml.load(par.read_text(encoding="utf-8")))  # nosec
         except FileNotFoundError:
             logger.exception("Config not found!")
-
-        # self._to_arrays()
-        self._cast_floats()
 
         return self
 

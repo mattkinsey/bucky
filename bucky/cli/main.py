@@ -85,7 +85,7 @@ def common(
     cfg["runtime.verbose"] = verbose
     cfg["runtime.debug"] = debug
     cfg["ssl_no_verify"] = ssl_no_verify
-    use_cupy = cupy_available() if gpu else False
+    cfg["runtime.use_cupy"] = cupy_available() if gpu else False
 
     # put cfg in typer context for downstream commands
     ctx.obj = cfg

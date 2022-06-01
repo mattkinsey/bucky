@@ -10,7 +10,7 @@ from tqdm.contrib.logging import logging_redirect_tqdm
 from ..numerical_libs import enable_cupy, reimport_numerical_libs, xp, xp_ivp
 from ..util.distributions import approx_mPERT
 from ..util.fractional_slice import frac_last_n_vals
-from ..util.util import _banner, get_runid
+from ..util.util import _banner
 from .data import buckyData
 from .derived_epi_params import add_derived_params
 from .estimation import estimate_cfr, estimate_chr, estimate_crr, estimate_Rt
@@ -21,10 +21,6 @@ from .npi import get_npi_params
 from .rhs import RHS_func
 from .state import buckyState
 from .vacc import buckyVaccAlloc
-
-SCENARIO_HUB = False  # True
-scen_params = {}
-
 
 # TODO rename g_data (needs a better name than 'data' though...)
 
@@ -48,14 +44,24 @@ class buckyModelCovid:
 
         # Integrator params
         self.t_max = cfg["runtime.t_max"]
-        self.run_id = get_runid()
+        self.run_id = cfg["runtime.run_id"]
         logger.info("Run ID: {}", self.run_id)
 
         self.npi_file = npi_file
         self.disable_npi = disable_npi
         self.reject_runs = reject_runs
 
-        self.g_data = self.load_data(data_dir=cfg["system.data_dir"], fit_cfg=cfg["model.fitting"])
+        if cfg["runtime.start_date"] is not None:
+            start_date = datetime.datetime.strptime(cfg["runtime.start_date"], "%Y-%m-%d")
+        else:
+            start_date = None
+
+        self.g_data = self.load_data(
+            data_dir=cfg["system.data_dir"],
+            fit_cfg=cfg["model.fitting"],
+            force_diag_Aij=cfg["model.flags.identity_Aij"],
+            force_start_date=start_date,
+        )
 
         self.writer = BuckyOutputWriter(cfg["system.raw_output_dir"], self.run_id)
         self.writer.write_metadata(
@@ -71,38 +77,32 @@ class buckyModelCovid:
         self.consts = self.bucky_params.consts
     '''
 
-    def load_data(self, data_dir, fit_cfg):
+    def load_data(self, data_dir, fit_cfg, force_diag_Aij, force_start_date):
         """Load the historical data and calculate all the variables that are static across MC runs."""
         # TODO refactor to just have this return g_data?
 
         # Load data from input files
         # TODO we should go through an replace lots of math using self.g_data.* with function IN buckyData
         # TODO rename g_data
-        g_data = buckyData(data_dir=data_dir, fit_cfg=fit_cfg, force_diag_Aij=True)
+        g_data = buckyData(
+            data_dir=data_dir,
+            fit_cfg=fit_cfg,
+            force_diag_Aij=force_diag_Aij,
+            force_start_date=force_start_date,
+        )
 
         self.sim_start_date = g_data.csse_data.end_date
         self.projected_dates = [
             str(self.sim_start_date + datetime.timedelta(days=int(np.round(t)))) for t in range(self.t_max + 1)
         ]
 
-        # Make contact mats sym and normalized (move to g_data)
+        # Load and stack contact matrices
         self.contact_mats = g_data.Cij
-        if self.debug:
-            pass
-            # TODO
-            # logging.debug(f"graph contact mats: {G.graph['contact_mats'].keys()}")
-        # for mat in self.contact_mats:
-        #    c_mat = xp.array(self.contact_mats[mat])
-        #    c_mat = (c_mat + c_mat.T) / 2.0
-        #    self.contact_mats[mat] = c_mat
         # remove all_locations so we can sum over the them ourselves
-        # if "all_locations" in self.contact_mats:
-        #    del self.contact_mats["all_locations"]
         if "all" in self.contact_mats:
             del self.contact_mats["all"]
 
         # Remove unknown contact mats
-        # TODO update this stuff going from contact_mats -> Cij...
         valid_contact_mats = ["home", "work", "others", "school"]
         self.contact_mats = {k: v for k, v in self.contact_mats.items() if k in valid_contact_mats}
 
@@ -121,10 +121,7 @@ class buckyModelCovid:
             self.base_mc_instance.add_npi(self.npi_params)
 
         if self.flags["vaccines"]:
-            if SCENARIO_HUB:
-                self.vacc_data = buckyVaccAlloc(g_data, self.cfg, self.sim_start_date, scen_params)
-            else:
-                self.vacc_data = buckyVaccAlloc(g_data, self.cfg, self.sim_start_date)
+            self.vacc_data = buckyVaccAlloc(g_data, self.cfg, self.sim_start_date)
             self.base_mc_instance.add_vacc(self.vacc_data)
         return g_data
 
@@ -182,16 +179,17 @@ class buckyModelCovid:
             self.base_mc_instance.vacc_data.reroll_doses()
             epi_params["vacc_eff_1"] = vac_params["vacc_eff_1"]
             epi_params["vacc_eff_2"] = vac_params["vacc_eff_2"]
-            # if SCENARIO_HUB:
-            #    self.params["vacc_eff_1"] = scen_params["eff_1"]
-            #    self.params["vacc_eff_2"] = scen_params["eff_2"]
 
         # TODO move most of below into a function like:
         # test = calc_initial_state(self.g_data, self.params, self.base_mc_instance)
 
         # Estimate the current age distribution of S, S_age_dist
         if self.base_mc_instance.vacc_data is not None:
-            nonvaccs = xp.clip(1 - self.base_mc_instance.vacc_data.V_tot(vac_params, 0), a_min=0, a_max=1)
+            nonvaccs = xp.clip(
+                1 - self.base_mc_instance.vacc_data.V_tot(vac_params, 0) * mc_params["R_fac"],
+                a_min=0,
+                a_max=1,
+            )
         else:
             nonvaccs = 1.0
         tmp = nonvaccs * self.g_data.Nij / self.g_data.Nj
@@ -201,6 +199,7 @@ class buckyModelCovid:
         # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7721859/
         mean_ages = xp.mean(xp.array(sampled_params["structure.age_bins"]), axis=1)
         ifr = xp.exp(-7.56 + 0.121 * mean_ages) / 100.0
+        ifr = ifr  # * epi_params["HR_vs_wildtype"]
 
         # Estimate the case reporting rate
         # crr_days_needed = max( #TODO this depends on all the Td params, and D_REPORT_TIME...
@@ -222,7 +221,7 @@ class buckyModelCovid:
         )
 
         # TODO need case reporting in cfg, move all the CRR calc stuff to its own func
-        case_reporting_N_historical_days = 7
+        case_reporting_N_historical_days = 14
         mean_case_reporting = xp.nanmean(self.case_reporting[-case_reporting_N_historical_days:], axis=0)
 
         # Fill in and correct the shapes of some parameters
@@ -294,7 +293,7 @@ class buckyModelCovid:
             I_to_H_time=epi_params["I_TO_H_TIME"],
             Rh_gamma_k=yy.Rh_gamma_k,
             S_age_dist=S_age_dist,
-            days_back=7,
+            days_back=14,
         )
         yy.I = (1.0 - epi_params["CHR"] * epi_params["CRR"]) * I_init / yy.I_gamma_k  # noqa: E741
         yy.Ic = epi_params["CHR"] * I_init / yy.I_gamma_k * epi_params["CRR"]
@@ -304,7 +303,7 @@ class buckyModelCovid:
             adm1_hosp = self.g_data.sum_adm1(xp.sum(yy.Rh * self.Nij, axis=(0, 1)))
             adm2_hosp_frac = (self.g_data.hhs_data.current_hospitalizations[-1] / adm1_hosp)[self.g_data.adm1_id]
             adm0_hosp_frac = xp.nansum(self.g_data.hhs_data.current_hospitalizations[-1]) / xp.nansum(adm1_hosp)
-            adm2_hosp_frac[xp.isnan(adm2_hosp_frac) | (adm2_hosp_frac == 0.0)] = adm0_hosp_frac
+            adm2_hosp_frac[~xp.isfinite(adm2_hosp_frac) | (adm2_hosp_frac == 0.0)] = adm0_hosp_frac
 
             # adm2_hosp_frac = xp.sqrt(adm2_hosp_frac * adm0_hosp_frac)
 
@@ -316,7 +315,7 @@ class buckyModelCovid:
                 case_to_death_time=epi_params["CASE_TO_DEATH_TIME"],
                 Rh_gamma_k=yy.Rh_gamma_k,
                 S_age_dist=S_age_dist,
-                days_back=7,
+                days_back=14,
             )
             epi_params["CFR"] = xp.clip(
                 epi_params["CFR"] * mc_params["F_scaling"] * F_RR_fac[self.g_data.adm1_id] * scaling_H,
@@ -560,6 +559,7 @@ class buckyModelCovid:
 
         if "daily_deaths" in columns:
             daily_deaths = xp.gradient(out.D, axis=-1, edge_order=2)
+            daily_deaths[:, 0] = xp.maximum(0.0, daily_deaths[:, 0])
             mc_data["daily_deaths"] = daily_deaths
 
             if self.reject_runs:
@@ -575,6 +575,7 @@ class buckyModelCovid:
 
         if "daily_cases" in columns or "daily_reported_cases" in columns:
             daily_reported_cases = xp.gradient(out.incC, axis=-1, edge_order=2)
+            daily_reported_cases[:, 0] = xp.maximum(0.0, daily_reported_cases[:, 0])
 
             if self.reject_runs:
                 init_inc_case_mean = xp.mean(xp.sum(daily_reported_cases[:, 1:4], axis=0))
@@ -603,8 +604,9 @@ class buckyModelCovid:
             mc_data["cumulative_cases"] = cum_cases_total
 
         if "daily_hospitalizations" in columns:
-            out.incH[:, 0] = out.incH[:, 1]
+            out.incH[:, 0] = out.incH[:, 1] - out.incH[:, 2]
             daily_hosp = xp.gradient(out.incH, axis=-1, edge_order=2)
+            daily_hosp[:, 0] = xp.maximum(0.0, daily_hosp[:, 0])
             mc_data["daily_hospitalizations"] = daily_hosp
 
         if "total_population" in columns:
@@ -671,7 +673,7 @@ class buckyModelCovid:
         # Check for any negative values in the ouput data
         negative_values = False
         for k, val in mc_data.items():
-            if k != "date" and xp.any(xp.around(val, 2) < 0.0):
+            if k != "date" and xp.any(xp.around(val, 5) < 0.0):
                 logger.info("Negative values present in " + k)
                 negative_values = True
 

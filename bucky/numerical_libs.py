@@ -29,6 +29,7 @@ CUPY_FORCE_FP32 = False
 
 # Make the numpy namespace more consistent with cupy
 xp.is_cupy = False
+xp.device_count = 0
 xp.scatter_add = xp.add.at
 xp.optimize_kernels = contextlib.nullcontext
 xp.special = scipy.special
@@ -180,11 +181,11 @@ def enable_cupy(optimize=False, cache_dir=None):
 
     import cupy as cp  # pylint: disable=import-outside-toplevel
 
-    # import numpy as np  # pylint: disable=import-outside-toplevel, reimported
-    # cp.cuda.set_allocator(cp.cuda.MemoryPool(cp.cuda.memory.malloc_managed).malloc)
-    with warnings.catch_warnings():
-        warnings.simplefilter(action="ignore", category=FutureWarning)
-        cp.cuda.set_allocator(cp.cuda.MemoryAsyncPool().malloc)
+    # Enable async mem pool for cuda > 11.2
+    if cp.cuda.runtime.runtimeGetVersion() >= 11020:
+        with warnings.catch_warnings():
+            warnings.simplefilter(action="ignore", category=FutureWarning)
+            cp.cuda.set_allocator(cp.cuda.MemoryAsyncPool().malloc)
 
     def scipy_import_replacement(src):
         """Perform the required numpy->cupy str replacements on the scipy source files."""
@@ -279,6 +280,8 @@ def enable_cupy(optimize=False, cache_dir=None):
 
     # Add is_cupy flag to xp
     cp.is_cupy = True
+
+    cp.device_count = cp.cuda.runtime.getDeviceCount()
 
     bucky.xp = cp
 

@@ -40,7 +40,15 @@ class buckyData:
     """Contains and preprocesses all the data imported from an input graph file."""
 
     @sync_numerical_libs
-    def __init__(self, data_dir, fit_cfg, force_diag_Aij=False, hist_length=101, force_historical_end_dow=4):
+    def __init__(
+        self,
+        data_dir,
+        fit_cfg,
+        force_diag_Aij=False,
+        hist_length=101,
+        force_historical_end_dow=4,
+        force_start_date=None,
+    ):
         """Initialize the input data into cupy/numpy, reading it from a networkx graph."""
 
         self.n_hist = hist_length
@@ -50,10 +58,11 @@ class buckyData:
         self.Nij, self.adm2_id = read_population_tensor(census_file, return_adm2_ids=True)
 
         # adm-level mappings and bookkeeping
-        self.adm1_id = self.adm2_id // 1000
-        self.adm0_name = "US"
+        self.adm1_id = self.adm2_id // 1000  # TODO deprecate and use adm_mapping
+        self.adm0_name = "US"  # TODO deprecate and use adm_mapping
 
-        self.adm_mapping = AdminLevelMapping(adm0="US", adm2_ids=self.adm2_id)
+        adm_mapping_file = data_dir / "adm_mapping.csv"
+        self.adm_mapping = AdminLevelMapping.from_csv(adm_mapping_file)
 
         # make adj mat obj
         self.Aij = buckyAij(n_nodes=self.Nij.shape[1], force_diag=force_diag_Aij)
@@ -64,11 +73,19 @@ class buckyData:
             csse_file,
             n_days=self.n_hist,
             force_enddate_dow=force_historical_end_dow,
+            force_enddate=force_start_date,
+            adm_mapping=self.adm_mapping,
         )
 
         # HHS hospitalizations
         hhs_file = data_dir / "hhs_timeseries.csv"
-        self.raw_hhs_data = HHSData.from_csv(hhs_file, n_days=self.n_hist, force_enddate_dow=force_historical_end_dow)
+        self.raw_hhs_data = HHSData.from_csv(
+            hhs_file,
+            n_days=self.n_hist,
+            force_enddate_dow=force_historical_end_dow,
+            force_enddate=force_start_date,
+            adm_mapping=self.adm_mapping,
+        )
 
         # Prem contact matrices
         logger.debug("Loading Prem et al. matrices from {}", data_dir / "prem_matrices.csv")
@@ -96,7 +113,7 @@ class buckyData:
     # TODO! this should be operating on last index, its super fragmented atm
     # also if we sort node indices by adm2 that will at least bring them all together...
     def sum_adm1(self, adm2_arr, mask=None, cache=False):
-        """Return the adm1 sum of a variable defined at the adm2 level using the mapping on the graph."""
+        """DEPRECATED: Return the adm1 sum of a variable defined at the adm2 level using the mapping on the graph."""
         # TODO add in axis param, we call this a bunch on array.T
         # assumes 1st dim is adm2 indexes
         # TODO should take an axis argument and handle reshape, then remove all the transposes floating around
@@ -106,12 +123,10 @@ class buckyData:
         shp = (self.adm_mapping.n_adm1,) + adm2_arr.shape[1:]
         out = xp.zeros(shp, dtype=adm2_arr.dtype)
         if mask is None:
-            # adm1_ids = self.adm1_id
-            adm1_ids = self.adm_mapping.adm1_ids
+            adm1_ids = self.adm_mapping.adm1.idx
         else:
-            adm1_ids = self.adm_mapping.adm1_ids[mask]
-            # adm1_ids = self.adm1_id[mask]
-            # adm2_arr = adm2_arr[mask]
+            adm1_ids = self.adm_mapping.adm1.idx[mask]
+
         if cache:
             out = cached_scatter_add(out, adm1_ids, adm2_arr)
         else:

@@ -66,10 +66,10 @@ def clean_historical_data(csse_data, hhs_data, adm_mapping, fit_cfg, force_save_
         adm1_not_enough_death_data = xp.full(csse_adm1.n_loc, False)
 
     # map the adm1 masks back to adm2
-    adm2_case_mask = adm1_case_mask[:, adm_mapping.adm1_ids]
-    adm2_death_mask = adm1_case_mask[:, adm_mapping.adm1_ids]
-    adm2_not_enough_case_data = adm1_not_enough_case_data[adm_mapping.adm1_ids]
-    adm2_not_enough_death_data = adm1_not_enough_death_data[adm_mapping.adm1_ids]
+    adm2_case_mask = adm1_case_mask[:, adm_mapping.adm1.idx]
+    adm2_death_mask = adm1_case_mask[:, adm_mapping.adm1.idx]
+    adm2_not_enough_case_data = adm1_not_enough_case_data[adm_mapping.adm1.idx]
+    adm2_not_enough_death_data = adm1_not_enough_death_data[adm_mapping.adm1.idx]
 
     # replace masked values by interpolating/extrapolating nearby values if there is enough data
     new_cum_cases = xp.empty((csse_data.n_loc, csse_data.n_days))
@@ -109,29 +109,46 @@ def clean_historical_data(csse_data, hhs_data, adm_mapping, fit_cfg, force_save_
     new_cum_deaths = xp.around(new_cum_deaths, 6) + 0.0
 
     # fit GAM to cumulative data
-    df = max(1 * n_hist // 7 - 1, 4)
+    df = max(n_hist // 7, 4)
     # df = int(10 * n_hist ** (2.0 / 9.0)) + 1  # from gam book section 4.1.7
+
+    cum_fit_args = {
+        "alp": fit_cfg["gam_args.alp"],
+        "df": df,
+        "dist": "g",
+        "standardize": fit_cfg["gam_args.standardize"],
+        "gamma": fit_cfg["gam_args.gam_cum"],
+        "tol": fit_cfg["gam_args.tol"],
+        "clip": (fit_cfg["gam_args.a_min"], None),
+        "bootstrap": False,  # True,
+    }
 
     spline_cum_cases = fit(
         new_cum_cases,
-        df=df,
-        alp=fit_cfg["gam_args.alp"],
-        gamma=fit_cfg["gam_args.gam_cum"],
-        tol=fit_cfg["gam_args.tol"],
+        **cum_fit_args,
         label="PIRLS Cumulative Cases",
-        standardize=fit_cfg["gam_args.standardize"],
-        clip=(fit_cfg["gam_args.a_min"], None),
     )
     spline_cum_deaths = fit(
         new_cum_deaths,
-        df=df,
-        alp=fit_cfg["gam_args.alp"],
-        gamma=fit_cfg["gam_args.gam_cum"],
-        tol=fit_cfg["gam_args.tol"],
+        **cum_fit_args,
         label="PIRLS Cumulative Deaths",
-        standardize=fit_cfg["gam_args.standardize"],
-        clip=(fit_cfg["gam_args.a_min"], None),
     )
+
+    # do iterative robust weighting of the data points
+    # TODO move this to the actual fitting method
+    if fit_cfg["gam_args.robust_weighting"]:
+        for _ in range(fit_cfg["gam_args.robust_weighting_iters"]):
+            resid = spline_cum_cases - new_cum_cases
+            stddev = xp.quantile(xp.abs(resid), axis=1, q=0.682)
+            clean_resid = xp.clip(resid / (6.0 * stddev[:, None] + 1e-8), -1.0, 1.0)
+            robust_weights = xp.clip(1.0 - clean_resid**2.0, 0.0, 1.0) ** 2.0
+            spline_cum_cases = fit(new_cum_cases, **cum_fit_args, label="PIRLS Cumulative Cases", w=robust_weights)
+
+            resid = spline_cum_deaths - new_cum_deaths
+            stddev = xp.quantile(xp.abs(resid), axis=1, q=0.682)
+            clean_resid = xp.clip(resid / (6.0 * stddev[:, None] + 1e-8), -1.0, 1.0)
+            robust_weights = xp.clip(1.0 - clean_resid**2.0, 0.0, 1.0) ** 2.0
+            spline_cum_deaths = fit(new_cum_deaths, **cum_fit_args, label="PIRLS Cumulative Deaths", w=robust_weights)
 
     # Get incident timeseries from fitted cumulatives
     inc_cases = xp.clip(xp.gradient(spline_cum_cases, axis=1, edge_order=2), a_min=0.0, a_max=None)
@@ -194,19 +211,19 @@ def clean_historical_data(csse_data, hhs_data, adm_mapping, fit_cfg, force_save_
             resid = spline_inc_cases - inc_cases
             stddev = xp.quantile(xp.abs(resid), axis=1, q=0.682)
             clean_resid = xp.clip(resid / (6.0 * stddev[:, None] + 1e-8), -1.0, 1.0)
-            robust_weights = xp.clip(1.0 - clean_resid ** 2.0, 0.0, 1.0) ** 2.0
+            robust_weights = xp.clip(1.0 - clean_resid**2.0, 0.0, 1.0) ** 2.0
             spline_inc_cases = fit(inc_cases, **inc_fit_args, label="PIRLS Incident Cases", w=robust_weights)
 
             resid = spline_inc_deaths - inc_deaths
             stddev = xp.quantile(xp.abs(resid), axis=1, q=0.682)
             clean_resid = xp.clip(resid / (6.0 * stddev[:, None] + 1e-8), -1.0, 1.0)
-            robust_weights = xp.clip(1.0 - clean_resid ** 2.0, 0.0, 1.0) ** 2.0
+            robust_weights = xp.clip(1.0 - clean_resid**2.0, 0.0, 1.0) ** 2.0
             spline_inc_deaths = fit(inc_deaths, **inc_fit_args, label="PIRLS Incident Deaths", w=robust_weights)
 
             resid = spline_inc_hosp - inc_hosp
             stddev = xp.quantile(xp.abs(resid), axis=1, q=0.682)
             clean_resid = xp.clip(resid / (6.0 * stddev[:, None] + 1e-8), -1.0, 1.0)
-            robust_weights = xp.clip(1.0 - clean_resid ** 2.0, 0.0, 1.0) ** 2.0
+            robust_weights = xp.clip(1.0 - clean_resid**2.0, 0.0, 1.0) ** 2.0
             spline_inc_hosp = fit(inc_hosp, **inc_fit_args, label="PIRLS Incident Hosps", w=robust_weights)
 
     # invert power transform
@@ -243,6 +260,9 @@ def clean_historical_data(csse_data, hhs_data, adm_mapping, fit_cfg, force_save_
     if save_plots:
         plot_historical_fits(csse_data, hhs_data, adm_mapping, ret_data, adm1_case_mask, adm1_death_mask)
 
+    fitted_csse_data.validate_isfinite()
+    fitted_hhs_data.validate_isfinite()
+
     return fitted_csse_data, fitted_hhs_data
 
 
@@ -275,6 +295,7 @@ def plot_historical_fits(csse_data, hhs_data, adm_mapping, fitted_data, valid_ad
         2,
         csse_data.adm_ids,
         csse_data.dates,
+        csse_data.adm_mapping,
         fitted_data["cumulative_cases"].T,
         fitted_data["cumulative_deaths"].T,
         fitted_data["incident_cases"].T,
@@ -287,8 +308,8 @@ def plot_historical_fits(csse_data, hhs_data, adm_mapping, fitted_data, valid_ad
 
     fig, ax = plt.subplots(nrows=2, ncols=4, figsize=(15, 10))
     x = xp.arange(csse_adm1.n_days)
-    for i in tqdm.tqdm(range(csse_adm1.n_loc), desc="Ploting fits", dynamic_ncols=True):
-        adm1_fips = adm_mapping.uniq_adm1_ids[i]
+    for i in tqdm.tqdm(range(csse_adm1.n_loc), desc="Plotting fits", dynamic_ncols=True):
+        adm1_fips = adm_mapping.adm1.ids[i]
         fips_str = str(adm1_fips).zfill(2)
         if fips_str in fips_map:
             name = fips_map[fips_str] + " (" + fips_str + ")"

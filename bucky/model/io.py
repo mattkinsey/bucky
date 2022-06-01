@@ -1,9 +1,10 @@
 """Monte carlo output handler."""
 from pathlib import Path
 
+import fastparquet
 import numpy as np
-import pyarrow as pa
-import pyarrow.parquet as pap
+import pandas as pd
+from loguru import logger
 
 from ..numerical_libs import sync_numerical_libs, xp
 from ..util.async_thread import AsyncQueueThread
@@ -29,9 +30,21 @@ def write_parquet_dataset(df_data, data_dir, stream, pinned_mem):
     if stream is not None:
         stream.synchronize()
 
-    pa_data = {k: pa.array(v) for k, v in pinned_mem.items()}
-    table = pa.table(pa_data)
-    pap.write_to_dataset(table, data_dir, partition_cols=["date"])
+    df = pd.DataFrame({k: np.array(v) for k, v in pinned_mem.items()})
+
+    for date, date_group in df.groupby("date"):
+        date_partition = data_dir / f"date={date}"
+        date_partition.mkdir(exist_ok=True)
+        rid = df["rid"].iloc[0]
+        fname = str(date_partition / f"rid_{rid}.parquet")
+        fastparquet.write(fname, date_group.drop(columns=["date"]), stats=False, write_index=False)
+
+
+def merge_parquet_dataset(data_dir, **kwargs):
+    logger.info("Merging parquet files")
+
+    for partition in data_dir.glob("date=*"):
+        fastparquet.writer.merge([str(f) for f in partition.glob("*.parquet")])
 
 
 class BuckyOutputWriter:
@@ -46,7 +59,12 @@ class BuckyOutputWriter:
         data_dir.mkdir(exist_ok=True)
 
         if data_format == "parquet":
-            self.write_thread = AsyncQueueThread(write_parquet_dataset, pre_func=init_write_thread, data_dir=data_dir)
+            self.write_thread = AsyncQueueThread(
+                write_parquet_dataset,
+                pre_func=init_write_thread,
+                post_func=merge_parquet_dataset,
+                data_dir=data_dir,
+            )
 
     @sync_numerical_libs
     def write_metadata(self, adm_mapping, str_dates, fitted_timeseries=None):
@@ -55,6 +73,7 @@ class BuckyOutputWriter:
         metadata_dir.mkdir(exist_ok=True)
 
         # write out adm level mappings
+        # TODO should just copy from data?
         adm_map_file = metadata_dir / "adm_mapping.csv"
         adm_mapping.to_csv(adm_map_file)
 

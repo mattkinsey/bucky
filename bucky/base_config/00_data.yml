@@ -7,8 +7,8 @@ data_sources:
       - desc: "Transform CSSE data into useable format"
         func: bucky.datasource_transforms.csse_timeseries.transform
         args:
-          output_file: ../../csse_timeseries.csv
-          census_data_path: ../../binned_census_age_groups.csv
+          output_file: !path ../../csse_timeseries.csv
+          census_data_path: !path ../../binned_census_age_groups.csv
 
   - name: vaccine_timeseries
     type: git
@@ -27,28 +27,28 @@ data_sources:
 #    type: git
 #    url: https://github.com/COVIDExposureIndices/COVIDExposureIndices.git
 
-  - name: tiger_county_shp_files_2019
+  - name: tiger_county_shp_files_2021
     type: http
-    url: https://www2.census.gov/geo/tiger/TIGER2019/COUNTY/tl_2019_us_county.zip
+    url: https://www2.census.gov/geo/tiger/TIGER2021/COUNTY/tl_2021_us_county.zip
     unzip: True
-    hash: 4a2cdcc8a5d58caf88f9dc6595c4d89c51fdb56de738f615a8c5e3814dfcdea5
+    hash: 26890ff92275ff1392cd205c7021ba510b7f63f2ff985ca327b9f5fd5e9ecc90
+    postprocess:
+      - desc: "Precomputing distances between counties and building ADM mapping"
+        func: bucky.datasource_transforms.extract_shapefile_data.extract
+        args:
+          output_connectivity_filename: !path ../../county_connectivity.csv
+          output_adm_filename: !path ../../adm_mapping.csv
+          census_data_path: !path ../../binned_census_age_groups.csv
+        check_hash:
+          file: !path ../../county_connectivity.csv
+          hash: b8a01020be8f601c3f2070216c312c1ff16fa9ac18cfc670fa54bb588e33d57b
+          # TODO check the adm_mapping file (need support for multiple files w/ check_hash)
 
-  - name: tiger_state_shp_files_2019
+  - name: tiger_state_shp_files_2021
     type: http
-    url: https://www2.census.gov/geo/tiger/TIGER2019/STATE/tl_2019_us_state.zip
+    url: https://www2.census.gov/geo/tiger/TIGER2021/STATE/tl_2021_us_state.zip
     unzip: True
-    hash: 85f78060f033523ad1a864a43abb2635748953e41a74c4cf312be135a86cc6a8
-
-#  - name: "contact_matrices"
-#    type: "http"
-#    url: "https://doi.org/10.1371/journal.pcbi.1005697.s002"
-#    unzip: True
-#    hash: "ad873e27f736373a947ea6ba2ee305c0864514e50b98831b5fe1ae2106c4dd92"
-#    postprocess:
-#      - desc: "Convert Prem et al excel files into csv"
-#        func: "bucky.datasource_transforms.convert_prem_excel.transform"
-#        args:
-#          output_file: "../../prem_matrices.csv"
+    hash: d6de08ea381cb10db6e5780c432d0ed0fabd47c376f10ab275ff9ace49e4bdf0
 
   - name: prem_2020_contact_matrices
     type: http
@@ -59,7 +59,7 @@ data_sources:
       - desc: "Convert Prem contact matrix csv into usable format"
         func: bucky.datasource_transforms.prem_2020_csv.transform
         args:
-          output_filename: ../../prem_matrices.csv
+          output_filename: !path ../../prem_matrices.csv
         check_hash:
           file: !path ../../prem_matrices.csv
           hash: 88b6f2aaaabccb66d8f21ca6b2c9998305a565999aad7b11a652a5307009ab81
@@ -75,7 +75,7 @@ data_sources:
         func: bucky.datasource_transforms.bin_bridged_race_census_csv.bin_census_data
         args:
           filename: pcen_v2020_y1020.txt
-          out_filename: ../../binned_census_age_groups.csv
+          out_filename: !path ../../binned_census_age_groups.csv
         check_hash:
           file: !path ../../binned_census_age_groups.csv
           hash: a1f7bac1ef2136efa7033253e3065dba457ce5b24b5f89b6f6eeb8f9ae64106f
@@ -88,4 +88,4 @@ data_sources:
       - desc: "Aggregate and drop unused columns from HHS data."
         func: bucky.datasource_transforms.hhs_hosp_cleanup.transform
         args:
-          output_file: ../../hhs_timeseries.csv
+          output_file: !path ../../hhs_timeseries.csv

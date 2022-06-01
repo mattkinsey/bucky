@@ -236,7 +236,7 @@ def make_DP(x):
     complete = xp.full((x.shape[0],), False, dtype=bool)
     current_exp = -8.0
     while True:
-        eye_fac = 10.0 ** current_exp
+        eye_fac = 10.0**current_exp
         eye_facs[~complete] = 10.0 ** (current_exp + 1)
         complete[~complete] = xp.all(xp.linalg.eigvalsh(x[~complete] + eye_fac * eye) > 1.0e-12, axis=1)
         current_exp += 1.0
@@ -324,7 +324,7 @@ def PIRLS(
             gamma=gamma,
             fixed_lam=fixed_lam,
         )
-        diff = xp.sqrt(xp.sum((beta_k - beta_new) ** 2, axis=1)) / xp.sqrt(xp.sum(beta_new ** 2, axis=1))
+        diff = xp.sqrt(xp.sum((beta_k - beta_new) ** 2, axis=1)) / xp.sqrt(xp.sum(beta_new**2, axis=1))
         alp_diff = xp.abs(alp_k - alp_new) / alp_new
 
         batch_beta = step_size[..., None] * beta_new + (1.0 - step_size[..., None]) * beta_k
@@ -342,7 +342,7 @@ def PIRLS(
         if xp.any(step_mask) and (it > 50):
             step_size[step_mask] = 0.5 * step_size[step_mask]
             step_size_all[~complete] = step_size
-            step_stop = step_size < 0.5 ** 10
+            step_stop = step_size < 0.5**10
             it_since_step[step_mask] = 0
         else:
             step_stop = False
@@ -488,7 +488,7 @@ def lin_reg(y, x=None, alp=0.0, quad=False, return_fit=True):
         x = xp.tile(x, (y.shape[0], 1))
     basis_list = [xp.ones_like(x), x]
     if quad:
-        basis_list.append(x ** 2)
+        basis_list.append(x**2)
     basis = xp.stack(basis_list, axis=1).swapaxes(1, 2)
 
     w = ridge(basis, y, alp)
@@ -644,8 +644,8 @@ def opt_lam(x, y, alp=0.6, pen=None, min_lam=0.1, step_size=None, tol=1e-3, max_
             -2.0 * n / delta / delta / delta * ddeltadrho * dalpdrho[:, 0, 0]
             + n / delta / delta * d2alpdrho[:, 0, 0]
             - 2.0 * n / delta / delta / delta * dalpdrho[:, 0, 0] * ddeltadrho
-            + 6.0 * n * alpha / (delta ** 4) * ddeltadrho * ddeltadrho
-            - 2.0 * n * alpha / (delta ** 3) * d2deltad2rho
+            + 6.0 * n * alpha / (delta**4) * ddeltadrho * ddeltadrho
+            - 2.0 * n * alpha / (delta**3) * d2deltad2rho
         )
 
         rho = xp.log(lam)
@@ -661,7 +661,7 @@ def opt_lam(x, y, alp=0.6, pen=None, min_lam=0.1, step_size=None, tol=1e-3, max_
         var_beta_out[~complete] = xp.einsum(
             "bij,bj,bjk->bik",
             xp.swapaxes(vt, 1, 2),
-            invd_diag ** 2,
+            invd_diag**2,
             vt,
         )  # TODO double check this
         if (it > 0) or fixed_lam:

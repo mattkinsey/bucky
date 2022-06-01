@@ -30,38 +30,38 @@ model:
     Rt_fac:
       distribution:
         func: "approx_mPERT"
-        mu: 1.1
-        a: .7
+        mu: 1.15
+        a: .9
         b: 1.5
-        gamma: 4.
+        gamma: 2.
     R_fac:
       distribution:
         func: "approx_mPERT"
-        mu: .6
-        a: .3
-        b: .9
+        mu: .4
+        a: .2
+        b: .6
         gamma: 1.
     E_fac:
       distribution:
         func: "approx_mPERT"
         mu: .65
-        a: .35
-        b: 1.15
+        a: .45
+        b: .85
         gamma: 4.
     H_fac:
       distribution:
         func: "approx_mPERT"
-        mu: .45
-        a: .15
+        mu: .5
+        a: .25
         b: .75
-        gamma: 32
+        gamma: .5
     F_fac:
       distribution:
         func: "approx_mPERT"
-        mu: 1.4
-        a: 1.2
-        b: 1.6
-        gamma: 4.
+        mu: 1.
+        a: .8
+        b: 1.2
+        gamma: 1.
     
 
   vaccine:
@@ -96,16 +96,24 @@ model:
     Tg:
       distribution:
         func: "truncnorm_from_CI"
-        CI: [4.5,7.5]
+        CI: [3.5,6.5]
         a_min: 1.
    
     # Serial interval prior
     Ts:
       distribution:
         func: "truncnorm_from_CI"
-        CI: [4.,6.]
+        CI: [3.,6.]
         a_min: 1.
-     
+
+    # Hazard ratio (for deaths) of current strain vs wildtype
+    HR_vs_wildtype:
+      distribution:
+        func: "truncnorm_from_CI"
+        CI: [.3, .55]
+        a_min: 0.
+        a_max: 1.
+
     ASYM_FRAC:
       # Fraction of infections that are asymptomatic
       distribution:
