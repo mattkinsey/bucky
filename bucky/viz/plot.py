@@ -15,6 +15,7 @@ import tqdm
 import us
 from loguru import logger
 
+from ..data.adm_mapping import AdminLevelMapping
 from .readable_col_names import readable_col_names
 from .utils import get_fitted_data, get_historical_data, get_simulation_data
 
@@ -256,6 +257,7 @@ def default_plot(cfg):
 
     cols = list(cfg["columns"])
     output_dir = cfg["output_dir"]
+    admin_mapping = cfg["adm_mapping"]
 
     # Loop over levels
     for level in cfg["levels"]:
@@ -297,6 +299,9 @@ def default_plot(cfg):
             # Group by adm key
             group_fit_data = fit_data.groupby(level)
 
+        # TODO remove when admin mapping modified
+        level_int = int(level[-1])
+        level_mapping = admin_mapping.mapping("ids", "abbrs", level=level_int)
         # TODO replace with Admin level mapping object
         if level == "adm0":
             level_mapping = {0: "US"}
@@ -383,7 +388,9 @@ def main(cfg):
     if cfg["n_hist"] < 1:
         cfg["plot_fit"] = False
 
-    # TODO Add different plot types (e.g. Reich projections, etc)
+    # Read admin mapping object
+    cfg["adm_mapping"] = AdminLevelMapping.from_csv(cfg["adm_mapping_file"])
+
     default_plot(cfg)
 
 
