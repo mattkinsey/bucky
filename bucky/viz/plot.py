@@ -303,18 +303,6 @@ def default_plot(cfg):
         # TODO remove when admin mapping modified
         level_int = int(level[-1])
         level_mapping = admin_mapping.mapping("ids", "abbrs", level=level_int)
-        # TODO replace with Admin level mapping object
-        if level == "adm0":
-            level_mapping = {0: "US"}
-        elif level == "adm1":
-            str_mapping = us.states.mapping("fips", "abbr")
-
-            # Need fips codes as integers
-            level_mapping = {}
-            for key in str_mapping.keys():
-
-                if key is not None:
-                    level_mapping[int(key)] = str_mapping[key]
 
         # Check that all groups are in the same order before sending to pool
         if cfg["plot_hist"]:
