@@ -6,7 +6,7 @@ import pandas as pd
 import us
 from loguru import logger
 
-from ..data.timeseries import BuckyFittedCaseData, BuckyFittedHospData, CSSEData, HHSData
+from ..data.timeseries import BuckyFittedCaseData, CSSEData, HHSData
 from ..numerical_libs import sync_numerical_libs, xp
 from ..util.array_utils import rolling_window
 
@@ -61,6 +61,9 @@ def get_fitted_data(cfg, level, date_range):
     hosp_cols = ["incident_hospitalizations", "current_hospitalizations"]
 
     df = None
+    # TODO remove when admin mapping modified
+    level_int = int(level[-1])
+    level_mapping = cfg["adm_mapping"].mapping("ids", "abbrs", level=level_int)
     # Get data for each requested column
     for col in cfg["columns"]:
 
@@ -69,24 +72,7 @@ def get_fitted_data(cfg, level, date_range):
         # Case data
         if col in case_cols:
             filename = cfg["input_dir"] / "metadata" / "csse_fitted_timeseries.csv"
-            data = BuckyFittedCaseData.from_csv(filename, valid_date_range=date_range)
-
-            # Map adm ids to names
-            if level == "adm0":
-                level_mapping = {0: data.adm_mapping.adm0}
-            elif level == "adm1":
-                str_mapping = us.states.mapping("fips", "abbr")
-
-                # Need fips codes as integers
-                level_mapping = {}
-                for key in str_mapping.keys():
-
-                    if key is not None:
-                        level_mapping[int(key)] = str_mapping[key]
-
-            else:
-                logger.error("Plotting is only implemented for adm levels 0 and 1")
-                raise NotImplementedError
+            data = BuckyFittedCaseData.from_csv(filename, valid_date_range=date_range, adm_mapping=cfg["adm_mapping"])
 
             # Aggregate adm data if necessary
             if int(level[-1]) != data.adm_level:
@@ -100,24 +86,7 @@ def get_fitted_data(cfg, level, date_range):
 
         elif col in hosp_cols:
             filename = cfg["input_dir"] / "metadata" / "hhs_fitted_timeseries.csv"
-            data = BuckyFittedHospData.from_csv(filename, valid_date_range=date_range)
-
-            # Map adm ids to names
-            if level == "adm0":
-                level_mapping = {0: "US"}
-            elif level == "adm1":
-                str_mapping = us.states.mapping("fips", "abbr")
-
-                # Need fips codes as integers
-                level_mapping = {}
-                for key in str_mapping.keys():
-
-                    if key is not None:
-                        level_mapping[int(key)] = str_mapping[key]
-
-            else:
-                logger.error("Plotting is only implemented for adm levels 0 and 1")
-                raise NotImplementedError
+            data = HHSData.from_csv(filename, valid_date_range=date_range, adm_mapping=cfg["adm_mapping"])
 
             # Aggregate to requested level if required
             if int(level[-1]) != data.adm_level:
@@ -179,6 +148,10 @@ def get_historical_data(cfg, level, date_range):
 
     df = None
 
+    # TODO remove when admin mapping modified
+    level_int = int(level[-1])
+    level_mapping = cfg["adm_mapping"].mapping("ids", "abbrs", level=level_int)
+
     # Get data for each requested column
     for col in cfg["columns"]:
 
@@ -186,27 +159,7 @@ def get_historical_data(cfg, level, date_range):
         if col in ["daily_reported_cases", "daily_deaths"]:
 
             filename = cfg["hist_data_dir"] / "csse_timeseries.csv"
-            data = CSSEData.from_csv(
-                filename,
-                valid_date_range=date_range,
-            )
-
-            # Map adm ids to names
-            if level == "adm0":
-                level_mapping = {0: data.adm_mapping.adm0}
-            elif level == "adm1":
-                str_mapping = us.states.mapping("fips", "abbr")
-
-                # Need fips codes as integers
-                level_mapping = {}
-                for key in str_mapping.keys():
-
-                    if key is not None:
-                        level_mapping[int(key)] = str_mapping[key]
-
-            else:
-                logger.error("Plotting is only implemented for adm levels 0 and 1")
-                raise NotImplementedError
+            data = CSSEData.from_csv(filename, valid_date_range=date_range, adm_mapping=cfg["adm_mapping"])
 
             # Aggregate adm data if necessary
             if int(level[-1]) != data.adm_level:
@@ -221,28 +174,7 @@ def get_historical_data(cfg, level, date_range):
         # HHS hospitalization data
         elif col in ["daily_hospitalizations", "current_hospitalizations"]:
             filename = cfg["hist_data_dir"] / "hhs_timeseries.csv"
-            data = HHSData.from_csv(
-                filename,
-                valid_date_range=date_range,
-            )
-
-            # Map adm ids to names
-            # TODO replace with new admin mapping
-            if level == "adm0":
-                level_mapping = {0: "US"}
-            elif level == "adm1":
-                str_mapping = us.states.mapping("fips", "abbr")
-
-                # Need fips codes as integers
-                level_mapping = {}
-                for key in str_mapping.keys():
-
-                    if key is not None:
-                        level_mapping[int(key)] = str_mapping[key]
-
-            else:
-                logger.error("Plotting is only implemented for adm levels 0 and 1")
-                raise NotImplementedError
+            data = HHSData.from_csv(filename, valid_date_range=date_range, adm_mapping=cfg["adm_mapping"])
 
             # Aggregate to requested level if required
             if int(level[-1]) != data.adm_level:
