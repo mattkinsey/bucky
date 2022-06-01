@@ -1,3 +1,4 @@
+"""Classes to handle the mappings between ADM levels, their names, etc"""
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -12,6 +13,8 @@ from ..util.cached_prop import cached_property
 
 @dataclass(frozen=True)
 class AdminLevel:
+    """Wrapper for data for one admin level"""
+
     level: int
     idx: ArrayLike
     ids: ArrayLike
@@ -20,6 +23,7 @@ class AdminLevel:
 
     @sync_numerical_libs
     def __init__(self, ids, level=0, abbrs=None, names=None):
+        """Init the object and optionall include extra info like names, abbrs"""
         object.__setattr__(self, "level", level)
         uniq_ids, uniq_index, squashed_idxs = np.unique(ids, return_inverse=True, return_index=True)
         # TODO assert sizes make sense (in post init)?
@@ -36,16 +40,20 @@ class AdminLevel:
         object.__setattr__(self, "names", names[uniq_index])
 
     def __repr__(self):
+        """Pretty print the admin level obj"""
         # TODO say if we have valid names/abbrs?
         return f"Admin level {self.level}, with {len(self)} locations"
 
     def __len__(self):
+        """len(AdminLevel) is the number of unique locations"""
         return len(self.ids)
 
 
 # TODO allow initing with just adm1_ids
 @dataclass(frozen=True)
 class AdminLevelMapping:
+    """Wrapper for the stack of admin levels and their info"""
+
     adm0: AdminLevel
     adm1: AdminLevel
     adm2: AdminLevel
@@ -58,6 +66,7 @@ class AdminLevelMapping:
         adm0: Optional[AdminLevel] = None,
         levels: dict = field(init=False),  # noqa: B008
     ):
+        """Initialize from a set of AdminLevel objects"""
 
         # TODO should set levels first then make attrs for every level we have automatically
 
@@ -87,9 +96,11 @@ class AdminLevelMapping:
     #        raise ValueError
 
     def __repr__(self) -> str:
+        """Pretty print the mapping obj"""
         return f"adm0 containing {len(self.adm1)} adm1 regions and {len(self.adm2)} adm2 regions"
 
     def mapping(self, from_: str, to: str, level: int):
+        """Return dict mappings between attributes of the admin level (for use with pandas.Series.map)"""
         level_map = self.levels[level]
         if from_ in ("id", "name", "abbr"):
             from_ = f"{from_}s"
@@ -100,6 +111,7 @@ class AdminLevelMapping:
 
     @sync_numerical_libs
     def to_csv(self, filename: PathLike):
+        """Save the admin mapping to a csv file"""
         data = {
             "adm2": self.adm2.ids[self.adm2.idx],
             "adm1": self.adm1.ids[self.adm1.idx],
@@ -116,6 +128,7 @@ class AdminLevelMapping:
 
     @staticmethod
     def from_csv(filename: PathLike):
+        """Read the admin mapping from a csv file"""
 
         df = pd.read_csv(filename)
         df = df.sort_values(by=["adm2"])
@@ -131,21 +144,12 @@ class AdminLevelMapping:
 
     @property
     def n_adm1(self):
+        """DEPRECATED: return the number of adm1 regions"""
         return len(self.adm1.ids)
 
     # some legacy stuff, we should warn on usage b/c its deprecated
-    """
-    @cached_property
-    def adm1_ids(self):
-        return self.adm1.idx
-
-    @cached_property
-    def uniq_adm1_ids(self):
-        return self.adm1.ids
-
-    """
-
     @cached_property
     def actual_adm1_ids(self):
+        """DEPRECATED"""
         # TODO we should provide easier access to this...
         return self.adm1.ids[self.adm1.idx]

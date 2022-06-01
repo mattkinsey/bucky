@@ -1,3 +1,4 @@
+"""Objects that hold timeseries objects defined over multiple locations."""
 import datetime
 from dataclasses import dataclass, field, fields, replace
 from typing import Dict, Optional, Tuple, Union
@@ -14,6 +15,8 @@ from .adm_mapping import AdminLevel, AdminLevelMapping
 # TODO now that this holds the adm_mapping, the adm_ids column can probably be replaced...
 @dataclass(frozen=True)
 class SpatialStratifiedTimeseries:
+    """Class representing a generic timeseries that is defined over admin regions."""
+
     adm_level: int
     adm_ids: ArrayLike
     dates: ArrayLike  # TODO cupy cant handle this...
@@ -28,10 +31,6 @@ class SpatialStratifiedTimeseries:
                     logger.error("Invalid timeseries shape {}; expected {}.", field_shape, valid_shape)
                     raise ValueError
 
-        # TODO handle other adm levels
-        # if self.adm_level == 2:
-        #    object.__setattr__(self, "adm_mapping", AdminLevelMapping(adm2=AdminLevel(xp.to_cpu(self.adm_ids))))
-
     def __repr__(self) -> str:
         names = [f.name for f in fields(self) if f.name not in ["adm_ids", "dates"]]
         return (
@@ -40,18 +39,22 @@ class SpatialStratifiedTimeseries:
 
     @property
     def start_date(self) -> datetime.date:
+        """The first date of valid data."""
         return self.dates[0]
 
     @property
     def end_date(self) -> datetime.date:
+        """The last date of valid data."""
         return self.dates[-1]
 
     @property
     def n_days(self) -> int:
+        """Total number of days of data."""
         return len(self.dates)
 
     @property
     def n_loc(self) -> int:
+        """Total number of locations for which we have timeseries at the base admin level."""
         return len(self.adm_ids)
 
     @staticmethod
@@ -90,6 +93,7 @@ class SpatialStratifiedTimeseries:
         return ret
 
     def to_dict(self, level=None):
+        """Return the timeseries as a dict containing the data it's indices."""
         # get data to requested adm level
         obj = self.sum_adm_level(level) if level is not None else self
 
@@ -107,21 +111,24 @@ class SpatialStratifiedTimeseries:
         return ret
 
     def to_dataframe(self, level=None):
+        """Return the timeseries as a pandas.DataFrame."""
         data_dict = self.to_dict(level)
         df = pd.DataFrame(data_dict)
         adm_col = df.columns[df.columns.str.match("adm[0-9]")].item()
         return df.set_index([adm_col, "date"]).sort_index()
 
     def to_csv(self, filename, level=None):
+        """Save the timeseries data to a csv."""
         # TODO log
         df = self.to_dataframe(level)
         df.to_csv(filename, index=True)
 
     def replace(self, **changes):
+        """Replace data columns."""
         return replace(self, **changes)
 
     def sum_adm_level(self, level: Union[int, str]):
-
+        """Sum the values to a different admin level then they are defined on."""
         if type(level) == str:
 
             # Check string begins with 'adm'
@@ -153,6 +160,7 @@ class SpatialStratifiedTimeseries:
         return self.__class__(**new_data)
 
     def validate_isfinite(self):
+        """Check that there are no invalid values in the timeseries (nan, inf, etc)."""
         for f in fields(self):
             if "data_field" in f.metadata:
                 col_name = f.name

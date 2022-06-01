@@ -267,6 +267,8 @@ def clean_historical_data(csse_data, hhs_data, adm_mapping, fit_cfg, force_save_
 
 
 def plot_historical_fits(csse_data, hhs_data, adm_mapping, fitted_data, valid_adm1_case_mask, valid_adm1_death_mask):
+    """Plot the fitted historical data for review"""
+    # TODO the function should be moved to bucky.viz
     # pylint: disable=import-outside-toplevel
     import matplotlib
 
