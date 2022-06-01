@@ -125,7 +125,7 @@ def scale_y_axis(axis, col, sim_data, quantiles, hist_data, fit_data, zero_as_ym
     if len(sim_data["date"].unique()) > 30:
         quantile_mask = (sim_data["quantile"] >= 0.25) & (sim_data["quantile"] <= 0.75)
         sel_sim_data = sim_data.loc[quantile_mask]
-        sel_sim_data = sel_sim_data.loc[sel_sim_data["date"] > sim_data["date"].min() + pd.DateOffset(30)]
+        sel_sim_data = sel_sim_data.loc[sel_sim_data["date"] > sim_data["date"].min() + pd.DateOffset(29)]
         limits.append([sel_sim_data[col].min(), sel_sim_data[col].max()])
 
     # Last 7 days of historical data should be displayed
@@ -359,7 +359,7 @@ def main(cfg):
     output_dir = cfg["output_dir"]
 
     # Check if output dir was passed in
-    if output_dir == None:
+    if output_dir is None:
         output_dir = input_dir / "plots"
         output_dir.mkdir(exist_ok=True)
         cfg["output_dir"] = output_dir
