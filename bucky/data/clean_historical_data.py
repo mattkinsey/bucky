@@ -182,11 +182,12 @@ def clean_historical_data(csse_data, hhs_data, adm_mapping, fit_cfg, force_save_
         "bootstrap": False,  # True,
     }
 
-    all_cached = (
-        fit.check_call_in_cache(inc_cases, **inc_fit_args)
-        and fit.check_call_in_cache(inc_deaths, **inc_fit_args)
-        and fit.check_call_in_cache(inc_hosp, **inc_fit_args)
-    )
+    # all_cached = (
+    #    fit.check_call_in_cache(inc_cases, **inc_fit_args)
+    #    and fit.check_call_in_cache(inc_deaths, **inc_fit_args)
+    #    and fit.check_call_in_cache(inc_hosp, **inc_fit_args)
+    # )
+    all_cached = False
 
     spline_inc_cases = fit(
         inc_cases,

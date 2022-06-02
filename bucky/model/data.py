@@ -8,13 +8,14 @@ from ..data import AdminLevelMapping, CSSEData, HHSData
 from ..data.clean_historical_data import clean_historical_data
 from ..numerical_libs import sync_numerical_libs, xp
 from ..util.cached_prop import cached_property
-from ..util.read_config import bucky_cfg
+
+# from ..util.read_config import bucky_cfg
 from .adjmat import buckyAij
 
-memory = Memory(bucky_cfg["cache_dir"], verbose=0, mmap_mode="r")
+# memory = Memory(bucky_cfg["cache_dir"], verbose=0, mmap_mode="r")
 
 
-@memory.cache
+# @memory.cache
 def cached_scatter_add(a, slices, value):
     """scatter_add() thats cached by joblib."""
     ret = a.copy()

@@ -7,14 +7,15 @@ import tqdm
 from joblib import Memory
 
 from ..numerical_libs import sync_numerical_libs, xp
-from .read_config import bucky_cfg
+
+# from .read_config import bucky_cfg
 
 dtype = xp.float32
 
-memory = Memory(bucky_cfg["cache_dir"], verbose=0, mmap_mode="r")
+# memory = Memory(bucky_cfg["cache_dir"], verbose=0, mmap_mode="r")
 
 
-@memory.cache
+# @memory.cache
 def _get_natural_f(knots):
     """Returns mapping of natural cubic spline values to 2nd derivatives."""
     h = knots[:, 1:] - knots[:, :-1]
@@ -92,7 +93,7 @@ def nunique(arr, axis=-1):
     return arr.shape[axis] - n_not_uniq
 
 
-@memory.cache
+# @memory.cache
 def _get_free_crs_dmatrix(x, knots):
     """Builds an unconstrained cubic regression spline design matrix."""
     knots_dict = {}
@@ -142,7 +143,7 @@ def _get_free_crs_dmatrix(x, knots):
     return dm_dict, knots_dict_map, s
 
 
-@memory.cache
+# @memory.cache
 def _absorb_constraints(design_matrix, constraints, pen=None):
     """Apply constraints to the design matrix."""
     m = constraints.shape[1]
@@ -156,7 +157,7 @@ def _absorb_constraints(design_matrix, constraints, pen=None):
     return ret, pen_ret
 
 
-@memory.cache
+# @memory.cache
 def _cr(x, df, center=True):
     """Python version of the R lib mgcv function cr()."""
 
@@ -679,7 +680,7 @@ def opt_lam(x, y, alp=0.6, pen=None, min_lam=0.1, step_size=None, tol=1e-3, max_
     return y_out, beta_out, var_beta_out, lam_all, Vg_out
 
 
-@memory.cache(ignore=["label"])
+# @memory.cache(ignore=["label"])
 @sync_numerical_libs
 def fit(
     y,

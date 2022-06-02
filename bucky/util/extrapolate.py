@@ -3,12 +3,13 @@
 from joblib import Memory
 
 from ..numerical_libs import sync_numerical_libs, xp
-from ..util.read_config import bucky_cfg
 
-memory = Memory(bucky_cfg["cache_dir"], verbose=0)
+# from ..util.read_config import bucky_cfg
+
+# memory = Memory(bucky_cfg["cache_dir"], verbose=0)
 
 
-@memory.cache
+# @memory.cache
 @sync_numerical_libs
 def _cached_polyfit(*args, **kwargs):
     """Joblib memory cached version of xp.polyfit()"""
