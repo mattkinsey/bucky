@@ -290,8 +290,8 @@ def plot_historical_fits(csse_data, hhs_data, adm_mapping, fitted_data, valid_ad
 
     csse_adm1 = csse_data.sum_adm_level(level=1)
 
-    raw_diff_cases = xp.gradient(csse_adm1.cumulative_cases, axis=0, edge_order=2)
-    raw_diff_deaths = xp.gradient(csse_adm1.cumulative_deaths, axis=0, edge_order=2)
+    raw_diff_cases = xp.diff(csse_adm1.cumulative_cases, prepend=csse_adm1.cumulative_cases[0][None, ...], axis=0)
+    raw_diff_deaths = xp.diff(csse_adm1.cumulative_deaths, prepend=csse_adm1.cumulative_deaths[0][None, ...], axis=0)
 
     fitted_datac = BuckyFittedData(
         2,
