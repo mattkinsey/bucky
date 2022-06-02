@@ -108,7 +108,7 @@ def sync_numerical_libs(func):
     """Decorator pullng xp, xp_sparse, xp_ivp from the global bucky context into the wrapped function."""
 
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def numlib_wrapper(*args, **kwargs):
         """Wrapper checking if we've already overridden this functions imports."""
         context = func.__qualname__
         if context in reimport_cache:
@@ -121,7 +121,7 @@ def sync_numerical_libs(func):
         reimport_cache.add(context)
         return func(*args, **kwargs)
 
-    return wrapper
+    return numlib_wrapper
 
 
 def enable_cupy(optimize=False, cache_dir=None):
