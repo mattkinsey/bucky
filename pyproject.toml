@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bucky-covid"
-version = "0.10.0.dev0"
+version = "1.0.0"
 description = "The Bucky model is a spatial SEIR model for simulating COVID-19 at the county level."
 authors = ["Matt Kinsey <matt@mkinsey.com>"]
 
