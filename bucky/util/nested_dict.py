@@ -234,13 +234,13 @@ class NestedDict(MutableMapping):
 if __name__ == "__main__":
 
     test_dict = {"a": "a", "b": {"c": "c", "d": "d"}}
-    print(test_dict)  # noqa: T001
+    print(test_dict)  # noqa: T201
 
     nd = NestedDict(test_dict)
-    print(nd)  # noqa: T001
+    print(nd)  # noqa: T201
 
     up = {"b": {"d": 12}}
-    print(nd.update(up))  # noqa: T001
+    print(nd.update(up))  # noqa: T201
 
     nd.apply(lambda x: x + "a" if isinstance(x, str) else x)
-    print(nd)  # noqa: T001
+    print(nd)  # noqa: T201
