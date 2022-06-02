@@ -9,8 +9,8 @@ model:
       power_transform_inc_series: True
 
       extrap_args:
-        n_pts: 7
-        order: 2
+        n_pts: 3
+        order: 1
 
       gam_args:
         alp: 1.5
