@@ -8,5 +8,4 @@ User Guide
    install
    model_tree
    vis_tools
-   cli
    references
