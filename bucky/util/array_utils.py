@@ -3,7 +3,7 @@ from ..numerical_libs import sync_numerical_libs, xp
 
 
 @sync_numerical_libs
-def rolling_window(a, window_size, center=True, axis=0, pad=True, pad_mode="reflect", reflect_type="odd", freq=1):
+def rolling_window(a, window_size, center=True, axis=0, pad=True, pad_mode="reflect", reflect_type="even", freq=1):
     """Use stride_tricks to add an extra dim on the end of an ndarray for each elements window."""
 
     if pad:
