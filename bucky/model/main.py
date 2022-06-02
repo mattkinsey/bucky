@@ -269,7 +269,7 @@ class buckyModelCovid:
             self.g_data,
             generation_interval=epi_params["Tg"],
             E_gamma_k=yy.E_gamma_k,
-            days_back=14,
+            days_back=7,
             case_reporting=self.case_reporting,
         )
         Rt = Rt * Rt_fac
@@ -308,7 +308,7 @@ class buckyModelCovid:
             # adm2_hosp_frac = xp.sqrt(adm2_hosp_frac * adm0_hosp_frac)
 
             scaling_H = adm2_hosp_frac * H_fac  # * self.consts.F_scaling
-            F_RR_fac = xp.broadcast_to(F_fac / H_fac, (adm1_hosp.size,)) * H_fac  # /scaling_H
+            F_RR_fac = xp.broadcast_to(F_fac, (adm1_hosp.size,))  # /scaling_H
             epi_params["CFR"] = estimate_cfr(
                 self.g_data,
                 base_CFR=epi_params["CFR"],
@@ -318,7 +318,7 @@ class buckyModelCovid:
                 days_back=14,
             )
             epi_params["CFR"] = xp.clip(
-                epi_params["CFR"] * mc_params["F_scaling"] * F_RR_fac[self.g_data.adm1_id] * scaling_H,
+                epi_params["CFR"] * mc_params["F_scaling"] * F_RR_fac[self.g_data.adm1_id],
                 0.0,
                 1.0,
             )
@@ -356,10 +356,10 @@ class buckyModelCovid:
             ic_fac[~xp.isfinite(ic_fac)] = xp.nanmean(ic_fac[xp.isfinite(ic_fac)])
             # ic_fac = xp.clip(ic_fac, a_min=0.2, a_max=5.0)  #####
 
-            epi_params["HFR"] = xp.clip(epi_params["CFR"] / epi_params["CHR"], 0.0, 1.0)
+            epi_params["HFR"] = xp.clip(mc_params["F_fac"] * epi_params["CFR"] / epi_params["CHR"], 0.0, 1.0)
             yy.I = (1.0 - epi_params["CHR"] * epi_params["CRR"]) * I_init / yy.I_gamma_k  # * 0.8  # noqa: E741
-            yy.Ic *= ic_fac * 0.75  # * 0.9 * .9
-            yy.Rh *= 1.0 * adm2_hosp_frac
+            yy.Ic *= ic_fac * 0.5  # * 0.9 * .9
+            yy.Rh *= 1.0  # * adm2_hosp_frac * mc_params["F_fac"]
 
         R_init -= xp.sum(yy.Rh, axis=0)
 
