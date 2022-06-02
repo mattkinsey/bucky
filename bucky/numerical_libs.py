@@ -71,10 +71,10 @@ def ensure_batched_qr(np):
 
 xp_qr = ensure_batched_qr(xp)
 
-# Stop some numpy warnings
-xp.seterr(divide="ignore", invalid="ignore")
+# Stop some numpy warnings TODO do we still need these?
+# xp.seterr(divide="ignore", invalid="ignore")
 # warnings.filterwarnings(action="ignore", message="invalid value encountered in true_divide")
-warnings.filterwarnings(action="ignore", message="Mean of empty slice")
+# warnings.filterwarnings(action="ignore", message="Mean of empty slice")
 
 bucky.xp = xp_qr
 bucky.xp_sparse = xp_sparse
