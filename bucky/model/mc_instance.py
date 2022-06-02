@@ -34,6 +34,7 @@ class buckyMCInstance:
             "t_span": (0.0, self.t_max),
         }
         self.dates = [str(init_date + datetime.timedelta(days=t)) for t in range(n_days + 1)]
+        self.rhs = None
 
         # Demographic data
         self.Nij = Nij

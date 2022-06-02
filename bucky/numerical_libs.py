@@ -25,12 +25,11 @@ import scipy.special
 # This will be overwritten with a call to .numerical_libs.enable_cupy()
 import bucky
 
-from .util.read_config import bucky_cfg
-
 CUPY_FORCE_FP32 = False
 
 # Make the numpy namespace more consistent with cupy
 xp.is_cupy = False
+xp.device_count = 0
 xp.scatter_add = xp.add.at
 xp.optimize_kernels = contextlib.nullcontext
 xp.special = scipy.special
@@ -72,10 +71,10 @@ def ensure_batched_qr(np):
 
 xp_qr = ensure_batched_qr(xp)
 
-# Stop some numpy warnings
-xp.seterr(divide="ignore", invalid="ignore")
+# Stop some numpy warnings TODO do we still need these?
+# xp.seterr(divide="ignore", invalid="ignore")
 # warnings.filterwarnings(action="ignore", message="invalid value encountered in true_divide")
-warnings.filterwarnings(action="ignore", message="Mean of empty slice")
+# warnings.filterwarnings(action="ignore", message="Mean of empty slice")
 
 bucky.xp = xp_qr
 bucky.xp_sparse = xp_sparse
@@ -109,7 +108,7 @@ def sync_numerical_libs(func):
     """Decorator pullng xp, xp_sparse, xp_ivp from the global bucky context into the wrapped function."""
 
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def numlib_wrapper(*args, **kwargs):
         """Wrapper checking if we've already overridden this functions imports."""
         context = func.__qualname__
         if context in reimport_cache:
@@ -122,10 +121,10 @@ def sync_numerical_libs(func):
         reimport_cache.add(context)
         return func(*args, **kwargs)
 
-    return wrapper
+    return numlib_wrapper
 
 
-def enable_cupy(optimize=False):
+def enable_cupy(optimize=False, cache_dir=None):
     """Perform imports for libraries with APIs matching numpy, scipy.integrate.ivp, scipy.sparse.
 
     These imports will use a monkey-patched version of these modules
@@ -155,16 +154,17 @@ def enable_cupy(optimize=False):
         fully implemented.
 
     """
-    import logging  # pylint: disable=import-outside-toplevel
     import sys  # pylint: disable=import-outside-toplevel
+
+    from loguru import logger  # pylint: disable=import-outside-toplevel
 
     cupy_spec = importlib.util.find_spec("cupy")
     if cupy_spec is None:
-        logging.info("CuPy not found, reverting to cpu/numpy")
+        logger.info("CuPy not found, reverting to cpu/numpy")
         return 1
 
     if xp.__name__ == "cupy":
-        logging.info("CuPy already loaded, skipping")
+        logger.info("CuPy already loaded, skipping")
         return 0
 
     # modify src before importing
@@ -175,17 +175,17 @@ def enable_cupy(optimize=False):
         new_source = modification_func(source)
         module = importlib.util.module_from_spec(spec)
         codeobj = compile(new_source, module.__spec__.origin, "exec")
-        exec(codeobj, module.__dict__)  # pylint: disable=exec-used
+        exec(codeobj, module.__dict__)  # noqa: S102, PLW0122
         sys.modules[module_name] = module
         return module
 
     import cupy as cp  # pylint: disable=import-outside-toplevel
 
-    # import numpy as np  # pylint: disable=import-outside-toplevel, reimported
-    # cp.cuda.set_allocator(cp.cuda.MemoryPool(cp.cuda.memory.malloc_managed).malloc)
-    with warnings.catch_warnings():
-        warnings.simplefilter(action="ignore", category=FutureWarning)
-        cp.cuda.set_allocator(cp.cuda.MemoryAsyncPool().malloc)
+    # Enable async mem pool for cuda > 11.2
+    if cp.cuda.runtime.runtimeGetVersion() >= 11020:
+        with warnings.catch_warnings():
+            warnings.simplefilter(action="ignore", category=FutureWarning)
+            cp.cuda.set_allocator(cp.cuda.MemoryAsyncPool().malloc)
 
     def scipy_import_replacement(src):
         """Perform the required numpy->cupy str replacements on the scipy source files."""
@@ -212,20 +212,32 @@ def enable_cupy(optimize=False):
 
     spec = importlib.util.find_spec("optuna")
     if spec is None:
-        logging.info("Optuna not installed, kernel opt is disabled")
+        logger.info("Optuna not installed, kernel opt is disabled")
         cp.optimize_kernels = contextlib.nullcontext
         cp.ExperimentalWarning = MockExperimentalWarning
     elif optimize:
         import optuna  # pylint: disable=import-outside-toplevel
 
         optuna.logging.set_verbosity(optuna.logging.WARN)
-        logging.info("Using optuna to optimize kernels, the first calls will be slowwwww")
-        cp.optimize_kernels = partial(cupyx.optimizing.optimize, path=bucky_cfg["cache_dir"] + "/optuna")
-        cp.ExperimentalWarning = optuna.exceptions.ExperimentalWarning
+        logger.info("Using optuna to optimize kernels, the first calls will be slowwwww")
+        if cache_dir is not None:
+            opt_cache = cache_dir / "optuna.cache"
+            cache_dir.mkdir(exist_ok=True, parents=True)
+            cp.optimize_kernels = partial(cupyx.optimizing.optimize, path=opt_cache)
+        else:
+            cp.optimize_kernels = cupyx.optimizing.optimize
+
         warnings.filterwarnings(
             action="ignore",
-            message="cupyx.time.repeat is experimental. The interface can change in the future.",
+            category=optuna.exceptions.ExperimentalWarning,
+            module="cupyx",
         )
+        warnings.filterwarnings(
+            action="ignore",
+            category=optuna.exceptions.ExperimentalWarning,
+            module="optuna",
+        )
+
     else:
         cp.optimize_kernels = contextlib.nullcontext
         cp.ExperimentalWarning = MockExperimentalWarning
@@ -268,6 +280,8 @@ def enable_cupy(optimize=False):
 
     # Add is_cupy flag to xp
     cp.is_cupy = True
+
+    cp.device_count = cp.cuda.runtime.getDeviceCount()
 
     bucky.xp = cp
 

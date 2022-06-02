@@ -2,41 +2,61 @@
 [![Documentation Status](https://readthedocs.org/projects/docs/badge/?version=latest)](https://bucky.readthedocs.io/en/latest/)
 ![black-flake8-isort-hooks](https://github.com/mattkinsey/bucky/workflows/black-flake8-isort-hooks/badge.svg)
 [![CodeFactor](https://www.codefactor.io/repository/github/mattkinsey/bucky/badge/master)](https://www.codefactor.io/repository/github/mattkinsey/bucky/overview/master)
-![Interrogate](docs/source/_static/interrogate_badge.svg)
+![Interrogate](docs/_static/interrogate_badge.svg)
 
-**[Documentation](https://bucky.readthedocs.io/en/latest/)** 
+**[Documentation](https://bucky.readthedocs.io/en/latest/)**
+
+**[Developer Guide](https://github.com/mattkinsey/bucky/blob/poetry/dev_readme.md)**
 
 The Bucky model is a spatial SEIR model for simulating COVID-19 at the county level. 
 
 ## Getting Started
 
 ### Requirements
-The Bucky model currently supports Linux and OSX and includes GPU support for accelerated modeling and processing. Anaconda environment files are provided for installation of dependencies. 
+The Bucky model currently supports Linux and OSX and includes GPU support for accelerated modeling and processing.
+
+* ``git`` must be installed and in your PATH.
+* GPU support requires a cupy-compatible CUDA installation. See the [CuPy docs](https://docs.cupy.dev/en/stable/install.html#requirements) for details.
 
 ### Installation
-Clone the repo using git:
 
-```console
-git clone https://github.com/mattkinsey/bucky.git
-cd bucky
+| !! Until the PyPi release you'll need to install via poetry !!                                            |
+|:----------------------------------------------------------------------------------------------------------|
+| See the [Developer Guide](https://github.com/mattkinsey/bucky/blob/poetry/dev_readme.md) for instructions.|
+
+Standard installation:
+```bash
+pip install bucky-covid
+```
+GPU installation:
+```bash
+pip install bucky-covid[gpu]
 ```
 
-Create Anaconda environment using `environment.yml` or `environment_gpu.yml` if using the GPU.
-
-```console
-conda env create --file environment[_gpu].yml
-conda activate bucky[_gpu]
+### Configuration (TODO this is WIP)
+To use a customized configuration you first need to make a local copy of the bucky configuration. In your working directory:
+```bash
+bucky cfg install-local
 ```
 
-*Optional*: Data and output directory default locations are defined in `config.yml`. Edit this file to change these.
-
-Download the required US data using the provided shell script:
-
-```console
-./get_US_data.sh
+### Download Input Data
+To download the required input data to the ``data_dir`` specified in the configuration files:
+```bash
+bucky data sync
 ```
 
 ### Running the Model
+
+```bash
+bucky run model [TODO enum params]
+bucky run postprocess
+```
+
+
+---------------------
+
+**!!! EVERYTHING BELOW HERE IS OUTDATED FOR THE NEW CLI !!!**
+
 In order to illustrate how to run the model, this section contains the commands needed to run a small simulation. First, create the intermediate graph format used by the model. This graph contains county-level data on the nodes and mobility information on the edges. The command below creates a US graph for a simulation that will start on October 1, 2020. 
 
 ```console

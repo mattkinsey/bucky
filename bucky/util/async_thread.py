@@ -7,12 +7,16 @@ def _thread_target(_queue, func, pre_func, post_func, **kwargs):
     """Wrapper around functionals that becomes the target for the thread."""
     if pre_func is not None:
         pre_func_output = pre_func(**kwargs)
+        if pre_func_output is not None:
+            kwargs = {**kwargs, **pre_func_output}
     for item in iter(_queue.get, None):
-        func_output = func(item, **pre_func_output, **kwargs)
+        func_output = func(item, **kwargs)
+        if func_output is not None:
+            kwargs = {**kwargs, **func_output}
         _queue.task_done()
 
     if post_func is not None:
-        post_func(**pre_func_output, **func_output, **kwargs)
+        post_func(**kwargs)
     _queue.task_done()
 
 

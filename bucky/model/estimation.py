@@ -9,29 +9,32 @@ from ..util.fractional_slice import frac_last_n_vals
 
 # TODO refactor crr to be more like the other estimates (use the gamma delay)
 
+# TODO lots of misnamed variables (namely anything with 'rolling' in the name...)
+
 
 @sync_numerical_libs
-def estimate_crr(g_data, params, cfr, days_back=14, case_lag=None, min_deaths=100.0, S_dist=1.0):
+def estimate_crr(g_data, case_to_death_lag, ifr, days_back=14, case_lag=None, min_deaths=100.0, S_dist=1.0):
     """Estimate the case reporting rate based off observed vs. expected CFR."""
+    # TODO rename vars to be more clear about what is cfr/ifr
 
     if case_lag is None:
-        adm0_cfr_by_age = xp.sum(S_dist * cfr * g_data.Nij, axis=1) / xp.sum(g_data.Nj, axis=0)
+        adm0_cfr_by_age = xp.sum(S_dist * ifr * g_data.Nij, axis=1) / xp.sum(g_data.Nj, axis=0)
         adm0_cfr_total = xp.sum(
-            xp.sum(S_dist * cfr * g_data.Nij, axis=1) / xp.sum(g_data.Nj, axis=0),
+            xp.sum(S_dist * ifr * g_data.Nij, axis=1) / xp.sum(g_data.Nj, axis=0),
             axis=0,
         )
-        case_lag = xp.sum(params["CASE_TO_DEATH_TIME"] * adm0_cfr_by_age / adm0_cfr_total, axis=0)
+        case_lag = xp.sum(case_to_death_lag * adm0_cfr_by_age / adm0_cfr_total, axis=0)
 
     case_lag_int = int(case_lag)
-    recent_cum_cases = g_data.rolling_cum_cases - g_data.rolling_cum_cases[0]
-    recent_cum_deaths = g_data.rolling_cum_deaths - g_data.rolling_cum_deaths[0]
+    recent_cum_cases = g_data.csse_data.cumulative_cases - g_data.csse_data.cumulative_cases[0]
+    recent_cum_deaths = g_data.csse_data.cumulative_deaths - g_data.csse_data.cumulative_deaths[0]
     case_lag_frac = case_lag % 1  # TODO replace with util function for the indexing
     cases_lagged = frac_last_n_vals(recent_cum_cases, days_back + case_lag_frac, offset=case_lag_int)
     if case_lag_frac:
         cases_lagged = cases_lagged[0] + cases_lagged[1:]
 
     # adm0
-    adm0_cfr_param = xp.sum(xp.sum(S_dist * cfr * g_data.Nij, axis=1) / xp.sum(g_data.Nj, axis=0), axis=0)
+    adm0_cfr_param = xp.sum(xp.sum(S_dist * ifr * g_data.Nij, axis=1) / xp.sum(g_data.Nj, axis=0), axis=0)
     adm0_cfr_reported = xp.sum(recent_cum_deaths[-days_back:], axis=1) / xp.sum(cases_lagged, axis=1)
     adm0_case_report = adm0_cfr_param / adm0_cfr_reported
 
@@ -50,7 +53,7 @@ def estimate_crr(g_data, params, cfr, days_back=14, case_lag=None, min_deaths=10
     adm1_cfr_param = xp.zeros((g_data.max_adm1 + 1,), dtype=float)
     adm1_totpop = g_data.adm1_Nj  # xp.zeros((self.g_data.max_adm1 + 1,), dtype=float)
 
-    tmp_adm1_cfr = xp.sum(S_dist * cfr * g_data.Nij, axis=0)
+    tmp_adm1_cfr = xp.sum(S_dist * ifr * g_data.Nij, axis=0)
 
     xp.scatter_add(adm1_cfr_param, g_data.adm1_id, tmp_adm1_cfr)
     # xp.scatter_add(adm1_totpop, self.g_data.adm1_id, self.Nj)
@@ -78,7 +81,7 @@ def estimate_crr(g_data, params, cfr, days_back=14, case_lag=None, min_deaths=10
     case_report[valid_mask] = adm1_case_report[valid_mask]
 
     # adm2
-    adm2_cfr_param = xp.sum(S_dist * cfr * (g_data.Nij / g_data.Nj), axis=0)
+    adm2_cfr_param = xp.sum(S_dist * ifr * (g_data.Nij / g_data.Nj), axis=0)
 
     adm2_cfr_reported = recent_cum_deaths[-days_back:] / cases_lagged
     adm2_case_report = adm2_cfr_param / adm2_cfr_reported
@@ -96,19 +99,21 @@ def estimate_crr(g_data, params, cfr, days_back=14, case_lag=None, min_deaths=10
 @sync_numerical_libs
 def estimate_chr(
     g_data,
-    params,
+    base_CHR,
+    I_to_H_time,
+    Rh_gamma_k,
     S_age_dist,
     days_back=7,
 ):
     """Estimate CHR from recent case data."""
 
-    mean = params["I_TO_H_TIME"]
+    mean = I_to_H_time
 
     adm2_mean = xp.sum(S_age_dist * mean[..., None], axis=0)
-    k = params.consts["Rh_gamma_k"]
+    k = Rh_gamma_k
 
-    rolling_case_hist = g_data.rolling_inc_cases
-    rolling_hosp_hist = g_data.adm1_inc_hosp_hist
+    rolling_case_hist = g_data.csse_data.incident_cases
+    rolling_hosp_hist = g_data.hhs_data.incident_hospitalizations
 
     t_max = rolling_case_hist.shape[0]
     x = xp.arange(0.0, t_max)
@@ -119,7 +124,7 @@ def estimate_chr(
 
     adm0_theta = xp.sum(adm2_mean * g_data.Nj / g_data.N) / k
 
-    w = 1.0 / (xp.special.gamma(k) * adm0_theta ** k) * x ** (k - 1) * xp.exp(-x / adm0_theta)
+    w = 1.0 / (xp.special.gamma(k) * adm0_theta**k) * x ** (k - 1) * xp.exp(-x / adm0_theta)
     w = w / (1.0 - w)
 
     w = w / xp.sum(w)
@@ -139,7 +144,7 @@ def estimate_chr(
     adm1_theta = g_data.sum_adm1(adm2_mean * g_data.Nj) / g_data.adm1_Nj / k
 
     x = xp.tile(x, (adm1_theta.shape[0], 1)).T
-    w = 1.0 / (xp.special.gamma(k) * adm1_theta ** k) * x ** (k - 1) * xp.exp(-x / adm1_theta)
+    w = 1.0 / (xp.special.gamma(k) * adm1_theta**k) * x ** (k - 1) * xp.exp(-x / adm1_theta)
     w = w / (1.0 - w)
     w = w / xp.sum(w, axis=0)
     w = w[::-1]
@@ -150,33 +155,35 @@ def estimate_chr(
 
     adm1_chr = 1.0 / xp.nanmean(1.0 / chr_, axis=0)
 
-    baseline_adm1_chr = g_data.sum_adm1(xp.sum(params.CHR * S_age_dist, axis=0) * g_data.Nj) / g_data.adm1_Nj
+    baseline_adm1_chr = g_data.sum_adm1(xp.sum(base_CHR * S_age_dist, axis=0) * g_data.Nj) / g_data.adm1_Nj
 
     chr_fac = (adm1_chr / baseline_adm1_chr)[g_data.adm1_id]
 
-    baseline_adm0_chr = xp.sum(xp.sum(params.CHR * S_age_dist, axis=0) * g_data.Nj) / g_data.N
+    baseline_adm0_chr = xp.sum(xp.sum(base_CHR * S_age_dist, axis=0) * g_data.Nj) / g_data.N
     adm0_chr_fac = adm0_chr / baseline_adm0_chr
     valid = xp.isfinite(chr_fac) & (chr_fac > 0.002) & (xp.mean(adm1_inc_hosp[-7:]) > 4.0)
     chr_fac[~valid] = adm0_chr_fac
 
-    return xp.clip(params.CHR * chr_fac, 0.0, 1.0)
+    return xp.clip(base_CHR * chr_fac, 0.0, 1.0)
 
 
 @sync_numerical_libs
 def estimate_cfr(
     g_data,
-    params,
+    base_CFR,
+    case_to_death_time,
+    Rh_gamma_k,
     S_age_dist,
     days_back=7,
 ):
     """Estimate CFR from recent case data."""
 
-    mean = params["CASE_TO_DEATH_TIME"]  # params["H_TIME"] + params["I_TO_H_TIME"] #+ params["D_REPORT_TIME"]
+    mean = case_to_death_time  # params["H_TIME"] + params["I_TO_H_TIME"] #+ params["D_REPORT_TIME"]
     adm2_mean = xp.sum(S_age_dist * mean[..., None], axis=0)
-    k = params.consts["Rh_gamma_k"]
+    k = Rh_gamma_k
 
-    rolling_case_hist = g_data.rolling_inc_cases
-    rolling_death_hist = g_data.rolling_inc_deaths
+    rolling_case_hist = g_data.csse_data.incident_cases
+    rolling_death_hist = g_data.csse_data.incident_deaths
 
     t_max = rolling_case_hist.shape[0]
     x = xp.arange(0.0, t_max)
@@ -187,7 +194,7 @@ def estimate_cfr(
 
     adm0_theta = xp.sum(adm2_mean * g_data.Nj / g_data.N) / k
 
-    w = 1.0 / (xp.special.gamma(k) * adm0_theta ** k) * x ** (k - 1) * xp.exp(-x / adm0_theta)
+    w = 1.0 / (xp.special.gamma(k) * adm0_theta**k) * x ** (k - 1) * xp.exp(-x / adm0_theta)
     w = w / (1.0 - w)
     w = w / xp.sum(w)
     w = w[::-1]
@@ -207,7 +214,7 @@ def estimate_cfr(
     adm1_theta = g_data.sum_adm1(adm2_mean * g_data.Nj) / g_data.adm1_Nj / k
 
     x = xp.tile(x, (adm1_theta.shape[0], 1)).T
-    w = 1.0 / (xp.special.gamma(k) * adm1_theta ** k) * x ** (k - 1) * xp.exp(-x / adm1_theta)
+    w = 1.0 / (xp.special.gamma(k) * adm1_theta**k) * x ** (k - 1) * xp.exp(-x / adm1_theta)
     w = w / (1.0 - w)
     w = w / xp.sum(w, axis=0)
     w = w[::-1]
@@ -218,45 +225,46 @@ def estimate_cfr(
 
     adm1_cfr = 1.0 / xp.nanmean(1.0 / cfr, axis=0)
 
-    baseline_adm1_cfr = g_data.sum_adm1(xp.sum(params.CFR * S_age_dist, axis=0) * g_data.Nj) / g_data.adm1_Nj
+    baseline_adm1_cfr = g_data.sum_adm1(xp.sum(base_CFR * S_age_dist, axis=0) * g_data.Nj) / g_data.adm1_Nj
 
     cfr_fac = (adm1_cfr / baseline_adm1_cfr)[g_data.adm1_id]
 
-    baseline_adm0_cfr = xp.sum(xp.sum(params.CFR * S_age_dist, axis=0) * g_data.Nj) / g_data.N
+    baseline_adm0_cfr = xp.sum(xp.sum(base_CFR * S_age_dist, axis=0) * g_data.Nj) / g_data.N
     adm0_cfr_fac = adm0_cfr / baseline_adm0_cfr
     valid = xp.isfinite(cfr_fac) & (cfr_fac > 0.002) & (xp.mean(adm1_inc_deaths[-days_back:]) > 4.0)
     cfr_fac[~valid] = adm0_cfr_fac
 
     # cfr_fac = 2.0 / (1.0 / cfr_fac + 1.0 / adm0_cfr_fac[..., None])
-    cfr_fac = xp.sqrt(cfr_fac * adm0_cfr_fac[..., None])
+    # cfr_fac = xp.sqrt(cfr_fac * adm0_cfr_fac[..., None])
 
-    return xp.clip(params.CFR * cfr_fac, 0.0, 1.0)
+    return xp.clip(base_CFR * cfr_fac, 0.0, 1.0)
 
 
 @sync_numerical_libs
 def estimate_Rt(
     g_data,
-    params,
+    generation_interval,
+    E_gamma_k,
     days_back=7,
     case_reporting=None,
     # use_geo_mean=False,
 ):
     """Estimate R_t from the recent case data."""
 
-    rolling_case_hist = g_data.rolling_inc_cases[-case_reporting.shape[0] :] / case_reporting
+    rolling_case_hist = g_data.csse_data.incident_cases[-case_reporting.shape[0] :] / case_reporting
 
     rolling_case_hist = xp.clip(rolling_case_hist, a_min=0.0, a_max=None)
 
     tot_case_hist = (g_data.Aij.A.T @ rolling_case_hist.T).T + 1.0  # to avoid weirdness with small numbers
 
     t_max = rolling_case_hist.shape[0]
-    k = params.consts["E_gamma_k"]
+    k = E_gamma_k
 
-    mean = params["Tg"]
+    mean = generation_interval
     theta = mean / k
     x = xp.arange(0.0, t_max)
 
-    w = 1.0 / (xp.special.gamma(k) * theta ** k) * x ** (k - 1) * xp.exp(-x / theta)
+    w = 1.0 / (xp.special.gamma(k) * theta**k) * x ** (k - 1) * xp.exp(-x / theta)
     w = w / (1.0 - w)
     w = w / xp.sum(w)
     w = w[::-1]
@@ -316,61 +324,3 @@ def estimate_Rt(
     Rt_out[valid_mask] = Rt[valid_mask]
     Rt_out = 2.0 / (1.0 / Rt_adm1 + 1.0 / Rt_out)
     return Rt_out
-
-
-# TODO this is deprecated...
-@sync_numerical_libs
-def estimate_doubling_time(
-    g_data,
-    days_back=7,  # TODO rename, its the number days calc the rolling Td
-    doubling_time_window=7,
-    mean_time_window=None,
-    min_doubling_t=1.0,
-    case_reporting=None,
-):
-    """Calculate the recent doubling time of the historical case data."""
-    # pylint: disable=invalid-unary-operand-type
-
-    if mean_time_window is not None:
-        days_back = mean_time_window
-
-    cases = g_data.cum_case_hist[-days_back:] / case_reporting[-days_back:]
-    cases_old = (
-        g_data.cum_case_hist[-days_back - doubling_time_window : -doubling_time_window]
-        / case_reporting[-days_back - doubling_time_window : -doubling_time_window]
-    )
-
-    # adm0
-    adm0_doubling_t = doubling_time_window / xp.log2(xp.nansum(cases, axis=1) / xp.nansum(cases_old, axis=1))
-
-    doubling_t = xp.repeat(adm0_doubling_t[:, None], cases.shape[-1], axis=1)
-
-    # adm1
-    cases_adm1 = g_data.sum_adm1(cases.T)
-    cases_old_adm1 = g_data.sum_adm1(cases_old.T)
-
-    adm1_doubling_t = doubling_time_window / xp.log2(cases_adm1 / cases_old_adm1)
-
-    tmp_doubling_t = adm1_doubling_t[g_data.adm1_id].T
-    valid_mask = xp.isfinite(tmp_doubling_t) & (tmp_doubling_t > min_doubling_t)
-
-    doubling_t[valid_mask] = tmp_doubling_t[valid_mask]
-
-    # adm2
-    adm2_doubling_t = doubling_time_window / xp.log2(cases / cases_old)
-
-    valid_adm2_dt = xp.isfinite(adm2_doubling_t) & (adm2_doubling_t > min_doubling_t)
-    doubling_t[valid_adm2_dt] = adm2_doubling_t[valid_adm2_dt]
-
-    # hist_weights = xp.arange(1., days_back + 1.0, 1.0)
-    # hist_doubling_t = xp.sum(doubling_t * hist_weights[:, None], axis=0) / xp.sum(
-    #    hist_weights
-    # )
-
-    # Take mean of most recent values
-    if mean_time_window is not None:
-        ret = xp.nanmean(doubling_t[-mean_time_window:], axis=0)
-    else:
-        ret = doubling_t
-
-    return ret

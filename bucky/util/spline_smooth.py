@@ -7,14 +7,15 @@ import tqdm
 from joblib import Memory
 
 from ..numerical_libs import sync_numerical_libs, xp
-from .read_config import bucky_cfg
+
+# from .read_config import bucky_cfg
 
 dtype = xp.float32
 
-memory = Memory(bucky_cfg["cache_dir"], verbose=0, mmap_mode="r")
+# memory = Memory(bucky_cfg["cache_dir"], verbose=0, mmap_mode="r")
 
 
-@memory.cache
+# @memory.cache
 def _get_natural_f(knots):
     """Returns mapping of natural cubic spline values to 2nd derivatives."""
     h = knots[:, 1:] - knots[:, :-1]
@@ -92,7 +93,7 @@ def nunique(arr, axis=-1):
     return arr.shape[axis] - n_not_uniq
 
 
-@memory.cache
+# @memory.cache
 def _get_free_crs_dmatrix(x, knots):
     """Builds an unconstrained cubic regression spline design matrix."""
     knots_dict = {}
@@ -142,7 +143,7 @@ def _get_free_crs_dmatrix(x, knots):
     return dm_dict, knots_dict_map, s
 
 
-@memory.cache
+# @memory.cache
 def _absorb_constraints(design_matrix, constraints, pen=None):
     """Apply constraints to the design matrix."""
     m = constraints.shape[1]
@@ -156,7 +157,7 @@ def _absorb_constraints(design_matrix, constraints, pen=None):
     return ret, pen_ret
 
 
-@memory.cache
+# @memory.cache
 def _cr(x, df, center=True):
     """Python version of the R lib mgcv function cr()."""
 
@@ -236,7 +237,7 @@ def make_DP(x):
     complete = xp.full((x.shape[0],), False, dtype=bool)
     current_exp = -8.0
     while True:
-        eye_fac = 10.0 ** current_exp
+        eye_fac = 10.0**current_exp
         eye_facs[~complete] = 10.0 ** (current_exp + 1)
         complete[~complete] = xp.all(xp.linalg.eigvalsh(x[~complete] + eye_fac * eye) > 1.0e-12, axis=1)
         current_exp += 1.0
@@ -324,7 +325,7 @@ def PIRLS(
             gamma=gamma,
             fixed_lam=fixed_lam,
         )
-        diff = xp.sqrt(xp.sum((beta_k - beta_new) ** 2, axis=1)) / xp.sqrt(xp.sum(beta_new ** 2, axis=1))
+        diff = xp.sqrt(xp.sum((beta_k - beta_new) ** 2, axis=1)) / xp.sqrt(xp.sum(beta_new**2, axis=1))
         alp_diff = xp.abs(alp_k - alp_new) / alp_new
 
         batch_beta = step_size[..., None] * beta_new + (1.0 - step_size[..., None]) * beta_k
@@ -342,7 +343,7 @@ def PIRLS(
         if xp.any(step_mask) and (it > 50):
             step_size[step_mask] = 0.5 * step_size[step_mask]
             step_size_all[~complete] = step_size
-            step_stop = step_size < 0.5 ** 10
+            step_stop = step_size < 0.5**10
             it_since_step[step_mask] = 0
         else:
             step_stop = False
@@ -387,9 +388,6 @@ def PIRLS(
                     for k in range(100):
                         if link == "g":
                             continue
-                        from IPython import embed
-
-                        # embed()
                         i = 50 + k
                         var_beta = var_beta_DP[i]
                         beta = beta_k_all[i]
@@ -468,7 +466,6 @@ def PIRLS(
                         plt.plot(xp.to_cpu(b.T), color="red")
                         plt.plot(xp.to_cpu(lp_k_all[i]), linewidth=3, color="black")
                         plt.show()
-                        embed()
 
                 return mu_k_all
 
@@ -492,7 +489,7 @@ def lin_reg(y, x=None, alp=0.0, quad=False, return_fit=True):
         x = xp.tile(x, (y.shape[0], 1))
     basis_list = [xp.ones_like(x), x]
     if quad:
-        basis_list.append(x ** 2)
+        basis_list.append(x**2)
     basis = xp.stack(basis_list, axis=1).swapaxes(1, 2)
 
     w = ridge(basis, y, alp)
@@ -648,8 +645,8 @@ def opt_lam(x, y, alp=0.6, pen=None, min_lam=0.1, step_size=None, tol=1e-3, max_
             -2.0 * n / delta / delta / delta * ddeltadrho * dalpdrho[:, 0, 0]
             + n / delta / delta * d2alpdrho[:, 0, 0]
             - 2.0 * n / delta / delta / delta * dalpdrho[:, 0, 0] * ddeltadrho
-            + 6.0 * n * alpha / (delta ** 4) * ddeltadrho * ddeltadrho
-            - 2.0 * n * alpha / (delta ** 3) * d2deltad2rho
+            + 6.0 * n * alpha / (delta**4) * ddeltadrho * ddeltadrho
+            - 2.0 * n * alpha / (delta**3) * d2deltad2rho
         )
 
         rho = xp.log(lam)
@@ -665,7 +662,7 @@ def opt_lam(x, y, alp=0.6, pen=None, min_lam=0.1, step_size=None, tol=1e-3, max_
         var_beta_out[~complete] = xp.einsum(
             "bij,bj,bjk->bik",
             xp.swapaxes(vt, 1, 2),
-            invd_diag ** 2,
+            invd_diag**2,
             vt,
         )  # TODO double check this
         if (it > 0) or fixed_lam:
@@ -683,7 +680,7 @@ def opt_lam(x, y, alp=0.6, pen=None, min_lam=0.1, step_size=None, tol=1e-3, max_
     return y_out, beta_out, var_beta_out, lam_all, Vg_out
 
 
-@memory.cache(ignore=["label"])
+# @memory.cache(ignore=["label"])
 @sync_numerical_libs
 def fit(
     y,

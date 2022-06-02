@@ -1,0 +1,10 @@
+---
+# Model related parameters
+model:
+  # Monte Carlo related parameters
+  fitting:
+      gam_args:
+        # override some params to make the fit require far fewer iterations
+        tol: 1.0e-2
+        
+        robust_weighting_iters: 1

@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 import tqdm
 
+from .. import __version__
+
 
 class TqdmLoggingHandler(logging.Handler):
     """Logging handler that is friendly with tqdm.
@@ -19,7 +21,7 @@ class TqdmLoggingHandler(logging.Handler):
     https://stackoverflow.com/questions/38543506/change-logging-print-function-to-tqdm-write-so-logging-doesnt-interfere-wit
     """
 
-    def __init__(self, level=logging.NOTSET):  # pylint: disable=useless-super-delegation
+    def __init__(self, level=logging.NOTSET):
         """Init handler."""
         super().__init__(level)
 
@@ -30,9 +32,9 @@ class TqdmLoggingHandler(logging.Handler):
             msg = self.format(record)
             tqdm.tqdm.write(msg)
             self.flush()
-        except (KeyboardInterrupt, SystemExit):  # pylint: disable=try-except-raise
+        except (KeyboardInterrupt, SystemExit):
             raise
-        except Exception:  # pylint: disable=broad-except
+        except Exception:  # noqa: E902
             self.handleError(record)
 
 
@@ -49,7 +51,7 @@ class dotdict(dict):
 
 
 @lru_cache(maxsize=None)
-def get_runid():  # TODO rename to timeid or something
+def generate_runid():
     """Gets a UUID based of the current datatime and caches it."""
     dt_now = datetime.datetime.now()
     return str(dt_now).replace(" ", "__").replace(":", "_").split(".", maxsplit=1)[0]
@@ -146,12 +148,14 @@ def date_to_t_int(dates, start_date):
 #    return r1, r2
 
 
-def _banner():
+def _banner(msg=None):
     """A banner for the CLI."""
     print(r" ____             _          ")  # noqa: T001
     print(r"| __ ) _   _  ___| | ___   _ ")  # noqa: T001
-    print(r"|  _ \| | | |/ __| |/ / | | |")  # noqa: T001
+    print(r"|  _ \| | | |/ __| |/ / | | |", end="")  # noqa: T001
+    print(f"   v{__version__}")  # noqa: T001
     print(r"| |_) | |_| | (__|   <| |_| |")  # noqa: T001
-    print(r"|____/ \__,_|\___|_|\_\\__, |")  # noqa: T001
+    print(r"|____/ \__,_|\___|_|\_\\__, |", end="")  # noqa: T001
+    print(f"   {msg}" if msg is not None else "")  # noqa: T001
     print(r"                       |___/ ")  # noqa: T001
     print(r"                             ")  # noqa: T001

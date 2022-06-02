@@ -2,7 +2,8 @@
 
 import contextlib
 import copy
-import logging
+
+from loguru import logger
 
 from ..numerical_libs import sync_numerical_libs, xp
 from .exceptions import StateValidationException
@@ -19,13 +20,12 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
     """Class to manage the state of the bucky compartments (and their indices)."""
 
     @sync_numerical_libs
-    def __init__(self, consts, Nij, state=None):
+    def __init__(self, structure_cfg, Nij, state=None, dtype=xp.float32):
         """Initialize the compartment indices and the state vector using the calling modules numerical libs."""
 
-        self.E_gamma_k = consts["E_gamma_k"]
-        self.I_gamma_k = consts["I_gamma_k"]
-        self.Rh_gamma_k = consts["Rh_gamma_k"]
-        self.consts = consts
+        self.E_gamma_k = structure_cfg["E_gamma_k"]
+        self.I_gamma_k = structure_cfg["I_gamma_k"]
+        self.Rh_gamma_k = structure_cfg["Rh_gamma_k"]
 
         # Build a dict of bin counts per evolved compartment
         bin_counts = {}
@@ -50,12 +50,12 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
 
         self.indices = indices
 
-        self.n_compartments = xp.to_cpu(sum(list(bin_counts.values()))).item()
+        self.n_compartments = sum(list(bin_counts.values()))
 
         self.n_age_grps, self.n_nodes = Nij.shape
 
         if state is None:
-            self.state = xp.zeros(self.state_shape, dtype=xp.float32)
+            self.state = xp.zeros(self.state_shape, dtype=dtype)
         else:
             self.state = state
 
@@ -102,18 +102,18 @@ class buckyState:  # pylint: disable=too-many-instance-attributes
 
         # Assert state is finite valued
         if xp.any(~xp.isfinite(self.state)):
-            logging.debug(xp.argwhere(xp.any(~xp.isfinite(self.state), axis=0)))
-            logging.info("nonfinite values in the state vector, something is wrong with init")
+            logger.debug(xp.argwhere(xp.any(~xp.isfinite(self.state), axis=0)))
+            logger.info("nonfinite values in the state vector, something is wrong with init")
             raise StateValidationException
 
         # Assert N=1 in each sub model
         if xp.any(~(xp.around(xp.sum(self.N, axis=0), 2) == 1.0)):
-            logging.debug(xp.argwhere(xp.any(~(xp.around(xp.sum(self.N, axis=0), 2) == 1.0), axis=0)))
-            logging.info("N!=1 in the state vector, something is wrong with init")
+            logger.debug(xp.argwhere(xp.any(~(xp.around(xp.sum(self.N, axis=0), 2) == 1.0), axis=0)))
+            logger.info("N!=1 in the state vector, something is wrong with init")
             raise StateValidationException
 
         # Assert state is non negative
         if xp.any(~(xp.around(self.state, 4) >= 0.0)):
-            logging.debug(xp.argwhere(xp.any(~(xp.around(self.state, 4) >= 0.0), axis=0)))
-            logging.info("negative values in the state vector, something is wrong with init")
+            logger.debug(xp.argwhere(xp.any(~(xp.around(self.state, 4) >= 0.0), axis=0)))
+            logger.info("negative values in the state vector, something is wrong with init")
             raise StateValidationException
