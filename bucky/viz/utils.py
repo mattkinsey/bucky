@@ -58,7 +58,7 @@ def get_fitted_data(cfg, level, date_range):
 
     # Requested column(s) determine file to open
     case_cols = ["daily_reported_cases", "daily_deaths", "cumulative_cases", "cumulative_deaths"]
-    hosp_cols = ["incident_hospitalizations", "current_hospitalizations"]
+    hosp_cols = ["daily_hospitalizations", "current_hospitalizations"]
 
     df = None
     # TODO remove when admin mapping modified
