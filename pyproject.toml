@@ -91,7 +91,7 @@ ipython = "^8.4.0"
 interrogate = "^1.5.0"
 bandit = "^1.7.4"
 pytest-steps = "^1.8.0"
-flake8 = "3.9.0"
+flake8 = "4.0.1"
 
 
 [tool.black]
