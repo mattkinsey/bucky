@@ -39,6 +39,8 @@ class AdminLevel:
         # object.__setattr__(self, "names", names[xp.to_cpu(squashed_idxs)])
         object.__setattr__(self, "names", names[uniq_index])
 
+        object.__setattr__(self, "level_idx", np.unique(squashed_idxs))
+
     def __repr__(self):
         """Pretty print the admin level obj"""
         # TODO say if we have valid names/abbrs?

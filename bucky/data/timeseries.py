@@ -146,7 +146,8 @@ class SpatialStratifiedTimeseries:
         if level == self.adm_level:
             return self
 
-        out_id_map = self.adm_mapping.levels[level].idx
+        # out_id_map = self.adm_mapping.levels[level].idx
+        out_id_map = self.adm_mapping.levels[level].idx[self.adm_mapping.levels[self.adm_level].level_idx]
         new_ids = self.adm_mapping.levels[level].ids
 
         new_data = {"adm_level": level, "adm_ids": new_ids, "dates": self.dates, "adm_mapping": self.adm_mapping}
