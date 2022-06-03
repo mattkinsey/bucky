@@ -1,1 +1,10 @@
-#
+# typer
+py:class typer.Context
+py:class typer.Typer
+
+# click
+py:class click.Command
+
+# bucky
+py:class BuckyConfig
+py:class bucky._typing.PathLike
