@@ -18,9 +18,9 @@ def bin_census_data(filename, out_filename):
     """Group ages in the Census csv to match the bins used by Prem et al.
     Parameters
     ----------
-    filename : str, path object or file-like object
+    filename : bucky._typing.PathLike
         Unmodified Census CSV
-    out_filename : str, path object or file-like object
+    out_filename : bucky._typing.PathLike
         Output file for binned data
     """
     # Preprocess the file and add delimiters because idk who invented this fixed width format...

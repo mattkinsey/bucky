@@ -8,3 +8,10 @@ py:class click.Command
 # bucky
 py:class BuckyConfig
 py:class bucky._typing.PathLike
+py:obj SpatialStratifiedTimeseries
+
+# typer_utils
+py:class T
+py:class Ellipsis
+py:class typer.models.TyperInfo
+py:class typer.models.CommandInfo
