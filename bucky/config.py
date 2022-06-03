@@ -12,15 +12,19 @@ yaml = YAML()
 
 
 class YamlPath(PosixPath):
+    """Class to wrap path-like objects fromt he yaml files."""
+
     yaml_tag = "!path"
 
     @classmethod
     def to_yaml(cls, representer, node):
+        """to_yaml."""
         # print(f"{''.join(node.parts)}")
         return representer.represent_scalar(cls.yaml_tag, f"{'/'.join(node.parts)}")
 
     @classmethod
     def from_yaml(cls, constructor, node):
+        """from_yaml."""
         return cls(node.value)
 
 
@@ -66,6 +70,7 @@ class BuckyConfig(NestedDict):
     """Bucky configuration."""
 
     def load_cfg(self, par_path):
+        """Load the bucky config from disk."""
         base_cfg = locate_base_config()
 
         self._load_one_cfg(base_cfg)
@@ -117,13 +122,17 @@ class BuckyConfig(NestedDict):
         return ret
 
     def _cast_floats(self, copy=False):
+        """Cast all yaml float objects to python floats."""
+
         def _cast_float(v):
+            """Cast a yaml float to a python float."""
             return float(v) if isinstance(v, ScalarFloat) else v
 
         ret = self.apply(_cast_float, copy=copy)
         return ret
 
     def to_yaml(self, *args, **kwargs):
+        """Dump the object to yaml."""
         stream = StringIO()
 
         yaml.dump(self._to_lists(copy=True).to_dict(), stream, *args, **kwargs)
@@ -175,7 +184,10 @@ class BuckyConfig(NestedDict):
 
     @sync_numerical_libs
     def _set_default_variances(self, copy=False):
+        """Set gaussian variance to the default for params that don't do so explictly."""
+
         def _set_reroll_var(d):
+            """Set variance for one param."""
             if d["distribution.func"] == "truncnorm" and "scale" not in d["distribution"]:
                 d["distribution.scale"] = xp.abs(
                     xp.array(self["model.monte_carlo.default_gaussian_variance"]) * xp.array(d["distribution.loc"]),
@@ -192,6 +204,7 @@ class BuckyConfig(NestedDict):
 
         # TODO add something like 'register_distribtions' so we dont have to iterate the tree to find them?
         def _sample_distribution(d):
+            """Draw a sample from one distribution."""
             dist = d.pop("distribution")._to_arrays()
             func = dist.pop("func")
 

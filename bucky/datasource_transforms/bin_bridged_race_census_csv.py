@@ -1,3 +1,4 @@
+"""Preprocess the us census bridged race statistics dataset."""
 import io
 
 import numpy as np

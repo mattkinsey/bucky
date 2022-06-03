@@ -1,3 +1,4 @@
+"""Submodule to clean and preprocess the covid data."""
 from loguru import logger
 from numpy import RankWarning
 
@@ -10,7 +11,7 @@ from .timeseries import BuckyFittedData
 
 
 def mask_outliers(ts, window_size=3, frac_err_max=0.1):
-    """Find unusual outliers in timeseries compared to other time-local values"""
+    """Find unusual outliers in timeseries compared to other time-local values."""
     windowed_ts = rolling_window(ts, window_size, center=True)
     flat_fitted_windowed_ts = lin_reg(windowed_ts.reshape(-1, window_size), return_fit=True)
     fitted_ts = xp.mean(flat_fitted_windowed_ts, axis=1).reshape(ts.shape)

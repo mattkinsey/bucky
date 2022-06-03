@@ -17,6 +17,8 @@ from .working_directory import working_directory
 
 
 class BuckySyncException(BuckyException):
+    """Exception for sync operations."""
+
     pass
 
 
@@ -27,10 +29,12 @@ def _locate_included_data():
 
 
 def _hash_file_obj(obj):
+    """Hash a file-like object."""
     return hashlib.sha256(obj).hexdigest()
 
 
 def _unzip_file_obj_to_dir(f, output_dir=None):
+    """Unzip a file to a directory."""
     with zipfile.ZipFile(f) as z:
         z.extractall(output_dir)
 
@@ -38,6 +42,7 @@ def _unzip_file_obj_to_dir(f, output_dir=None):
 # def _get_file_from_url(url, ssl_no_verify=False):
 #    return
 def _write_filelike(src, dest, buffer_size=16384):
+    """Write a file-like object to disk."""
     while True:
         buffer = src.read(buffer_size)
         if not buffer:
@@ -46,6 +51,7 @@ def _write_filelike(src, dest, buffer_size=16384):
 
 
 def _exec_shell_cmd(cmd, cwd=None):
+    """Exec a shell command optionally from a specified directory."""
     # with subprocess.Popen(cmd.split(), capture_output=True, test=True, cwd=cwd)
     try:
         result = subprocess.run(cmd.split(), capture_output=True, text=True, check=True, cwd=cwd)  # noqa: S603
@@ -87,6 +93,7 @@ def _git_clone(url, local_name, abs_path, bare=False, depth=1, tag=None):
 
 
 def _git_pull(abs_path, rebase=True):
+    """Pull a git repo at a given path."""
     # build git command
     git_command = "git pull --progress "
     if rebase:

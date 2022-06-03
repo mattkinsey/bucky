@@ -1,3 +1,4 @@
+"""Provide a context that changes working dir and pops back."""
 import contextlib
 import os
 from pathlib import Path
