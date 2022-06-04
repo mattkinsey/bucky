@@ -85,6 +85,7 @@ def common(
     logger.debug(cfg)
 
 
+main_click_object = typer.main.get_command(main)
 if __name__ == "__main__":
     # with logger.catch(reraise=False, onerror=lambda _: sys.exit(1)):
-    main()
+    main_click_object()
