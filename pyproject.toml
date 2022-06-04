@@ -92,6 +92,7 @@ interrogate = "^1.5.0"
 bandit = "^1.7.4"
 pytest-steps = "^1.8.0"
 flake8 = "3.9.0"
+sphinx-click = "^4.1.0"
 
 
 [tool.black]

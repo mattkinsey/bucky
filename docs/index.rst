@@ -14,7 +14,9 @@ The Bucky model is a spatial SEIR model for simulating COVID-19 at the county le
 
    getting_started
    user_guide
+   cli
    api
+
 
 Indices and tables
 ==================

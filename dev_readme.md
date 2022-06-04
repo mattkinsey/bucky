@@ -1,14 +1,11 @@
 # Bucky Developer Guide
 WIP document on getting the dev env setup
 
-|This only applies to the ``poetry`` branch until all this is merged into master!|
-|---------------------------------------------------------------------------------
 
 ## Requirements
 ### System
-You need at least git, python 3.7+ and standard build tools (like ubuntu's build-essential)
+You need at least git, python 3.8+ and standard build tools (like ubuntu's build-essential)
 
-TODO someone needs to run through an install in a fresh env to make sure there's nothing else here...
 
 ### Install [Poetry](https://python-poetry.org/)
 Download [install-poetry.py](https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py) and run it:
@@ -47,7 +44,7 @@ To submit pull requests to the [main repository](https://github.com/mattkinsey/b
 Do all of your work in this fork, make a bunch of commits, push to it whenever you want, etc. Once a feature is done, use the GitHub UI to create a pull request from your fork to the upstream repository, so that it may be code reviewed.
 
 ### Install Nox (optional)
-If you want to run the full test suite against multiple versions of python (3.7, 3.8, 3.9, and 3.10), you'll need to setup Nox+pyenv. 
+If you want to run the full test suite against multiple versions of python (3.8, 3.9, and 3.10), you'll need to setup Nox+pyenv. 
 
 | Pyenv potentially mucks up your python setup SYSTEM WIDE, be careful and only do this if you need to. |
 |-------------------------------------------------------------------------------------------------------|
@@ -67,7 +64,6 @@ eval "$(pyenv init -)"
 
 * Install compatible python versions in pyenv (this will take awhile to build each one).
   ```bash
-  pyenv install 3.7.11
   pyenv install 3.8.12
   pyenv install 3.9.10
   pyenv install 3.10.2
@@ -76,16 +72,16 @@ eval "$(pyenv init -)"
 * Set the local python versions for bucky:
   ```bash
   cd bucky
-  pyenv local 3.10.2 3.9.10 3.8.12 3.7.11
+  pyenv local 3.10.2 3.9.10 3.8.12
   ```
-  The first version listed is the one used when you run plain ``python``. Every other version can be used by invoking ``python<major.minor>``. For example, use ``python3.7`` to invoke Python 3.7.
+  The first version listed is the one used when you run plain ``python``. Every other version can be used by invoking ``python<major.minor>``. For example, use ``python3.8`` to invoke Python 3.8.
 
 * Install [Nox](https://nox.thea.codes/) at the system level (not in a bucky venv)
   ```bash
   pip install nox
   ```
 
-Now you should be setup to run the full test suite against all four python versions by running nox in the top level bucky directory:
+Now you should be setup to run the full test suite against all three python versions by running nox in the top level bucky directory:
 ```bash
 cd bucky
 nox
