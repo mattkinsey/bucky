@@ -73,6 +73,7 @@ class buckyVaccAlloc:
 
         # overwrite daily allocs w/ historical data if present
         # vac_hist['Doses_Distributed_rolling_daily'] = vac_hist['Doses_Distributed'].diff().rolling(7).mean()
+
         for t in range(1, hist_t + 1):
             daily_vacs = vac_hist.loc[vac_hist.Date == pd.Timestamp(first_date - datetime.timedelta(days=hist_t - t))]
 
@@ -87,7 +88,11 @@ class buckyVaccAlloc:
 
             adm1_daily_vac = xp.array(daily_vacs[1])
 
-            self.adm1_vac_timeseries[t] = adm1_daily_vac
+            try:
+                self.adm1_vac_timeseries[t] = adm1_daily_vac
+            except ValueError:
+                # TODO warn about missing data
+                self.adm1_vac_timeseries[t] = self.adm1_vac_timeseries[t - 1]
 
         self.dist_future_mask = xp.all(self.adm1_vac_timeseries < 0, axis=1)
         self.n_future_days = xp.to_cpu(xp.sum(self.dist_future_mask))
