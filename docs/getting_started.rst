@@ -4,80 +4,63 @@ Quickstart
 
 Requirements
 ------------
-The Bucky model currently supports Linux and OSX and includes GPU support for accelerated modeling and processing. Anaconda environment files are provided for installation of dependencies. 
+The Bucky model currently supports Linux and includes GPU support for accelerated modeling and processing.
+
+* GPU support is provided via `CuPy <https://cupy.dev/>`_. You'll need to ensure that your system is compatible with `CuPy's requirements <https://docs.cupy.dev/en/stable/install.html#requirements>`_, namely that you have an NVIDIA CUDA GPU and CUDA Toolkit version 10.2+ installed prior to installing bucky.
+
+* Python version v3.8.0+ / v3.9.0+ / v3.10.0+. If your system has an older Python release we recommend installing bucky in an `anaconda <https://www.anaconda.com/>`_ environment. Instructions to install conda are availible in the `conda documentation <https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html>`_.
+
+* git must be installed on you system and in you `PATH`.
 
 Installation
 ------------
-Clone the repo using git:
+.. note::
+    This will install bucky for execution ONLY. If you plan to develop the model you'll need to install it via the instuctions found `here <https://github.com/mattkinsey/bucky/blob/master/dev_readme.md>`_
+
+Install bucky via `pip <https://pypi.org/project/pip/>`_:
 
 .. code-block:: bash
 
-    git clone https://github.com/mattkinsey/bucky.git
+    pip install bucky-covid
 
 
-Create Anaconda environment using `environment.yml` or `environment_gpu.yml` if using the GPU.
-
-.. code-block:: bash
-
-    conda env create --file environment[_gpu].yml
-    conda activate bucky[_gpu]
-
-
-*Optional*: Data and output directory default locations are defined in `config.yml`. Edit this file to change these.
-
-Download the required US data using the provided shell script:
+Setting a working directory
+---------------------------
+Bucky will produce multiple folders for downloaded historical data and outputs. It's recommended to put these in their own directory, for example `~/bucky`, and excute the bucky CLI from that directory.
 
 .. code-block:: bash
 
-    ./get_US_data.sh
+    BUCKY_DIR=~/bucky
+    mkdir $BUCKY_DIR
+    cd $BUCKY_DIR
 
+.. note::
+   The location of these directories can be globally specified in the configuration files. TODO link to config
 
 Running the Model
 -----------------
 
-In order to illustrate how to run the model, this section contains the commands needed to run a small simulation. First, create the intermediate graph format used by the model. This graph contains county-level data on the nodes and mobility information on the edges. The command below creates a US graph for a simulation that will start on October 1, 2020. 
+In order to illustrate how to run the model, this section contains the commands needed to run a small simulation. First, you have to download the input data required for a simulation:
 
 .. code-block:: bash
 
-    ./bmodel make_input_graph -d 2020-10-01
+    bucky data sync
 
-After creating the graph, run the model with 100 iterations and 20 days:
+.. note::
+    By default this data will be save to `<pwd>/data`.
 
-.. code-block:: bash
-
-    ./bmodel model -n 100 -d 20
-
-This will create a folder in the `raw_output` directory with the unique run ID. The script `postprocess` processes and aggregates the Monte Carlo runs. This script by default postprocesses the most recent data in the `raw_output` directory and aggregates at the national, state, and county level.
+You can now run the model, calculate quantile estimates and generate some plots. For example, to run the model with 100 Monte Carlo iterations and 20 days:
 
 .. code-block:: bash
 
-    ./bmodel postprocess
+    bucky run -n 100 -d 20
 
-
-Visualizing Results
--------------------
-To create plots:
+Equivalently, you can run each step on it's own:
 
 .. code-block:: bash
 
-    ./bmodel viz.plot
+    bucky run model -n 100 -d 20
+    bucky run postprocess
+    bucky viz plot
 
-
-Like postprocessing, this script by default creates plots for the most recently processed data. Plots will be located in `output/<run_id>/plots`. These plots can be customized to show different columns and historical data. See the documentation for more.
-
-Lookup Tables
--------------
-
-During postprocessing, the graph file is used to define geographic relationships between administrative levels (e.g. counties, states). In some cases, a user may want to define custom geographic groupings for visualization and analysis. For example, the National Capital Region includes counties from Maryland and Virginia along with Washington, DC. An example lookup table for this region (also known as the DMV) is included in the repo, *DMV.lookup*. 
-
-To aggregate data with this lookup table, use the flag `--lookup` followed by the path to the lookup file:
-
-.. code-block:: bash
-
-    ./bmodel postprocess --lookup DMV.lookup
-
-This will create a new directory with the prefix *DMV_* in the default output directory (output/DMV_<run_id>/). To plot:
-
-.. code-block:: bash
-
-  ./bmodel model viz.plot --lookup DMV.lookup
+Running the model will produce output csvs and plots located in the specified `output_dir`, by defualt this will be located at `<pwd>/output`.
