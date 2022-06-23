@@ -3,6 +3,7 @@ import hashlib
 import io
 import multiprocessing
 import subprocess  # noqa: S404
+import sys
 import urllib.request
 import zipfile
 from collections import OrderedDict
@@ -24,8 +25,11 @@ class BuckySyncException(BuckyException):
 
 def _locate_included_data():
     """locate the base_config package that shipped with bucky (it's likely in site-packages)."""
-    with resources.path("bucky", "included_data") as inc_data_path:
-        return Path(inc_data_path)
+    if sys.version_info >= (3, 9):
+        return resources.files("bucky") / "included_data"
+    else:
+        with resources.path("bucky", "included_data") as inc_data_path:
+            return Path(inc_data_path)
 
 
 def _hash_file_obj(obj):
