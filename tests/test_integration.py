@@ -47,3 +47,12 @@ def test_full_run_integration(cli, caplog, tmp_cwd):
     result = cli.invoke(main, main_flags + ["viz", "plot", "-np", "1"], echo=True, catch_exceptions=False)
     assert result.exit_code == 0
     yield
+
+    result = cli.invoke(
+        main,
+        main_flags + ["viz", "plot", "-np", "1", "-c", "daily_hospitalizations", "-c ", "current_hospitalizations"],
+        echo=True,
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0
+    yield
