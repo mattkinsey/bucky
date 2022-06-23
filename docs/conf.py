@@ -31,7 +31,7 @@ from github_link import make_linkcode_resolve  # isort:skip  # pylint: disable=w
 project = "Bucky"
 project_copyright = "2020, The Johns Hopkins University Applied Physics Laboratory LLC"
 author = "Matt Kinsey <matt@mkinsey.com>"
-release = "1.0.0.alpha0.post1"
+release = "1.0.0.alpha0.post2"
 version = ".".join(release.split(".", maxsplit=2)[:2])
 # change the name of index for RTD
 master_doc = "index"
