@@ -3,6 +3,7 @@
 ![black-flake8-isort-hooks](https://github.com/mattkinsey/bucky/workflows/black-flake8-isort-hooks/badge.svg)
 [![CodeFactor](https://www.codefactor.io/repository/github/mattkinsey/bucky/badge/master)](https://www.codefactor.io/repository/github/mattkinsey/bucky/overview/master)
 ![Interrogate](docs/_static/interrogate_badge.svg)
+[![Coverage Status](https://coveralls.io/repos/github/mattkinsey/bucky/badge.svg?branch=master)](https://coveralls.io/github/mattkinsey/bucky?branch=master)
 
 **[Documentation](https://bucky.readthedocs.io/en/latest/)**
 
