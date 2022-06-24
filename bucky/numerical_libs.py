@@ -18,6 +18,7 @@ from functools import partial, wraps
 
 import numpy as xp
 import scipy.integrate._ivp.ivp as xp_ivp
+import scipy.signal
 import scipy.sparse as xp_sparse
 import scipy.special
 
@@ -33,6 +34,7 @@ xp.device_count = 0
 xp.scatter_add = xp.add.at
 xp.optimize_kernels = contextlib.nullcontext
 xp.special = scipy.special
+xp.signal = scipy.signal
 xp.empty_pinned = xp.empty
 xp.empty_like_pinned = xp.empty_like
 xp.zeros_pinned = xp.zeros
@@ -268,9 +270,11 @@ def enable_cupy(optimize=False, cache_dir=None):
 
         cp.array = array_f32
 
+    import cupyx.scipy.signal
     import cupyx.scipy.special  # pylint: disable=import-outside-toplevel
 
     cp.special = cupyx.scipy.special
+    cp.signal = cupyx.scipy.signal
 
     # grab pinned mem allocators
     cp.empty_pinned = cupyx.empty_pinned
