@@ -33,7 +33,7 @@ from loguru import logger
 
 from .numerical_libs import sync_numerical_libs, xp
 from .util import distributions
-from .util.extrapolate import interp_extrap
+from .util.age_interp import age_bin_interp
 from .util.nested_dict import NestedDict
 
 
@@ -138,32 +138,18 @@ class BuckyConfig(NestedDict):
         yaml.dump(self._to_lists(copy=True).to_dict(), stream, *args, **kwargs)
         return stream.getvalue()
 
-    @staticmethod
-    def _age_interp(x_bins_new, x_bins, y):
-        """Interpolate parameters define in age groups to a new set of age groups."""
-        # TODO we should probably account for population for the 65+ type bins...
-        # TODO move
-        x_bins_new = xp.array(x_bins_new)
-        x_bins = xp.array(x_bins)
-        y = xp.array(y)
-        if (x_bins_new.shape != x_bins.shape) or xp.any(x_bins_new != x_bins):
-            x_mean_new = xp.mean(x_bins_new, axis=1)
-            x_mean = xp.mean(x_bins, axis=1)
-            return interp_extrap(x_mean_new, x_mean, y)
-        return y
-
     @sync_numerical_libs
     def interp_age_bins(self):
         def _interp_values_one(d):
-            d["value"] = self._age_interp(self["model.structure.age_bins"], d.pop("age_bins"), d["value"])
+            d["value"] = age_bin_interp(self["model.structure.age_bins"], d.pop("age_bins"), d["value"])
             return d
 
         def _interp_dists_one(d):
             bins = d.pop("age_bins")
             if "loc" in d["distribution"]:
-                d["distribution.loc"] = self._age_interp(self["model.structure.age_bins"], bins, d["distribution.loc"])
+                d["distribution.loc"] = age_bin_interp(self["model.structure.age_bins"], bins, d["distribution.loc"])
             if "scale" in d["distribution"]:
-                d["distribution.scale"] = self._age_interp(
+                d["distribution.scale"] = age_bin_interp(
                     self["model.structure.age_bins"],
                     bins,
                     d["distribution.scale"],
