@@ -41,6 +41,7 @@ def write_parquet_dataset(df_data, data_dir, stream, pinned_mem):
 
 
 def merge_parquet_dataset(data_dir, **kwargs):
+    """Merge parquet datasets w/ fastparquet."""
     logger.info("Merging parquet files")
 
     for partition in data_dir.glob("date=*"):

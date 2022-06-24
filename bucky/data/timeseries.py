@@ -23,6 +23,7 @@ class SpatialStratifiedTimeseries:
     adm_mapping: AdminLevelMapping  # = field(init=False)
 
     def __post_init__(self):
+        """Perform some simple shape validation on after initing."""
         valid_shape = self.dates.shape + self.adm_ids.shape
         for f in fields(self):
             if "data_field" in f.metadata:
@@ -32,6 +33,7 @@ class SpatialStratifiedTimeseries:
                     raise ValueError
 
     def __repr__(self) -> str:
+        """Only print summary of the object in interactive sessions."""
         names = [f.name for f in fields(self) if f.name not in ["adm_ids", "dates"]]
         return (
             f"{names} for {self.adm_ids.shape[0]} adm{self.adm_level} regions from {self.start_date} to {self.end_date}"
@@ -182,6 +184,7 @@ def _mask_date_range(
     force_enddate: Optional[datetime.date] = None,
     force_enddate_dow: Optional[int] = None,
 ):
+    """Calculate the bool mask for dates to include from the historical data."""
     valid_date_range = list(valid_date_range)
 
     if valid_date_range[0] is None:
@@ -213,12 +216,15 @@ def _mask_date_range(
 
 @dataclass(frozen=True, repr=False)
 class CSSEData(SpatialStratifiedTimeseries):
+    """Dataclass that holds the CSSE case/death data."""
+
     cumulative_cases: ArrayLike = field(metadata={"data_field": True, "summable": True})
     cumulative_deaths: ArrayLike = field(metadata={"data_field": True, "summable": True})
     incident_cases: ArrayLike = field(default=None, metadata={"data_field": True, "summable": True})
     incident_deaths: ArrayLike = field(default=None, metadata={"data_field": True, "summable": True})
 
     def __post_init__(self):
+        """Fill in incidence data if only inited with cumulatives."""
         if self.incident_cases is None:
             object.__setattr__(self, "incident_cases", xp.gradient(self.cumulative_cases, axis=0, edge_order=2))
         if self.incident_deaths is None:
@@ -235,6 +241,7 @@ class CSSEData(SpatialStratifiedTimeseries):
         force_enddate_dow: Optional[int] = None,
         adm_mapping: Optional[AdminLevelMapping] = None,
     ):
+        """Read CSSE data from a CSV."""
         logger.info("Reading historical CSSE data from {}", file)
         adm_level = "adm2"
         var_dict = SpatialStratifiedTimeseries._generic_from_csv(
@@ -253,6 +260,8 @@ class CSSEData(SpatialStratifiedTimeseries):
 
 @dataclass(frozen=True, repr=False)
 class HHSData(SpatialStratifiedTimeseries):
+    """Dataclass that holds the HHS hospitalization data."""
+
     current_hospitalizations: ArrayLike = field(metadata={"data_field": True, "summable": True})
     incident_hospitalizations: ArrayLike = field(metadata={"data_field": True, "summable": True})
 
@@ -266,6 +275,7 @@ class HHSData(SpatialStratifiedTimeseries):
         force_enddate_dow: Optional[int] = None,
         adm_mapping: Optional[AdminLevelMapping] = None,
     ):
+        """Read HHS data from a CSV."""
         logger.info("Reading historical HHS hospitalization data from {}", file)
         adm_level = "adm1"
         var_dict = SpatialStratifiedTimeseries._generic_from_csv(
@@ -285,6 +295,7 @@ class HHSData(SpatialStratifiedTimeseries):
         return HHSData(1, **var_dict)
 
 
+# TODO redundant w/ BuckyFittedCaseData?!
 @dataclass(frozen=True, repr=False)
 class BuckyFittedData(SpatialStratifiedTimeseries):
     cumulative_cases: ArrayLike = field(metadata={"data_field": True, "summable": True})
@@ -295,6 +306,8 @@ class BuckyFittedData(SpatialStratifiedTimeseries):
 
 @dataclass(frozen=True, repr=False)
 class BuckyFittedCaseData(SpatialStratifiedTimeseries):
+    """Dataclass that holds the fitted CSSE case/death data, including incidence rates."""
+
     cumulative_cases: ArrayLike = field(metadata={"data_field": True, "summable": True})
     cumulative_deaths: ArrayLike = field(metadata={"data_field": True, "summable": True})
     incident_cases: ArrayLike = field(metadata={"data_field": True, "summable": True})
@@ -309,7 +322,8 @@ class BuckyFittedCaseData(SpatialStratifiedTimeseries):
         force_enddate_dow: Optional[int] = None,
         adm_mapping: Optional[AdminLevelMapping] = None,
     ):
-        logger.info("Reading historical CSSE data from {}", file)
+        """Read fitted CSSE data from CSV."""
+        logger.info("Reading fitted CSSE data from {}", file)
         adm_level = "adm2"
         var_dict = SpatialStratifiedTimeseries._generic_from_csv(
             file,

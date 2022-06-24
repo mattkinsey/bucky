@@ -90,10 +90,9 @@ def main(cfg):
     adm_level_values = {k: np.unique(v) for k, v in adm_map.items()}
     adm_level_values["adm0"] = np.array(["US"])
 
-    # pf = ParquetFile(str(data_dir))
-
     def process_one_date(date_enum_tuple):
-        nonlocal cfg, write_queue, adm_sizes, adm_array_map, adm2_sorted_ind, adm_level_values  # pf
+        """Perform postprocessing for one date (so that we can call multiple days at the same time)."""
+        nonlocal cfg, write_queue, adm_sizes, adm_array_map, adm2_sorted_ind, adm_level_values
         date_i = date_enum_tuple[0]
         date = date_enum_tuple[1]
 

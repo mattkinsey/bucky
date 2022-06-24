@@ -1,3 +1,4 @@
+"""Utilities to pull/update PAI data sources."""
 import functools
 import hashlib
 import io
@@ -110,6 +111,7 @@ def _git_pull(abs_path, rebase=True):
 
 
 def process_datasources(data_sources, data_dir, ssl_no_verify=False, n_jobs=None):
+    """Process all the data sources found in the config w/ multiprocessing."""
 
     raw_data_dir = data_dir / "raw"
     raw_data_dir.mkdir(exist_ok=True, parents=True)
@@ -147,6 +149,7 @@ def process_datasources(data_sources, data_dir, ssl_no_verify=False, n_jobs=None
 
 
 def _process_one_datasource(source_cfg, raw_data_dir):
+    """Perform all the processing needed for a single data source."""
     f_path = raw_data_dir / source_cfg["name"]
 
     if source_cfg["type"] == "git":

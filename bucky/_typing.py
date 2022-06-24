@@ -1,3 +1,4 @@
+"""Provide some generic types for mypy."""
 import os
 from typing import Union
 

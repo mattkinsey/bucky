@@ -106,10 +106,11 @@ class NestedDict(MutableMapping):
     # def __str__(self):
 
     def flatten(self, parent=""):
-        """Flatten to a normal dict where the heirarcy exists in the key names."""
+        """Flatten to a normal dict where the hierarchy exists in the key names."""
         ret = OrderedDict() if self.ordered else {}
 
         def _recursive_flatten(v, parent_key=""):
+            """Recursively flatten, handling both list and dict types."""
             if _is_list_type(v):
                 for i, v2 in enumerate(v):
                     key = parent_key + self.seperator + str(i) if parent_key else str(i)

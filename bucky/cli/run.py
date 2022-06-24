@@ -23,6 +23,7 @@ def run_no_subcmd(
     run_id: str = typer.Option(generate_runid(), "--runid", help="UUID name of current run"),
     start_date: str = typer.Option(None, "--start-date", help="Start date for the simulation. (YYYY-MM-DD)"),
 ):
+    """`bucky run`, run the default steps for a full model run (run model -> calculate quantiles -> make plots)."""
     # If no subcommand is selected run model->postprocess->plot
     if ctx.invoked_subcommand is None:
 

@@ -12,6 +12,8 @@ app = typer.Typer()
 
 
 class AdmLevel(str, Enum):
+    """Enum of allows admin level values for the cli."""
+
     adm0 = "adm0"
     adm1 = "adm1"
     adm2 = "adm2"
