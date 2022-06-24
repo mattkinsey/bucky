@@ -105,8 +105,10 @@ class BuckyConfig(NestedDict):
 
     @sync_numerical_libs
     def _to_arrays(self, copy=False):
+        """Cast all terminal sub-lists into xp.arrays."""
         # wip
         def _cast_to_array(v):
+            """Cast a single non-str iterable to an array."""
             return v if isinstance(v, str) else xp.array(v)
 
         ret = self.apply(_cast_to_array, copy=copy, apply_to_lists=True)
@@ -114,8 +116,10 @@ class BuckyConfig(NestedDict):
 
     @sync_numerical_libs
     def _to_lists(self, copy=False):
+        """Cast all terminal sub-arrays into lists."""
         # wip
         def _cast_to_list(v):
+            """Cast an xp.array to a list (an move to cpu mem)."""
             return xp.to_cpu(xp.squeeze(v)).tolist() if isinstance(v, xp.ndarray) else v
 
         ret = self.apply(_cast_to_list, copy=copy)
@@ -140,11 +144,15 @@ class BuckyConfig(NestedDict):
 
     @sync_numerical_libs
     def interp_age_bins(self):
+        """Interpolate any age stratified params to the model specified age bins."""
+
         def _interp_values_one(d):
+            """Interp one array to the model's age bins."""
             d["value"] = age_bin_interp(self["model.structure.age_bins"], d.pop("age_bins"), d["value"])
             return d
 
         def _interp_dists_one(d):
+            """Interp one distribution to the model's age bins."""
             bins = d.pop("age_bins")
             if "loc" in d["distribution"]:
                 d["distribution.loc"] = age_bin_interp(self["model.structure.age_bins"], bins, d["distribution.loc"])
@@ -162,7 +170,10 @@ class BuckyConfig(NestedDict):
         return ret
 
     def promote_sampled_values(self):
+        """Promote sampled distributions up in the hierarchy so they are more easily referenced."""
+
         def _promote_values(d):
+            """Promote one value if it's size 1."""
             return d["value"] if len(d) == 1 else d
 
         ret = self.apply(_promote_values, contains_filter="value")

@@ -1,3 +1,4 @@
+"""Provide batched, cupy-enabled LOESS smoothing."""
 from loguru import logger
 
 from ..numerical_libs import sync_numerical_libs, xp, xp_sparse
@@ -6,7 +7,8 @@ from .power_transforms import YeoJohnson
 from .spline_smooth import lin_reg, ridge
 
 
-def gaussian_kernel(x, tau):
+def _gaussian_kernel(x, tau):
+    """Batched gaussian kernel function."""
     x_outer_diff = x[:, :, None] - x[:, None, :]
     x_normed_outer_diff = x_outer_diff / xp.max(x_outer_diff, axis=(1, 2), keepdims=True)
     numer = xp.einsum("ijk,ikj->ijk", x_normed_outer_diff, x_normed_outer_diff)
@@ -14,7 +16,8 @@ def gaussian_kernel(x, tau):
     return w
 
 
-def tricubic_kernel(x, f=1.0 / 8.0):
+def _tricubic_kernel(x, f=1.0 / 8.0):
+    """Batched tricubic pseudo-kernel function."""
     x_outer_diff = x[:, :, None] - x[:, None, :]
     x_normed_outer_diff = x_outer_diff / xp.max(f * x_outer_diff, axis=(1, 2), keepdims=True)
     w = (1.0 - xp.abs(x_normed_outer_diff) ** 3) ** 3
@@ -23,6 +26,7 @@ def tricubic_kernel(x, f=1.0 / 8.0):
 
 @sync_numerical_libs
 def loess(y, x=None, tau=0.05, iters=1, degree=2, q=None, data_w=None):
+    """Perform batched LOESS."""
 
     if x is None:
         x = xp.arange(0, y.shape[1], dtype=float)
@@ -40,7 +44,7 @@ def loess(y, x=None, tau=0.05, iters=1, degree=2, q=None, data_w=None):
         w = xp.clip(xp.abs((x[:, :, None] - x[:, None, :]) / h[..., None]), a_min=0.0, a_max=1.0)
         w = (1.0 - w**3) ** 3
     else:
-        w = gaussian_kernel(x, tau)
+        w = _gaussian_kernel(x, tau)
 
     if data_w is not None:
         iters = 1

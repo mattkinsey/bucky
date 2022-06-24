@@ -24,6 +24,8 @@ def cached_scatter_add(a, slices, value):
 
 
 def read_population_tensor(file, return_adm2_ids=False, min_pop_per_bin=1.0):
+    """Read in csv containing binned population data."""
+    # TODO I tihnk at this point we need a class for Nij that handles the reductions...
     logger.debug("Reading census data from {}", file)
     census_df = pd.read_csv(
         file,

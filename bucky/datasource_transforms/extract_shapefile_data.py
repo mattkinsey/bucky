@@ -1,3 +1,4 @@
+"""Preprocess state/county TIGER shapefiles."""
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
 
@@ -9,7 +10,7 @@ from scipy.spatial.distance import pdist, squareform
 
 
 def extract(output_connectivity_filename, output_adm_filename, census_data_path):
-
+    """Extract the info we need from the shapefiles."""
     base_dir = Path().cwd()
 
     # Get county populations

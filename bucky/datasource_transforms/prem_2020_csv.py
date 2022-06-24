@@ -1,9 +1,11 @@
+"""Preprocess Prem et al. contact matrices."""
 from pathlib import Path
 
 import pandas as pd
 
 
 def transform(output_filename):
+    """Standardize format of contact matrices."""
 
     base_dir = Path().cwd()
 

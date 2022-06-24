@@ -1,3 +1,4 @@
+"""Provide utils to typer to enable click-like invoke."""
 from typing import Callable, Optional, TypeVar, Union
 
 import click

@@ -24,6 +24,7 @@ nan_fips_uid_map = {
 
 
 def transform(output_file, census_data_path):
+    """Convert CSSE csv format yo standard format and map odd rows to where they should go."""
     repo_base = Path().cwd()
 
     ts_base_path = repo_base / "csse_covid_19_data" / "csse_covid_19_time_series"

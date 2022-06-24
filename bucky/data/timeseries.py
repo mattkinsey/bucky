@@ -298,6 +298,8 @@ class HHSData(SpatialStratifiedTimeseries):
 # TODO redundant w/ BuckyFittedCaseData?!
 @dataclass(frozen=True, repr=False)
 class BuckyFittedData(SpatialStratifiedTimeseries):
+    """Dataclass for fitted case/death time series data."""
+
     cumulative_cases: ArrayLike = field(metadata={"data_field": True, "summable": True})
     cumulative_deaths: ArrayLike = field(metadata={"data_field": True, "summable": True})
     incident_cases: ArrayLike = field(metadata={"data_field": True, "summable": True})

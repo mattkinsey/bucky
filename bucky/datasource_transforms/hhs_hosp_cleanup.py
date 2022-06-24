@@ -1,3 +1,4 @@
+"""Preprocess HHS hospitalization data."""
 from pathlib import Path
 
 import pandas as pd
@@ -7,7 +8,7 @@ import us
 
 
 def transform(output_file):
-
+    """Convert HHS csv to standard format."""
     base_dir = Path().cwd()
 
     hhs_file = base_dir / "hhs_hosp.csv"

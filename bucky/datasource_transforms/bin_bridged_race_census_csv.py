@@ -6,6 +6,7 @@ import pandas as pd
 
 
 def _fixed_width_to_csv(file, blocks):
+    """Convert a fixed with file into a csv-like file object."""
     slices = [slice(*b) for b in blocks]
     with open(file, "r") as f:
         data = f.readlines()
