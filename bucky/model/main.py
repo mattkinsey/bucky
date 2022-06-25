@@ -108,7 +108,7 @@ class buckyModelCovid:
 
         self.Cij = xp.vstack([self.contact_mats[k][None, ...] for k in sorted(self.contact_mats)])
 
-        # Get pull some frequently used vars into out scope (stratified population, etc)
+        # Pull some frequently used vars into this scope (stratified population, etc)
         self.Nij = g_data.Nij
         self.Nj = g_data.Nj
 
