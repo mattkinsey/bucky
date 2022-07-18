@@ -74,7 +74,7 @@ jedi==0.18.1; python_version >= "3.8"
 jellyfish==0.6.1
 jinja2==3.1.2; python_version >= "3.7" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version >= "3.7"
 joblib==1.1.0; python_version >= "3.6"
-kiwisolver==1.4.2; python_version >= "3.7"
+kiwisolver==1.4.4; python_version >= "3.7"
 latexcodec==2.0.1; python_version >= "3.6" and python_full_version < "3.0.0" or python_full_version >= "3.4.0" and python_version >= "3.6"
 lazy-object-proxy==1.7.1; python_full_version >= "3.7.2" and python_version >= "3.6"
 loguru==0.6.0; python_version >= "3.5"
