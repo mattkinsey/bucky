@@ -20,6 +20,9 @@ def transform(output_file):
     df["adm1"] = df.state.map(state_abbr_map)
     df["date"] = pd.to_datetime(df["date"])
 
+    # convert region code to int type
+    df["adm1"] = pd.to_numeric(df["adm1"])
+
     df = df.set_index(["adm1", "date"]).sort_index()
 
     inc_hosps = df.previous_day_admission_adult_covid_confirmed + df.previous_day_admission_pediatric_covid_confirmed
