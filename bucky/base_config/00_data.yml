@@ -89,3 +89,11 @@ data_sources:
         func: bucky.datasource_transforms.hhs_hosp_cleanup.transform
         args:
           output_file: !path ../../hhs_timeseries.csv
+      - desc: "Aggregate and drop unused columns from HHS data for use in flu hospitalizations"
+        func: bucky.datasource_transforms.hhs_hosp_flu_cleanup.transform
+        args:
+          output_file: !path ../../hhs_hosp_flu.csv
+      - desc: "Aggregate and drop unused columns from HHS and ILINet data for use in flu deaths and cases"
+        func: bucky.datasource_transforms.hhs_death_flu_cleanup.transform
+        args:
+          output_file: !path ../../hhs_death_flu.csv
