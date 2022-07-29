@@ -1,28 +1,30 @@
 from pathlib import Path
 import pandas as pd
-import numpy as np
 from datetime import datetime
 import us
 from epiweeks import Week
 
 
 def parse_epiweeks(df):
+    """ Converts the week and year information into a datetime stamp. """
+
     dates = []
     for _, row in df.iterrows():
         week_num = int(row['week'])
         year = int(row['year'])
         dates.append(Week(year, week_num).enddate())
-
     df = df.assign(date= dates)
 
     return df
 
 def parse_states(df):
+    """ Converts the region into state abbreviation. """
+
     state_abbrs = []
     for _, row in df.iterrows():
         region = row['region'].lower()
         if region.startswith('commonwealth'):
-            region = 'Northern Mariana Islands' 
+            region = 'Northern Mariana Islands'
         elif region == 'new york city':
             region = 'new york'
         state_abbrs.append(us.states.lookup(region).abbr)
