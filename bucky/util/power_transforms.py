@@ -5,6 +5,8 @@ from ..numerical_libs import sync_numerical_libs, xp
 
 # TODO this could be better organized...
 
+EPS = 1e-8
+
 
 @sync_numerical_libs
 def yeojohnson(y, lam):
@@ -45,7 +47,7 @@ def inv_yeojohnson(y, lam):
     two_mask = xp.broadcast_to(two_mask[:, None], pos_mask.shape)
     lam1 = xp.broadcast_to(lam1, pos_mask.shape)
 
-    ret[pos_mask] = (lam1[pos_mask] * y_in[pos_mask] + 1.0) ** (1.0 / lam1[pos_mask]) - 1.0
+    ret[pos_mask] = (lam1[pos_mask] * y_in[pos_mask] + 1.0) ** (1.0 / (lam1[pos_mask] + EPS)) - 1.0
     ret[pos_mask & zero_mask] = xp.exp(y_in[pos_mask & zero_mask]) - 1.0
 
     ret[~pos_mask] = -(((lam1[~pos_mask] - 2.0) * y_in[~pos_mask] + 1.0) ** (1.0 / (2.0 - lam1[~pos_mask]))) + 1.0
