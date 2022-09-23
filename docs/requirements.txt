@@ -79,7 +79,7 @@ latexcodec==2.0.1; python_version >= "3.6" and python_full_version < "3.0.0" or 
 lazy-object-proxy==1.7.1; python_full_version >= "3.7.2" and python_version >= "3.6"
 loguru==0.6.0; python_version >= "3.5"
 makefun==1.13.1
-mako==1.2.0; python_version >= "3.7"
+mako==1.2.3; python_version >= "3.7"
 markupsafe==2.1.1; python_version >= "3.7" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version >= "3.7"
 matplotlib-inline==0.1.3; python_version >= "3.8"
 matplotlib==3.5.2; python_version >= "3.7"
