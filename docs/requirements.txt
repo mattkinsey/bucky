@@ -68,7 +68,7 @@ importlib-resources==5.7.1; python_version < "3.9" and python_version >= "3.7"
 iniconfig==1.1.1; python_version >= "3.7"
 interrogate==1.5.0; python_version >= "3.6"
 invoke==1.7.1
-ipython==8.4.0; python_version >= "3.8"
+ipython==8.10.0; python_version >= "3.8"
 isort==5.10.1; python_full_version >= "3.6.1" and python_version < "4.0"
 jedi==0.18.1; python_version >= "3.8"
 jellyfish==0.6.1
